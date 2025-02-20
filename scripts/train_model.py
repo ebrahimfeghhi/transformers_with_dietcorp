@@ -1,9 +1,9 @@
 
-modelName = 'speechBaseline4'
+modelName = 'speechBaseline1'
 
 args = {}
-args['outputDir'] = '/oak/stanford/groups/henderj/stfan/logs/speech_logs/' + modelName
-args['datasetPath'] = '/oak/stanford/groups/henderj/fwillett/speech/ptDecoder_ctc'
+args['outputDir'] = '/Users/ebrahimfeghhi/neural_seq_decoder/output/' + modelName
+args['datasetPath'] = '/Users/ebrahimfeghhi/neural_seq_decoder/data/ptDecoder_ctc'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
 args['batchSize'] = 64
@@ -13,7 +13,7 @@ args['nUnits'] = 1024
 args['nBatch'] = 10000 #3000
 args['nLayers'] = 5
 args['seed'] = 0
-args['nClasses'] = 40
+args['nClasses_list'] = [40, 3, 10, 7, 4, 4, 3] # add one to the classes for SIL
 args['nInputFeatures'] = 256
 args['dropout'] = 0.4
 args['whiteNoiseSD'] = 0.8
@@ -24,6 +24,8 @@ args['kernelLen'] = 32
 args['bidirectional'] = True
 args['l2_decay'] = 1e-5
 
-from neural_decoder.neural_decoder_trainer import trainModel
+import sys
+sys.path.append('/Users/ebrahimfeghhi/neural_seq_decoder/src/')
+from neural_decoder.neural_decoder_trainer_articulation import trainModel
 
 trainModel(args)
