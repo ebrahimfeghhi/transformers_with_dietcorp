@@ -1,14 +1,12 @@
 import torch
 from torch import nn
-
 from augmentations import GaussianSmoothing
-
 
 class GRUDecoder(nn.Module):
     def __init__(
         self,
         neural_dim,
-        n_classes,
+        n_classes_list,  # List of class counts for each articulatory feature
         hidden_dim,
         layer_dim,
         nDays=24,
@@ -21,11 +19,10 @@ class GRUDecoder(nn.Module):
     ):
         super(GRUDecoder, self).__init__()
 
-        # Defining the number of layers and the nodes in each layer
         self.layer_dim = layer_dim
         self.hidden_dim = hidden_dim
         self.neural_dim = neural_dim
-        self.n_classes = n_classes
+        self.n_classes_list = n_classes_list  # List of output sizes
         self.nDays = nDays
         self.device = device
         self.dropout = dropout
@@ -72,13 +69,11 @@ class GRUDecoder(nn.Module):
                 thisLayer.weight + torch.eye(neural_dim)
             )
 
-        # rnn outputs
-        if self.bidirectional:
-            self.fc_decoder_out = nn.Linear(
-                hidden_dim * 2, n_classes + 1
-            )  # +1 for CTC blank
-        else:
-            self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1)  # +1 for CTC blank
+        # Output heads for each articulatory feature
+        self.fc_outs = nn.ModuleList([
+            nn.Linear(hidden_dim * (2 if bidirectional else 1), n_classes + 1)  # +1 for CTC blank
+            for n_classes in n_classes_list
+        ])
 
     def forward(self, neuralInput, dayIdx):
         
@@ -122,6 +117,7 @@ class GRUDecoder(nn.Module):
 
         hid, _ = self.gru_decoder(stridedInputs, h0.detach())
 
-        # get seq
-        seq_out = self.fc_decoder_out(hid)
-        return seq_out
+        # Separate outputs for each articulatory feature
+        outputs = tuple(fc(hid) for fc in self.fc_outs)
+
+        return outputs  # Returns a tuple of 6 outputs, one for each feature
