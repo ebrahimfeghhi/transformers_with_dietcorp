@@ -97,7 +97,7 @@ def trainModel(args):
 
     model = GRUDecoder(
         neural_dim=args["nInputFeatures"],
-        n_classes=args["nClasses_list"],
+        n_classes_list=args["nClasses_list"],
         hidden_dim=args["nUnits"],
         layer_dim=args["nLayers"],
         nDays=len(loadedData["train"]),
