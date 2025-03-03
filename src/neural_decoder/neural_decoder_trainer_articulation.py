@@ -2,6 +2,7 @@ import os
 import pickle
 import time
 import sys
+import math
 from edit_distance import SequenceMatcher
 import hydra
 import numpy as np
@@ -80,12 +81,41 @@ def getDatasetLoaders(
 def trainModel(args):
     
     # for combining phoneme level and articulatory loss
-    lambda_weight = 0.5  # Tune this parameter based on validation performance
+    # lambda_weight = 0.5  # Tune this parameter based on validation performance
+    lambda_weight = 0
+
+    # lambda_weight = 1 # loss: 0.83627864, cer: 0.20882341
+
+    def expo_batch_to_lambda(batch): # loss: 0.79279736, cer: 0.20391234
+        num_batches = args["nBatch"]
+        minimum_lambda = 0.01
+        k = -math.log(minimum_lambda) / num_batches
+        lambda_ = 1 - math.e ** (-k * batch)
+        return lambda_
     
+    def lin_batch_to_lambda(batch): # loss: 0.83752237, cer: 0.2086996
+        num_batches = args["nBatch"]
+        lambda_ = batch/num_batches
+        return lambda_
+    
+    def get_adaptive_lambda(current_lambda, current_loss, prev_loss): # increase lambda at faster rate if loss less
+        if prev_loss is None:
+            return current_lambda
+        minimum_lambda_aux = 0.01
+        a = minimum_lambda_aux ** (1/args["nBatch"] * 100) # if loss doesn't change, lambda will reach minimum_lambda_aux at "epoch" (every 100 batches)
+        d = current_loss / prev_loss
+        curr_lambda_aux = 1 - current_lambda
+        new_lambda_aux = curr_lambda_aux * (a ** (1/d))
+        new_lambda = 1 - new_lambda_aux
+        return new_lambda
+
+
+        
+
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
-    device = "cpu"
+    device = "cuda"
     
     with open(args["outputDir"] + "/args", "wb") as file:
         pickle.dump(args, file)
@@ -128,6 +158,9 @@ def trainModel(args):
     testLoss = []
     testCER = []
     startTime = time.time()
+    prev_valid_loss = None
+    allLambda = []
+
     for batch in range(args["nBatch"]):
         model.train()
 
@@ -183,6 +216,11 @@ def trainModel(args):
         for pred, target in zip(articulatory_preds, articulatory_targets):
             pred = pred.log_softmax(2).permute(1, 0, 2)
             articulatory_loss += loss_ctc(pred, target, input_lengths, y_articulatory_len)
+
+        # Update lambda based on tuning schedule
+        # lambda_weight = lin_batch_to_lambda(batch)
+        # lambda_weight = expo_batch_to_lambda(batch)
+        # print("lambda:", lambda_weight)
 
         # Total loss
         loss = lambda_weight * phoneme_loss + (1-lambda_weight) * articulatory_loss
@@ -265,11 +303,18 @@ def trainModel(args):
                         total_seq_length += len(trueSeq)
 
                 avgDayLoss = np.sum(allLoss) / len(testLoader)
+
+                # update lambda dynamically
+                lambda_weight = get_adaptive_lambda(lambda_weight, avgDayLoss.item(), prev_valid_loss)
+                allLambda.append(lambda_weight)
+                
+                prev_valid_loss = avgDayLoss.item()
+
                 cer = total_edit_distance / total_seq_length
 
                 endTime = time.time()
                 print(
-                    f"batch {batch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
+                    f"batch {batch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}, lambda: {lambda_weight}"
                 )
                 startTime = time.time()
 
@@ -282,6 +327,7 @@ def trainModel(args):
             tStats = {}
             tStats["testLoss"] = np.array(testLoss)
             tStats["testCER"] = np.array(testCER)
+            tStats["lambda"] = np.array(allLambda)
 
             with open(args["outputDir"] + "/trainingStats", "wb") as file:
                 pickle.dump(tStats, file)
