@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
-
+from phoneme_to_articulatory import decode_articulatory_seq
 from .model_articulation import GRUDecoder
 from .dataset_articulation import SpeechDataset
 
@@ -80,12 +80,12 @@ def getDatasetLoaders(
 def trainModel(args):
     
     # for combining phoneme level and articulatory loss
-    lambda_weight = 0.5  # Tune this parameter based on validation performance
+    lambda_weight = 1  # Tune this parameter based on validation performance
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
-    device = "cpu"
+    device = "cuda:0"
     
     with open(args["outputDir"] + "/args", "wb") as file:
         pickle.dump(args, file)
@@ -179,10 +179,16 @@ def trainModel(args):
         articulatory_preds = preds[1:]  # The rest of the outputs
         articulatory_targets = [y_voiced, y_place, y_manner, y_height, y_backness, y_roundedness]
 
+        # if(batch == 100):
+        #     import ipdb; ipdb.set_trace();
+        #print(articulatory_preds, articulatory_targets)
+
         articulatory_loss = 0
         for pred, target in zip(articulatory_preds, articulatory_targets):
             pred = pred.log_softmax(2).permute(1, 0, 2)
             articulatory_loss += loss_ctc(pred, target, input_lengths, y_articulatory_len)
+
+    
 
         # Total loss
         loss = lambda_weight * phoneme_loss + (1-lambda_weight) * articulatory_loss
@@ -202,6 +208,9 @@ def trainModel(args):
                 allLoss = []
                 total_edit_distance = 0
                 total_seq_length = 0
+                eval_articulatory_loss = 0
+                art_edit_distance = [0, 0, 0, 0, 0, 0]
+                art_seq_length = [0, 0, 0, 0, 0, 0]
                 
                 
                 for X, y_phoneme, y_voiced, y_place, y_manner, \
@@ -224,70 +233,109 @@ def trainModel(args):
                         y_articulatory_len.to(device),
                         testDayIdx.to(device),
                     )
+
                     
                     pred_all = model.forward(X, testDayIdx)
                     pred = pred_all[0] # only take phoneme predictions for test
                     
+                    adjustedLens = ((X_len - model.kernelLen) / model.strideLen).to(
+                        torch.int32
+                    )
                     loss = loss_ctc(
                         torch.permute(pred.log_softmax(2), [1, 0, 2]),
                         y_phoneme,
                         ((X_len - model.kernelLen) / model.strideLen).to(torch.int32),
                         y_phone_len,
                     )
-                    loss = torch.sum(loss)
+
+                    ###
+                    eval_articulatory_preds = pred_all[1:]
+                    if(eval_articulatory_preds[0].shape[1] < max(input_lengths)):
+                        continue
+                    
+                    eval_articulatory_targets = [y_voiced, y_place, y_manner, y_height, y_backness, y_roundedness]
+
+                    
+                    for idx, (art_pred, art_target) in enumerate(zip(eval_articulatory_preds, eval_articulatory_targets)):
+                        art_pred = art_pred.log_softmax(2).permute(1, 0, 2)
+                        eval_articulatory_loss += loss_ctc(art_pred, art_target, adjustedLens, y_articulatory_len)
+
+                        art_pred = art_pred.permute(1, 0, 2)
+                        art_pred_vals = torch.argmax(art_pred, dim=-1)
+
+
+                        
+                        for b in range(art_pred.shape[0]):
+                            art_unique_vals = torch.unique_consecutive(art_pred_vals[b][:adjustedLens[b]])
+                        
+
+                            art_unique_vals = art_unique_vals.cpu().detach().numpy()
+
+                            cur_pred_vals = np.array([i for i in art_unique_vals if i != 0])
+
+                            trueSeq = np.array(
+                                art_target[b][0 : y_articulatory_len[b]].cpu().detach()
+                            )
+                            matcher = SequenceMatcher(
+                                a=trueSeq.tolist(), b=cur_pred_vals.tolist()
+                            )
+                            art_edit_distance[idx] += matcher.distance()
+                            
+                            art_seq_length[idx] += len(trueSeq)
+
+                    loss = lambda_weight * phoneme_loss + (1-lambda_weight) * eval_articulatory_loss
                     allLoss.append(loss.cpu().detach().numpy())
 
-                    adjustedLens = ((X_len - model.kernelLen) / model.strideLen).to(
-                        torch.int32
-                    )
                     
-                    for iterIdx in range(pred.shape[0]):
+                    # for iterIdx in range(eval_articulatory_preds[0].shape[0]):
+                    #     logits = []
+                    #     for feat in range(len(eval_articulatory_preds)):
+                    #         logits.append(torch.tensor(eval_articulatory_preds[feat][iterIdx, 0 : adjustedLens[iterIdx], :])) 
+                    #     # if batch==800:
+                    #     #     import ipdb; ipdb.set_trace();
+                    #     decodedSeq = decode_articulatory_seq(logits) #returns the corresponding phoneme seq
                         
-                        decodedSeq = torch.argmax(
-                            torch.tensor(pred[iterIdx, 0 : adjustedLens[iterIdx], :]),
-                            dim=-1,
-                        )  # [num_seq,]
-                        
-                        decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
-                        decodedSeq = decodedSeq.cpu().detach().numpy()
-                        decodedSeq = np.array([i for i in decodedSeq if i != 0])
+                    #     decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
+                    #     decodedSeq = decodedSeq.cpu().detach().numpy()
+                    #     decodedSeq = np.array([i for i in decodedSeq if i != 0])
+                    #     trueSeq = np.array(
+                    #         y_phoneme[iterIdx][0 : y_phone_len[iterIdx]].cpu().detach()
+                    #     )
 
-                        trueSeq = np.array(
-                            y_phoneme[iterIdx][0 : y_phone_len[iterIdx]].cpu().detach()
-                        )
+                    #     matcher = SequenceMatcher(
+                    #         a=trueSeq.tolist(), b=decodedSeq.tolist()
+                    #     )
+                        
+                    #     total_edit_distance += matcher.distance()
+                        
+                    #     total_seq_length += len(trueSeq)
 
-                        matcher = SequenceMatcher(
-                            a=trueSeq.tolist(), b=decodedSeq.tolist()
-                        )
-                        
-                        total_edit_distance += matcher.distance()
-                        
-                        total_seq_length += len(trueSeq)
 
                 avgDayLoss = np.sum(allLoss) / len(testLoader)
-                cer = total_edit_distance / total_seq_length
+                # cer = total_edit_distance / total_seq_length
+                art_cer = [art_edit_distance[i]/art_seq_length[i] for i in range(len(art_edit_distance))]
 
                 endTime = time.time()
                 print(
-                    f"batch {batch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
+                    f"batch {batch}, ctc loss: {avgDayLoss:>7f},  art_cer: {art_cer}, time/batch: {(endTime - startTime)/100:>7.3f}"
                 )
                 startTime = time.time()
 
-            if len(testCER) > 0 and cer < np.min(testCER):
-                torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
+            # if len(testCER) > 0 and art_cer < np.min(testCER):
+            #     torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
                 
             testLoss.append(avgDayLoss)
-            testCER.append(cer)
+            testCER.append(art_cer)
 
             tStats = {}
             tStats["testLoss"] = np.array(testLoss)
             tStats["testCER"] = np.array(testCER)
 
-            with open(args["outputDir"] + "/trainingStats", "wb") as file:
-                pickle.dump(tStats, file)
+            # with open(args["outputDir"] + "/trainingStats", "wb") as file:
+            #     pickle.dump(tStats, file)
 
 
-def loadModel(modelDir, nInputLayers=24, device="cuda"):
+def loadModel(modelDir, nInputLayers=24, device="cuda:0"):
     
     modelWeightPath = modelDir + "/modelWeights"
     
