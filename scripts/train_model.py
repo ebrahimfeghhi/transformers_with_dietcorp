@@ -2,8 +2,8 @@
 modelName = 'speechBaseline1'
 
 args = {}
-args['outputDir'] = '/Users/ebrahimfeghhi/neural_seq_decoder/output/' + modelName
-args['datasetPath'] = '/Users/ebrahimfeghhi/neural_seq_decoder/data/ptDecoder_ctc'
+args['outputDir'] = '/home3/skaasyap/willett/neural_seq_decoder/output/' + modelName
+args['datasetPath'] = '/home3/skaasyap/willett/data'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
 args['batchSize'] = 64
@@ -25,7 +25,8 @@ args['bidirectional'] = True
 args['l2_decay'] = 1e-5
 
 import sys
-sys.path.append('/Users/ebrahimfeghhi/neural_seq_decoder/src/')
+sys.path.append('/home3/skaasyap/willett/neural_seq_decoder/src/neural_decoder')
 from neural_decoder.neural_decoder_trainer_articulation import trainModel
 
 trainModel(args)
+ 
