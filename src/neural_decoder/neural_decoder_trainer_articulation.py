@@ -80,12 +80,12 @@ def getDatasetLoaders(
 def trainModel(args):
     
     # for combining phoneme level and articulatory loss
-    lambda_weight = 0.5  # Tune this parameter based on validation performance
+    lambda_weight = 0  # Tune this parameter based on validation performance
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
-    device = "cpu"
+    device = "cuda"
     
     with open(args["outputDir"] + "/args", "wb") as file:
         pickle.dump(args, file)
@@ -127,6 +127,7 @@ def trainModel(args):
     # --train--
     testLoss = []
     testCER = []
+    testArticulatoryLoss = []
     startTime = time.time()
     for batch in range(args["nBatch"]):
         model.train()
@@ -200,6 +201,8 @@ def trainModel(args):
             with torch.no_grad():
                 model.eval()
                 allLoss = []
+                articulatory_features = ["voiced", "place", "manner", "height", "backness", "roundness"]
+                allArticulatoryLoss = []
                 total_edit_distance = 0
                 total_seq_length = 0
                 
@@ -227,15 +230,26 @@ def trainModel(args):
                     
                     pred_all = model.forward(X, testDayIdx)
                     pred = pred_all[0] # only take phoneme predictions for test
+                    input_lengths = ((X_len - model.kernelLen) / model.strideLen).to(torch.int32)
                     
                     loss = loss_ctc(
                         torch.permute(pred.log_softmax(2), [1, 0, 2]),
                         y_phoneme,
-                        ((X_len - model.kernelLen) / model.strideLen).to(torch.int32),
+                        input_lengths,
                         y_phone_len,
                     )
                     loss = torch.sum(loss)
                     allLoss.append(loss.cpu().detach().numpy())
+
+                    articulatory_preds = pred_all[1:]  # The rest of the outputs
+                    articulatory_targets = [y_voiced, y_place, y_manner, y_height, y_backness, y_roundedness]
+
+                    articulatory_loss = 0
+                    allArticulatoryLoss.append({})
+                    for i, (pred_art, target) in enumerate(zip(articulatory_preds, articulatory_targets)):
+                        pred_art = pred_art.log_softmax(2).permute(1, 0, 2)
+                        curr_articulatory_loss = loss_ctc(pred_art, target, input_lengths, y_articulatory_len)
+                        allArticulatoryLoss[-1][articulatory_features[i]] = curr_articulatory_loss
 
                     adjustedLens = ((X_len - model.kernelLen) / model.strideLen).to(
                         torch.int32
@@ -265,12 +279,14 @@ def trainModel(args):
                         total_seq_length += len(trueSeq)
 
                 avgDayLoss = np.sum(allLoss) / len(testLoader)
+                avgDayArticulatoryLoss = {articulatory_feature: sum([articulatory_loss[articulatory_feature].item() for articulatory_loss in allArticulatoryLoss]) / len(testLoader) for articulatory_feature in articulatory_features}
                 cer = total_edit_distance / total_seq_length
 
                 endTime = time.time()
                 print(
                     f"batch {batch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
                 )
+                print(f"individual articulatory losses: {avgDayArticulatoryLoss}")
                 startTime = time.time()
 
             if len(testCER) > 0 and cer < np.min(testCER):
@@ -278,10 +294,12 @@ def trainModel(args):
                 
             testLoss.append(avgDayLoss)
             testCER.append(cer)
+            testArticulatoryLoss.append(avgDayArticulatoryLoss)
 
             tStats = {}
             tStats["testLoss"] = np.array(testLoss)
             tStats["testCER"] = np.array(testCER)
+            tStats["testArticulatoryLoss"] = np.array(testArticulatoryLoss)
 
             with open(args["outputDir"] + "/trainingStats", "wb") as file:
                 pickle.dump(tStats, file)
