@@ -1,5 +1,5 @@
 
-modelName = 'speechmodel2'
+modelName = 'original_model'
 
 args = {}
 args['outputDir'] = '/data/willett_data/outputs/' + modelName
@@ -10,7 +10,7 @@ args['batchSize'] = 64
 args['lrStart'] = 0.02
 args['lrEnd'] = 0.02
 args['nUnits'] = 1024
-args['nBatch'] = 30000 #3000
+args['nBatch'] = 10000 #3000
 args['nLayers'] = 5
 args['seed'] = 0
 args['nClasses'] = 40
@@ -23,7 +23,7 @@ args['strideLen'] = 4
 args['kernelLen'] = 32
 args['bidirectional'] = False
 args['l2_decay'] = 1e-5
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:2'
 args['max_mask_channels'] = 0 # within each grid 
 
 from neural_decoder.neural_decoder_trainer import trainModel

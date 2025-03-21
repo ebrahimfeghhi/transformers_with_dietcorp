@@ -11,55 +11,17 @@ from torch.utils.data import DataLoader
 
 from .model import GRUDecoder
 from .dataset import SpeechDataset
+from .augmentations import mask_electrodes
 
-
-def getDatasetLoaders(
-    datasetName,
-    batchSize,
-):
-    with open(datasetName, "rb") as handle:
-        loadedData = pickle.load(handle)
-
-    def _padding(batch):
-        X, y, X_lens, y_lens, days = zip(*batch)
-        X_padded = pad_sequence(X, batch_first=True, padding_value=0)
-        y_padded = pad_sequence(y, batch_first=True, padding_value=0)
-
-        return (
-            X_padded,
-            y_padded,
-            torch.stack(X_lens),
-            torch.stack(y_lens),
-            torch.stack(days),
-        )
-
-    train_ds = SpeechDataset(loadedData["train"], transform=None)
-    test_ds = SpeechDataset(loadedData["test"])
-
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=batchSize,
-        shuffle=True,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-    test_loader = DataLoader(
-        test_ds,
-        batch_size=batchSize,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-
-    return train_loader, test_loader, loadedData
+import wandb
 
 def trainModel(args):
+    
+    wandb.init(project="Neural Decoder", entity="ebrahimfeghhi", config=dict(args))
+    
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
-    device = "cuda"
 
     with open(args["outputDir"] + "/args", "wb") as file:
         pickle.dump(args, file)
@@ -76,12 +38,16 @@ def trainModel(args):
         layer_dim=args["nLayers"],
         nDays=len(loadedData["train"]),
         dropout=args["dropout"],
-        device=device,
+        device=args["device"],
         strideLen=args["strideLen"],
         kernelLen=args["kernelLen"],
         gaussianSmoothWidth=args["gaussianSmoothWidth"],
         bidirectional=args["bidirectional"],
-    ).to(device)
+    ).to(args["device"])
+    
+        
+    # Watch the model
+    wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
 
     loss_ctc = torch.nn.CTCLoss(blank=0, reduction="mean", zero_infinity=True)
     optimizer = torch.optim.Adam(
@@ -97,33 +63,35 @@ def trainModel(args):
         end_factor=args["lrEnd"] / args["lrStart"],
         total_iters=args["nBatch"],
     )
-
+    
     # --train--
     testLoss = []
     testCER = []
     startTime = time.time()
     for batch in range(args["nBatch"]):
+        
         model.train()
 
         X, y, X_len, y_len, dayIdx = next(iter(trainLoader))
+        
+        if args['max_mask_channels'] > 0:
+            X = mask_electrodes(X, args['max_mask_channels'])
+        
         X, y, X_len, y_len, dayIdx = (
-            X.to(device),
-            y.to(device),
-            X_len.to(device),
-            y_len.to(device),
-            dayIdx.to(device),
+            X.to(args["device"]),
+            y.to(args["device"]),
+            X_len.to(args["device"]),
+            y_len.to(args["device"]),
+            dayIdx.to(args["device"]),
         )
-        
-        breakpoint()
-        
-        
+
         # Noise augmentation is faster on GPU
         if args["whiteNoiseSD"] > 0:
-            X += torch.randn(X.shape, device=device) * args["whiteNoiseSD"]
+            X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
 
         if args["constantOffsetSD"] > 0:
             X += (
-                torch.randn([X.shape[0], 1, X.shape[2]], device=device)
+                torch.randn([X.shape[0], 1, X.shape[2]], device=args["device"])
                 * args["constantOffsetSD"]
             )
 
@@ -143,7 +111,7 @@ def trainModel(args):
         loss.backward()
         optimizer.step()
         scheduler.step()
-
+    
         # print(endTime - startTime)
 
         # Eval
@@ -155,11 +123,11 @@ def trainModel(args):
                 total_seq_length = 0
                 for X, y, X_len, y_len, testDayIdx in testLoader:
                     X, y, X_len, y_len, testDayIdx = (
-                        X.to(device),
-                        y.to(device),
-                        X_len.to(device),
-                        y_len.to(device),
-                        testDayIdx.to(device),
+                        X.to(args["device"]),
+                        y.to(args["device"]),
+                        X_len.to(args["device"]),
+                        y_len.to(args["device"]),
+                        testDayIdx.to(args["device"]),
                     )
 
                     pred = model.forward(X, testDayIdx)
@@ -201,6 +169,15 @@ def trainModel(args):
                 print(
                     f"batch {batch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
                 )
+                  
+                # Log the metrics to wandb
+                wandb.log({
+                    "batch": batch,
+                    "ctc_loss": avgDayLoss,
+                    "cer": cer,
+                    "time_per_batch": (endTime - startTime) / 100
+                })
+                
                 startTime = time.time()
 
             if len(testCER) > 0 and cer < np.min(testCER):
@@ -228,21 +205,22 @@ def loadModel(modelDir, nInputLayers=24, device="cuda"):
         layer_dim=args["nLayers"],
         nDays=nInputLayers,
         dropout=args["dropout"],
-        device=device,
+        device=args["device"],
         strideLen=args["strideLen"],
         kernelLen=args["kernelLen"],
         gaussianSmoothWidth=args["gaussianSmoothWidth"],
         bidirectional=args["bidirectional"],
-    ).to(device)
+    ).to(args["device"])
 
-    model.load_state_dict(torch.load(modelWeightPath, map_location=device))
+    model.load_state_dict(torch.load(modelWeightPath, map_location=args["device"]))
     return model
 
 
-@hydra.main(version_base="1.1", config_path="conf", config_name="config")
-def main(cfg):
-    cfg.outputDir = os.getcwd()
-    trainModel(cfg)
-
-if __name__ == "__main__":
-    main()
+#@hydra.main(version_base="1.1", config_path="conf", config_name="config")
+#def main(cfg):
+#    cfg.outputDir = os.getcwd()
+#    # Initialize wandb with a project name (you can customize this)
+#    trainModel(cfg)#
+#
+#if __name__ == "__main__":
+#    main()
