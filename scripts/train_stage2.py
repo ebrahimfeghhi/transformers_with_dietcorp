@@ -1,16 +1,16 @@
 
-modelName = 'speech2neural_03_21'
+modelName = 'speech2neural_03_22'
 
 args = {}
 args['outputDir'] = '/data/willett_data/outputs/' + modelName
 args['datasetPath'] = '/data/willett_data/ptDecoder_ctc'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
-args['batchSize'] = 16
+args['batchSize'] = 24
 args['lrStart'] = 0.02
 args['lrEnd'] = 0.02
 args['nUnits'] = 1024
-args['nBatch'] = 10000 #3000
+args['nBatch'] = 30000 #3000
 args['nLayers'] = 5
 args['seed'] = 0
 args['nClasses'] = 40

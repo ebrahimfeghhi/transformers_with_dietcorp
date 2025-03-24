@@ -94,6 +94,7 @@ class GRUDecoder(nn.Module):
         transformedNeural = torch.einsum(
             "btd,bdk->btk", neuralInput, dayWeights
         ) + torch.index_select(self.dayBias, 0, dayIdx)
+        
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
 
         # stride/kernel
@@ -103,7 +104,7 @@ class GRUDecoder(nn.Module):
             ),
             (0, 2, 1),
         )
-
+        
         # apply RNN layer
         if self.bidirectional:
             h0 = torch.zeros(
