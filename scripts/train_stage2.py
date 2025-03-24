@@ -25,7 +25,6 @@ args['bidirectional'] = False
 args['l2_decay'] = 1e-5
 args['device'] = 'cuda:1'
 
-
 args['latentspeech_dim_stage2'] = 1024
 args['nLayers_stage2'] = 3
 args['dropout_stage2'] = 0.4
