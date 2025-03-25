@@ -14,8 +14,9 @@ from .slightly_modified_gru import GRUDecoder
 from .stage2model import Speech2NeuralDecoder
 from .dataset import SpeechDataset
 import torchaudio
-from .dataset_funcs import convert_to_phonemes
+from .dataset_funcs import convert_to_phonemes, DynamicBatchSampler
 import wandb
+wandb.init(mode="disabled")
 
 from torch.utils.data import DataLoader
 import torchaudio.transforms as T
@@ -49,7 +50,7 @@ def collate_fn(batch):
 def trainModel(args):
     
     hubert_path = "facebook/hubert-large-ls960-ft"
-    model_hubert = HuBERT(hubert_path, save_path="/data/LLMs/", freeze=True).to(args["device"])
+    model_hubert = HuBERT(hubert_path, save_path="/data/LLMs/", freeze=True, freeze_feature_extractor=True).to(args["device"])
     
     # load the original gru model 
     gru_model = loadModel("/data/willett_data/outputs/original_model", device=args["device"])
@@ -69,7 +70,7 @@ def trainModel(args):
         kernelLen=args["kernelLen_stage2"],
         bidirectional=args["bidirectional_stage2"],
     ).to(args["device"])
-            
+    
     librispeech_path = "/data/LLMs/librispeech/"
     
     trainDataset = torchaudio.datasets.LIBRISPEECH(
@@ -84,20 +85,34 @@ def trainModel(args):
         download=False
     )
     
-      # Create DataLoader
-    trainLoader = DataLoader(
-        trainDataset,
+    train_batch_sampler = DynamicBatchSampler(
+        lengths=np.load('/data/LLMs/librispeech/LibriSpeech/train-clean-100/lengths.npy'),
         batch_size=args["batchSize"],
         shuffle=True,
+        bucket_size=args["bucket_size"],
+        min_samples_in_bucket=args["min_samples_in_bucket"]
+    )
+        
+    # Create DataLoader
+    trainLoader = DataLoader(
+        trainDataset,
+        batch_sampler=train_batch_sampler,
         collate_fn=collate_fn,
         num_workers=4
+    )
+    
+    val_batch_sampler = DynamicBatchSampler(
+        lengths=np.load('/data/LLMs/librispeech/LibriSpeech/dev-clean/lengths.npy'),
+        batch_size=8,
+        shuffle=True,
+        bucket_size=args["bucket_size"],
+        min_samples_in_bucket=args["min_samples_in_bucket"]
     )
     
     # Create DataLoader
     valLoader = DataLoader(
         valDataset,
-        batch_size=args["batchSize"],
-        shuffle=False,
+        batch_sampler=val_batch_sampler,
         collate_fn=collate_fn,
         num_workers=4
     )
@@ -144,7 +159,7 @@ def trainModel(args):
             X_len.to(args["device"]),
             y_len.to(args["device"]),
         )
-        
+
 
         # Noise augmentation is faster on GPU
         #if args["whiteNoiseSD"] > 0:
@@ -158,10 +173,11 @@ def trainModel(args):
 
         # Compute prediction error
         X = model_hubert(X, wav_lens=X_len).detach()
+        #X = torch.randn(64, 800, 1024, device=args["device"])
         predicted_neural_data = model.forward(X)
         pred = gru_model(predicted_neural_data, None, 'speech')
         X_len_ctc = torch.floor(predicted_neural_data.shape[1]*X_len)
-        
+
         loss = loss_ctc(
             torch.permute(pred.log_softmax(2), [1, 0, 2]),
             y,
@@ -169,18 +185,21 @@ def trainModel(args):
             y_len,
         )
         loss = torch.sum(loss)
-
+        
         # Backpropagation
         optimizer.zero_grad()
+  
         loss.backward()
+  
         optimizer.step()
+     
         scheduler.step()
         
         #print(endTime - startTime)
-
+  
         # Eval
         if batch % 100 == 0:
-             
+            
             with torch.no_grad():
                 model.eval()
                 allLoss = []

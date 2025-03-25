@@ -1,12 +1,12 @@
 
-modelName = 'speech2neural_03_22'
+modelName = 'scratch'
 
 args = {}
 args['outputDir'] = '/data/willett_data/outputs/' + modelName
 args['datasetPath'] = '/data/willett_data/ptDecoder_ctc'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
-args['batchSize'] = 24
+args['batchSize'] = 64
 args['lrStart'] = 0.02
 args['lrEnd'] = 0.02
 args['nUnits'] = 1024
