@@ -115,10 +115,7 @@ def trainModel(args):
         model.train()
 
         X, y, X_len, y_len, dayIdx = next(iter(trainLoader))
-        
-        if args['max_mask_channels'] > 0:
-            X = mask_electrodes(X, args['max_mask_channels'])
-        
+                
         X, y, X_len, y_len, dayIdx = (
             X.to(args["device"]),
             y.to(args["device"]),
@@ -137,6 +134,7 @@ def trainModel(args):
                 * args["constantOffsetSD"]
             )
 
+        
         # Compute prediction error
         pred = model.forward(X, dayIdx)
 
