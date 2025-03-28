@@ -6,9 +6,9 @@ args['outputDir'] = '/home3/skaasyap/willett/neural_seq_decoder/output/' + model
 args['datasetPath'] = '/home3/skaasyap/willett/data'
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
-args['batchSize'] = 24
-args['lrStart'] = 0.02
-args['lrEnd'] = 0.02
+args['batchSize'] = 16
+args['lrStart'] = 0.002
+args['lrEnd'] = 0.002
 args['nUnits'] = 1024
 args['nBatch'] = 30000 #3000
 args['nLayers'] = 5
@@ -23,22 +23,20 @@ args['strideLen'] = 4
 args['kernelLen'] = 32
 args['bidirectional'] = False
 args['l2_decay'] = 1e-5
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:2'
 
 args['latentspeech_dim_stage2'] = 1024
-args['nLayers_stage2'] = 1
+args['outputdim_stage2'] = 256
+args['nLayers_stage2'] = 6
+args['num_heads'] = 8
 args['dropout_stage2'] = 0.4
-args['nUnits_stage2'] = 256
-args['bidirectional_stage2'] = True
+args['nUnits_stage2'] = 512
 args['l2_decay_stage2'] = 1e-5
 args['dropout_stage2'] = 0.4
-args['outputdim_stage2'] = 256
-args['strideLen_stage2'] = 1
-args['kernelLen_stage2'] = 4
 args["bucket_size"] = 8000 # half a second of data (audio is in 16Khz)
 args["min_samples_in_bucket"] = 8
 
 
-from neural_decoder.speech2neural import trainModel
+from neural_decoder.speech2neural_transformer import trainModel
 
 trainModel(args)
