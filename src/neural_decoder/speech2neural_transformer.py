@@ -11,7 +11,8 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from .slightly_modified_gru import GRUDecoder
-from .stage2model import Speech2NeuralDecoder
+# from .stage2model import Speech2NeuralDecoder
+from .transformer_model import TransformerModel
 from .dataset import SpeechDataset
 import torchaudio
 from .dataset_funcs import convert_to_phonemes, DynamicBatchSampler
@@ -62,18 +63,29 @@ def trainModel(args):
     # freeze parameters
     for param in gru_model.parameters():
         param.requires_grad = False
-        
-    model = Speech2NeuralDecoder(
+
+    model = TransformerModel(
         latentspeech_dim=args['latentspeech_dim_stage2'],
-        output_dim=args["outputdim_stage2"],
-        hidden_dim=args["nUnits_stage2"],
-        layer_dim=args["nLayers_stage2"],
-        dropout=args["dropout_stage2"],
-        device=args["device"],
-        strideLen=args["strideLen_stage2"],
-        kernelLen=args["kernelLen_stage2"],
-        bidirectional=args["bidirectional_stage2"],
-    ).to(args["device"])
+        output_dim=args['outputdim_stage2'],
+        num_heads = args['num_heads'],
+        hidden_dim=args['nUnits_stage2'],
+        num_layers=args['nLayers_stage2'],
+        dropout=args['dropout_stage2'],
+    ).to(args['device'])
+
+    # import ipdb; ipdb.set_trace();
+        
+    # model = Speech2NeuralDecoder(
+    #     latentspeech_dim=args['latentspeech_dim_stage2'],
+    #     output_dim=args["outputdim_stage2"],
+    #     hidden_dim=args["nUnits_stage2"],
+    #     layer_dim=args["nLayers_stage2"],
+    #     dropout=args["dropout_stage2"],
+    #     device=args["device"],
+    #     strideLen=args["strideLen_stage2"],
+    #     kernelLen=args["kernelLen_stage2"],
+    #     bidirectional=args["bidirectional_stage2"],
+    # ).to(args["device"])
 
     # import ipdb; ipdb.set_trace();
             
@@ -109,7 +121,7 @@ def trainModel(args):
     
     val_batch_sampler = DynamicBatchSampler(
         lengths=np.load('/data/LLMs/librispeech/LibriSpeech/dev-clean/lengths.npy'),
-        batch_size=8,
+        batch_size=4,
         shuffle=True,
         bucket_size=args["bucket_size"],
         min_samples_in_bucket=args["min_samples_in_bucket"]
@@ -136,6 +148,7 @@ def trainModel(args):
 
     # import ipdb; ipdb.set_trace();
     wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args))
+    wandb.run.log_code()
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
