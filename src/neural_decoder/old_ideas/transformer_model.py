@@ -25,8 +25,6 @@ class TransformerModel(nn.Module):
 
         self.register_buffer("positional_embedding", self.get_sinusoidal_positional_encoding(2048, self.output_dim))
 
-        
-
         self.encoder_layer = nn.TransformerEncoderLayer(
             d_model=self.output_dim, 
             nhead=self.num_heads, 
