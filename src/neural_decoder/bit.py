@@ -1,5 +1,7 @@
 import torch 
 import torch.nn as nn
+from torch import Tensor
+import math
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
@@ -26,8 +28,9 @@ class FFN(nn.Module):
     def forward(self, x):
         return self.net(x)
         
+        
 class Attention(nn.Module):
-    def __init__(self, dim, heads=8, dim_head=64, dropout=0., causal=False, mask=None):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0., temporal_mask=True):
         super().__init__()
         inner_dim = dim_head * heads  # Calculate the total inner dimension based on the number of attention heads and the dimension per head
         
@@ -51,8 +54,27 @@ class Attention(nn.Module):
             nn.Dropout(dropout)         # Dropout layer for regularization
         ) if project_out else nn.Identity()  # Use Identity (no change) if no projection is needed
 
-        self.causal = causal  # Whether to apply causal masking or not
-        self.mask = mask  # Optionally provided custom mask
+        self.temporal_mask = temporal_mask  # Optionally provided custom mask
+        
+    def create_temporal_attention_mask(self, num_patches, patches_per_timestep=16, N=20):
+        
+        mask = torch.full((num_patches, num_patches), 0)
+
+        timesteps = num_patches // patches_per_timestep
+        
+        for t_q in range(timesteps):  # time index of query
+            for dt in range(N + 1):  # how far back to look
+                t_k = t_q - dt  # key timestep
+                if t_k < 0:
+                    continue
+                q_start = t_q * patches_per_timestep
+                q_end = (t_q + 1) * patches_per_timestep
+                k_start = t_k * patches_per_timestep
+                k_end = (t_k + 1) * patches_per_timestep
+                # allow attention: set to 0 (non-masked)
+                mask[q_start:q_end, k_start:k_end] = 1
+
+        return mask  # shape: [Num Patches, Num Patches]
 
     def forward(self, x):
         x = self.norm(x)  # Apply normalization to the input tensor
@@ -67,13 +89,10 @@ class Attention(nn.Module):
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale  # Shape: (batch_size, num_heads, num_patches, num_patches)
 
         # If causal is True, generate the causal mask
-        if self.causal:
-            causal_mask = torch.tril(torch.ones(dots.shape[-1], dots.shape[-1])).bool()
-            dots = dots.masked_fill(~causal_mask, float('-inf'))  # Mask out future positions with negative infinity
-
         # If a custom mask is provided, apply it
-        if self.mask is not None:
-            dots = dots.masked_fill(self.mask == 0, float('-inf'))  # Apply custom mask by setting masked positions to -inf
+        if self.temporal_mask:
+            temporal_mask = self.create_temporal_attention_mask(x.shape[1])
+            dots = dots.masked_fill(temporal_mask == 0, float('-inf'))  # Apply custom mask by setting masked positions to -inf
 
         # Apply softmax to get attention weights
         attn = self.attend(dots)  # Shape: (batch_size, num_heads, num_patches, num_patches)
@@ -91,46 +110,20 @@ class Attention(nn.Module):
         return out  # Return the final output tensor
     
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout = 0.):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout = 0., temporal_mask=True):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         mlp_dim = mlp_dim_ratio * dim
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout),
+                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout, temporal_mask=temporal_mask),
                 FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout)
             ]))
 
     def forward(self, x):
         for attn, ffn in self.layers:
             x = attn(x) + x
-            x = ffn(x) + x
-        return self.norm(x)
-    
-
-class SpatialTemporalTransformer(nn.Module):
-    
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout=0.):
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        mlp_dim = mlp_dim_ratio * dim
-        self.layers = nn.ModuleList([])
-
-        for _ in range(depth):
-            self.layers.append(nn.ModuleList([
-                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout),  # Spatial
-                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout),  # Temporal
-                FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout)
-            ]))
-
-    def forward(self, x, spatial_attention_mask):
-        for spatial_attn, temporal_attn, ffn in self.layers:
-            b, n, d = x.shape
-            x = spatial_attn(x, mask=spatial_attention_mask) + x
-            x = rearrange(x, 'b (t s) d -> (b s) t d', t=int(n ** 0.5))
-            x = temporal_attn(x, causal=True) + x
-            x = rearrange(x, '(b s) t d -> b (t s) d', b=b)
             x = ffn(x) + x
         return self.norm(x)
     
@@ -146,6 +139,35 @@ def pair(t):
         A tuple where both elements are t if t is not a tuple.
     """
     return t if isinstance(t, tuple) else (t, t)
+
+
+class LearnablePositionalEmbeddings(nn.Module):
+    def __init__(self, N, M, embedding_dim):
+        super(LearnablePositionalEmbeddings, self).__init__()
+        
+        # Set the size of the embeddings
+        self.embedding_dim = embedding_dim
+        self.N = N
+        self.M = M
+
+        # Initialize the learnable positional embeddings
+        self.embeddings_N = nn.Parameter(torch.randn(N, embedding_dim))  # Embeddings for every Nth patch
+        self.embeddings_M = nn.Parameter(torch.randn(M, embedding_dim))  # Embeddings for every M consecutive patches
+
+    def forward(self, x):
+        """
+        x: Tensor of shape (batch_size, num_patches, embedding_dim)
+        """
+        batch_size, num_patches, _ = x.size()
+        
+        pos_N_embedding = self.embeddings_N.tile(dims=(num_patches // self.N, 1))
+        pos_M_embedding = self.embeddings_M.repeat_interleave(num_patches // self.M, dim=0)
+        
+        
+        # Add the positional embeddings to the input tensor (x)
+        x = x + pos_N_embedding + pos_M_embedding
+
+        return x
 
     
 class BiT(nn.Module):
@@ -194,15 +216,15 @@ class BiT(nn.Module):
 
         self.dropout = nn.Dropout(dropout)  # Dropout for regularization
         
-        self.pos_embedding = nn.Parameter(torch.randn(1, N, dim)) 
+        #self.pos_embedding = nn.Parameter(torch.randn(1, N, dim)) 
+        self.pos_embedding = LearnablePositionalEmbeddings(N=16, M=16, embedding_dim=dim)
         
         # Define the transformer encoder
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout, temporal_mask=True)
  
-        # Classification head
-        self.mlp_head = nn.Linear(dim, num_classes+1)
+    
         
-    def forward(self, img):
+    def forward(self, neural_data):
         """
         Forward pass through the Brain Transformer model.
         
@@ -214,17 +236,17 @@ class BiT(nn.Module):
         """
         # Convert image to patch embeddings
         
-        x = self.to_patch_embedding(img) # Shape: (batch_size, num_patches, dim)
+        x = self.to_patch_embedding(neural_data) # Shape: (batch_size, num_patches, dim)
         b, n, _ = x.shape  # Get batch size, number of patches, and embedding dimension
 
         # Add positional embeddings to the input
-        x += self.pos_embedding[:, :n]
+        x = self.pos_embedding(x)
         
         # Apply dropout for regularization
         x = self.dropout(x)
 
         # Pass through transformer encoder
-        x = self.transformer(x, self.spatial_mask) # Shape: (batch_size, num_patches + 1, dim)
+        x = self.transformer(x) # Shape: (batch_size, num_patches + 1, dim)
 
         # Extract class token and feature map
         #cls_token = x[:, 0]  # Extract class token

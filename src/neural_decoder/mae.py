@@ -69,8 +69,7 @@ class MAE(nn.Module):
         # Embed the patches using the encoder's patch embedding layers
         tokens = self.patch_to_emb(patches)  # Shape: (batch_size, num_patches, encoder_dim)
 
-      
-        tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype)
+        tokens = self.encoder.pos_embedding(tokens)
 
         # Determine the number of patches to mask
         num_masked = int(self.masking_ratio * num_patches)
