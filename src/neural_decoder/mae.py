@@ -69,13 +69,8 @@ class MAE(nn.Module):
         # Embed the patches using the encoder's patch embedding layers
         tokens = self.patch_to_emb(patches)  # Shape: (batch_size, num_patches, encoder_dim)
 
-        # Add positional embeddings to the tokens
-        if self.encoder.pool == "cls":
-            # If using CLS token, skip the first positional embedding
-            tokens += self.encoder.pos_embedding[:, 1 : num_patches + 1]
-        elif self.encoder.pool == "mean":
-            # If using mean pooling, use all positional embeddings
-            tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype)
+      
+        tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype)
 
         # Determine the number of patches to mask
         num_masked = int(self.masking_ratio * num_patches)
