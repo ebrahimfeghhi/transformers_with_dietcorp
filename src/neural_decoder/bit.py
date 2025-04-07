@@ -239,7 +239,7 @@ class BiT(nn.Module):
 
         # Apply the classification head to the pooled output
         #classification_result = self.mlp_head(pooled_output)
-        classification_result = self.mlp_head(x)
+        #classification_result = self.mlp_head(x)
     
         # Return a dictionary with the required components
-        return classification_result
+        return x
