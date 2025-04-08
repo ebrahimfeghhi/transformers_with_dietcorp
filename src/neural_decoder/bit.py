@@ -30,7 +30,7 @@ class FFN(nn.Module):
         
         
 class Attention(nn.Module):
-    def __init__(self, dim, heads=8, dim_head=64, dropout=0., temporal_mask=True):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
         super().__init__()
         inner_dim = dim_head * heads  # Calculate the total inner dimension based on the number of attention heads and the dimension per head
         
@@ -44,6 +44,7 @@ class Attention(nn.Module):
 
         self.attend = nn.Softmax(dim=-1)  # Softmax layer to compute attention weights (along the last dimension)
         self.dropout = nn.Dropout(dropout)  # Dropout layer for regularization during training
+        
 
         # Linear layer to project input tensor into queries, keys, and values
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
@@ -54,29 +55,8 @@ class Attention(nn.Module):
             nn.Dropout(dropout)         # Dropout layer for regularization
         ) if project_out else nn.Identity()  # Use Identity (no change) if no projection is needed
 
-        self.temporal_mask = temporal_mask  # Optionally provided custom mask
-        
-    def create_temporal_attention_mask(self, num_patches, patches_per_timestep=16, N=20):
-        
-        mask = torch.full((num_patches, num_patches), 0)
 
-        timesteps = num_patches // patches_per_timestep
-        
-        for t_q in range(timesteps):  # time index of query
-            for dt in range(N + 1):  # how far back to look
-                t_k = t_q - dt  # key timestep
-                if t_k < 0:
-                    continue
-                q_start = t_q * patches_per_timestep
-                q_end = (t_q + 1) * patches_per_timestep
-                k_start = t_k * patches_per_timestep
-                k_end = (t_k + 1) * patches_per_timestep
-                # allow attention: set to 0 (non-masked)
-                mask[q_start:q_end, k_start:k_end] = 1
-
-        return mask  # shape: [Num Patches, Num Patches]
-
-    def forward(self, x):
+    def forward(self, x, temporal_mask=None):
         x = self.norm(x)  # Apply normalization to the input tensor
 
         # Apply the linear layer to get queries, keys, and values, then split into 3 separate tensors
@@ -90,12 +70,13 @@ class Attention(nn.Module):
 
         # If causal is True, generate the causal mask
         # If a custom mask is provided, apply it
-        if self.temporal_mask:
-            temporal_mask = self.create_temporal_attention_mask(x.shape[1])
-            dots = dots.masked_fill(temporal_mask == 0, float('-inf'))  # Apply custom mask by setting masked positions to -inf
+        if temporal_mask is not None:
+            mask = temporal_mask.unsqueeze(1) 
+            dots = dots.masked_fill(mask == 0, float('-inf'))  # Apply custom mask by setting masked positions to -inf
 
         # Apply softmax to get attention weights
         attn = self.attend(dots)  # Shape: (batch_size, num_heads, num_patches, num_patches)
+        
         attn = self.dropout(attn)
 
         # Multiply attention weights by values to get the output
@@ -110,20 +91,20 @@ class Attention(nn.Module):
         return out  # Return the final output tensor
     
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout = 0., temporal_mask=True):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout = 0.):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         mlp_dim = mlp_dim_ratio * dim
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout, temporal_mask=temporal_mask),
+                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout),
                 FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout)
             ]))
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         for attn, ffn in self.layers:
-            x = attn(x) + x
+            x = attn(x, mask) + x
             x = ffn(x) + x
         return self.norm(x)
     
@@ -140,46 +121,75 @@ def pair(t):
     """
     return t if isinstance(t, tuple) else (t, t)
 
-
-class LearnablePositionalEmbeddings(nn.Module):
-    def __init__(self, N, M, embedding_dim):
-        super(LearnablePositionalEmbeddings, self).__init__()
-        
-        # Set the size of the embeddings
+class HybridSpatiotemporalPosEmb(nn.Module):
+    def __init__(self, num_space, max_time, embedding_dim, temporal_only=False):
+        """
+        num_space: number of spatial positions (N)
+        max_time: number of time steps (T)
+        embedding_dim: size of each positional embedding (must be even)
+        temporal_only: if True, don't add spatial embeddings
+        """
+        super().__init__()
         self.embedding_dim = embedding_dim
-        self.N = N
-        self.M = M
+        self.N = num_space
+        self.T = max_time
+        self.temporal_only = temporal_only
 
-        # Initialize the learnable positional embeddings
-        self.embeddings_N = nn.Parameter(torch.randn(N, embedding_dim))  # Embeddings for every Nth patch
-        self.embeddings_M = nn.Parameter(torch.randn(M, embedding_dim))  # Embeddings for every M consecutive patches
+        assert embedding_dim % 2 == 0, "Embedding dimension must be even for sin/cos"
+
+        # Learnable spatial embeddings
+        self.space_embedding = nn.Parameter(torch.randn(num_space, embedding_dim))
+
+        # Fixed sinusoidal temporal embeddings
+        self.register_buffer("time_embedding", self._build_sin_cos_embedding(max_time, embedding_dim))
+
+    def _build_sin_cos_embedding(self, length, dim):
+        """
+        Generate fixed sinusoidal embeddings of shape (length, dim)
+        """
+        position = torch.arange(1, length + 1).unsqueeze(1).float()  # (length, 1)
+        div_term = torch.exp(torch.arange(0, dim, 2).float() * (-math.log(10000.0) / dim))  # (dim/2,)
+        sinusoid = torch.zeros(length, dim)
+        sinusoid[:, 0::2] = torch.sin(position * div_term)
+        sinusoid[:, 1::2] = torch.cos(position * div_term)
+        return sinusoid  # (length, dim)
 
     def forward(self, x):
         """
         x: Tensor of shape (batch_size, num_patches, embedding_dim)
+        Assumes patches are ordered as:
+            [t0_p0, t0_p1, ..., t0_pN-1, t1_p0, ..., tT-1_pN-1]
         """
         batch_size, num_patches, _ = x.size()
-        
-        pos_N_embedding = self.embeddings_N.tile(dims=(num_patches // self.N, 1))
-        pos_M_embedding = self.embeddings_M.repeat_interleave(num_patches // self.M, dim=0)
-        
-        
-        # Add the positional embeddings to the input tensor (x)
-        x = x + pos_N_embedding + pos_M_embedding
+        T = num_patches // self.N
 
-        return x
+        # Compute spatial and temporal indices
+        spatial_idx = torch.arange(num_patches, device=x.device) % self.N
+        temporal_idx = torch.arange(num_patches, device=x.device) // self.N
+
+        # Lookup embeddings
+        pos_space_embedding = self.space_embedding[spatial_idx]     # (num_patches, embedding_dim)
+        pos_time_embedding = self.time_embedding[temporal_idx]      # (num_patches, embedding_dim)
+
+        # Combine and expand to batch
+        if self.temporal_only:
+            pos_embedding = pos_time_embedding
+        else:
+            pos_embedding = pos_space_embedding + pos_time_embedding
+            
+        pos_embedding = pos_embedding.unsqueeze(0).expand(batch_size, -1, -1)
+
+        return pos_embedding
 
     
 class BiT(nn.Module):
-    def __init__(self, *, trial_size, patch_size, num_classes, dim, depth, 
+    def __init__(self, *, patch_size, dim, depth, 
                  heads, mlp_dim_ratio, dim_head=64, dropout=0.):
         """
         Initializes a Brain Transformer (BiT) model.
         
         Args:
-            trial_size (int or tuple): Size of the data trial (time, channels).
             patch_size (int or tuple): Size of each patch (height, width).
-            num_classes (int): Number of output classes.
             dim (int): Dimension of the embedding space.
             depth (int): Number of transformer layers.
             heads (int): Number of attention heads.
@@ -190,21 +200,11 @@ class BiT(nn.Module):
         super().__init__()
 
         # Convert image size and patch size to tuples if they are single values
-        trial_length, num_features = pair(trial_size)
         patch_height, patch_width = pair(patch_size)
 
-        # Ensure that the image dimensions are divisible by the patch size
-        assert trial_length % patch_height == 0 and num_features % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
-
         # Calculate the number of patches and the dimension of each patch
-        num_patches = (trial_length // patch_height) * (num_features // patch_width)
         patch_dim = patch_height * patch_width
-        
-        # every chunk of size N can attned
-        N = num_features / patch_width
-        block_id = torch.arange(num_patches) // N  # Shape: (num_patches,)
-        self.spatial_mask = block_id.unsqueeze(0) == block_id.unsqueeze(1)   # Shape: (num_patches, num_patches)
-    
+
         # Define the patch embedding layer
         self.to_patch_embedding = nn.Sequential(
             # Rearrange the input tensor to (batch_size, num_patches, patch_dim)
@@ -217,13 +217,11 @@ class BiT(nn.Module):
         self.dropout = nn.Dropout(dropout)  # Dropout for regularization
         
         #self.pos_embedding = nn.Parameter(torch.randn(1, N, dim)) 
-        self.pos_embedding = LearnablePositionalEmbeddings(N=16, M=16, embedding_dim=dim)
+        self.pos_embedding = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=dim)
         
         # Define the transformer encoder
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout, temporal_mask=True)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout)
  
-    
-        
     def forward(self, neural_data):
         """
         Forward pass through the Brain Transformer model.
@@ -240,7 +238,8 @@ class BiT(nn.Module):
         b, n, _ = x.shape  # Get batch size, number of patches, and embedding dimension
 
         # Add positional embeddings to the input
-        x = self.pos_embedding(x)
+        pos_embeddings = self.pos_embedding(x)
+        x += pos_embeddings
         
         # Apply dropout for regularization
         x = self.dropout(x)

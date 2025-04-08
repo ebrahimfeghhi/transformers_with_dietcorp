@@ -3,7 +3,8 @@ from torch import nn
 import torch.nn.functional as F
 from einops import repeat
 
-from bit import Transformer
+from .bit import Transformer, HybridSpatiotemporalPosEmb
+from .dataset import pad_to_multiple
 
 class MAE(nn.Module):
     def __init__(
@@ -11,6 +12,7 @@ class MAE(nn.Module):
         *,
         encoder,
         decoder_dim,
+        encoder_dim,
         masking_ratio=0.75,
         decoder_depth=1,
         decoder_heads=8,
@@ -23,9 +25,6 @@ class MAE(nn.Module):
 
         # Save the encoder (a Vision Transformer to be trained)
         self.encoder = encoder
-
-        # Extract the number of patches and the encoder's dimensionality from the positional embeddings
-        num_patches, encoder_dim = encoder.pos_embedding.shape[-2:]
 
         # Separate the patch embedding layers from the encoder
         # The first layer converts the image into patches
@@ -53,23 +52,49 @@ class MAE(nn.Module):
             heads=decoder_heads,
             dim_head=decoder_dim_head,
             mlp_dim_ratio=4
-        )
+            )
         # Positional embeddings for the decoder tokens
-        self.decoder_pos_emb = nn.Embedding(num_patches, decoder_dim)
+        self.decoder_pos_emb = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=decoder_dim)
+        
         # Linear layer to reconstruct pixel values from decoder outputs
         self.to_pixels = nn.Linear(decoder_dim, pixel_values_per_patch)
+        
+    def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):
+        
+        mask = torch.full((num_patches, num_patches), 0)
+
+        timesteps = num_patches // patches_per_timestep
+        
+        for t_q in range(timesteps):  # time index of query
+            for dt in range(N + 1):  # how far back to look
+                t_k = t_q - dt  # key timestep
+                if t_k < 0:
+                    continue
+                q_start = t_q * patches_per_timestep
+                q_end = (t_q + 1) * patches_per_timestep
+                k_start = t_k * patches_per_timestep
+                k_end = (t_k + 1) * patches_per_timestep
+                # allow attention: set to 0 (non-masked)
+                mask[q_start:q_end, k_start:k_end] = 1
+
+        return mask.to(device)  # shape: [Num Patches, Num Patches]
 
     def forward(self, img):
         device = img.device
 
         # Convert the input image into patches
+        img = pad_to_multiple(img, multiple=4)
+        img = torch.unsqueeze(img, axis=1)
         patches = self.to_patch(img)  # Shape: (batch_size, num_patches, patch_size)
         batch_size, num_patches, *_ = patches.shape
  
         # Embed the patches using the encoder's patch embedding layers
+   
         tokens = self.patch_to_emb(patches)  # Shape: (batch_size, num_patches, encoder_dim)
-
-        tokens = self.encoder.pos_embedding(tokens)
+  
+        
+        pos_embeddings = self.encoder.pos_embedding(tokens)
+        tokens += pos_embeddings
 
         # Determine the number of patches to mask
         num_masked = int(self.masking_ratio * num_patches)
@@ -87,17 +112,44 @@ class MAE(nn.Module):
         masked_patches = patches[batch_range, masked_indices]
 
         # Encode the unmasked tokens using the encoder's transformer
-        encoded_tokens = self.encoder.transformer(tokens)
+        temporal_mask = self.create_temporal_attention_mask(num_patches, device)
+        # Assume temporal_mask has shape (num_patches, num_patches)
+        temporal_mask = temporal_mask.unsqueeze(0)  # Now shape is (1, num_patches, num_patches)
+        temporal_mask = temporal_mask.repeat(batch_size, 1, 1)  # Now shape is (batch_size, num_patches, num_patches)
+        
+        B, T = unmasked_indices.shape
+
+        # First, gather the rows (dim=1)
+        # This will give you shape: (B, T, N)
+        masked_rows = torch.gather(temporal_mask, dim=1, index=unmasked_indices.unsqueeze(-1).expand(-1, -1, temporal_mask.size(2)))
+
+        # Now gather the columns (dim=2)
+        # This will give you shape: (B, T, T)
+        masked_submatrix = torch.gather(masked_rows, dim=2, index=unmasked_indices.unsqueeze(1).expand(-1, T, -1))
+        encoded_tokens = self.encoder.transformer(tokens, masked_submatrix)
 
         # Map encoded tokens to decoder dimensions if necessary
         decoder_tokens = self.enc_to_dec(encoded_tokens)
-
+        
         # Add positional embeddings to the decoder tokens of unmasked patches
-        unmasked_decoder_tokens = decoder_tokens + self.decoder_pos_emb(unmasked_indices)
+        decoder_pos_embeddings = self.decoder_pos_emb(patches)
+        
+        # Step 1: Expand unmasked_indices to shape (8, 450, 64)
+        expanded_indices = unmasked_indices.unsqueeze(-1).expand(-1, -1, 64)
+        # Step 2: Use torch.gather to pull the right positions per batch
+        decoder_selected = torch.gather(decoder_pos_embeddings, dim=1, index=expanded_indices)
+        
+        unmasked_decoder_tokens = decoder_tokens + decoder_selected
 
         # Create mask tokens for the masked patches and add positional embeddings
         mask_tokens = repeat(self.mask_token, 'd -> b n d', b=batch_size, n=num_masked)
-        mask_tokens = mask_tokens + self.decoder_pos_emb(masked_indices)
+        
+        # Step 1: Expand unmasked_indices to shape (8, 450, 64)
+        expanded_indices = masked_indices.unsqueeze(-1).expand(-1, -1, 64)
+        # Step 2: Use torch.gather to pull the right positions per batch
+        decoder_selected = torch.gather(decoder_pos_embeddings, dim=1, index=expanded_indices)
+        
+        mask_tokens = mask_tokens + decoder_selected
 
         # Initialize the full sequence of decoder tokens
         decoder_sequence = torch.zeros(
@@ -108,7 +160,7 @@ class MAE(nn.Module):
         decoder_sequence[batch_range, masked_indices] = mask_tokens
 
         # Decode the full sequence
-        decoded_tokens = self.decoder(decoder_sequence)
+        decoded_tokens = self.decoder(decoder_sequence, temporal_mask)
 
         # Extract the decoded tokens corresponding to the masked patches
         masked_decoded_tokens = decoded_tokens[batch_range, masked_indices]

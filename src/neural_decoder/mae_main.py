@@ -5,7 +5,6 @@ import json
 from .mae_trainer import Trainer
 # DAWN and DELL optimization
 import torch
-import intel_extension_for_pytorch as ipex
 
 import os
 import pickle
@@ -20,7 +19,7 @@ from torch.utils.data import DataLoader
 
 from .mae import MAE
 from .bit import BiT
-from .dataset import SpeechDataset
+from .dataset import SpeechDataset_MAE
 from .augmentations import mask_electrodes
 
 import wandb
@@ -34,20 +33,16 @@ def getDatasetLoaders(
         loadedData = pickle.load(handle)
 
     def _padding(batch):
-        X, y, X_lens, y_lens, days = zip(*batch)
+        X, X = zip(*batch)
         X_padded = pad_sequence(X, batch_first=True, padding_value=0)
-        y_padded = pad_sequence(y, batch_first=True, padding_value=0)
 
         return (
             X_padded,
-            y_padded,
-            torch.stack(X_lens),
-            torch.stack(y_lens),
-            torch.stack(days),
+            X_padded
         )
 
-    train_ds = SpeechDataset(loadedData["train"], transform=None)
-    test_ds = SpeechDataset(loadedData["test"])
+    train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
+    test_ds = SpeechDataset_MAE(loadedData["test"])
 
     train_loader = DataLoader(
         train_ds,
@@ -69,12 +64,13 @@ def getDatasetLoaders(
     return train_loader, test_loader, loadedData
 
 def trainModel(args):
+    
+    
+    wandb.init(project="MAE", entity="ebrahimfeghhi", config=dict(args))
 
     # Initialize the model
     enc_model = BiT(
-        image_size=args['trial_size'],
         patch_size=args['patch_size'],
-        num_classes=args['num_classes'],
         dim=args['dim'],
         depth=args['depth'],
         heads=args['heads'],
@@ -85,7 +81,8 @@ def trainModel(args):
 
     model = MAE(
         encoder=enc_model,
-        decoder_dim = enc_model.pos_embedding.shape[-1], #same shape as the encoder model outputs
+        encoder_dim = args['dim'], 
+        decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
         masking_ratio=args['masking_ratio'],
         decoder_depth=args['num_decoder_layers'],
         decoder_heads=args['num_decoder_heads'],
@@ -107,6 +104,8 @@ def trainModel(args):
     )
 
     print("dataloaders loaded")
+    
+    device = args['device']
 
     # Get the Trainer
     trainer = Trainer(model = model, train_loader = train_loader, val_loader = test_loader, device = device, args = args)
