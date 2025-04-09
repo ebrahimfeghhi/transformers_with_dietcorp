@@ -205,6 +205,7 @@ class BiT(nn.Module):
         patch_height, patch_width = pair(patch_size)
         
         self.trial_length = trial_length
+        self.num_features = num_features
         
           # Ensure that the image dimensions are divisible by the patch size
         assert trial_length % patch_height == 0 and num_features % patch_width == 0, 'Trial dimensions must be divisible by the patch size.'
