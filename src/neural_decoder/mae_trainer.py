@@ -29,7 +29,7 @@ class Trainer:
         
 
 
-    def segment_data_random_start(self, data: torch.Tensor, N: int):
+    def segment_data(self, data: torch.Tensor, N: int):
         """
         Segments a tensor of shape (batch_size, time, num_features) into
         consecutive chunks of length N, starting from a random index.
@@ -51,27 +51,32 @@ class Trainer:
         for i in indices:
             if i + N <= time:
                 yield data[:, i:i+N, :]
+            else:
+                yield data[:, -N:, :]
 
     def train_one_epoch(self):
         self.model.train()
         total_loss = 0
         chunk_number = 0
         for batch in tqdm(self.train_loader, desc="Training"):
-            neural_data, day_idx, _ = batch
+            neural_data, day_idx, X_len = batch
+            mask = X_len >= 100
+            neural_data  = neural_data[mask]
             neural_data = neural_data.to(self.device)
-            day_idx = day_idx.to(self.device)
-            self.optimizer.zero_grad()
-            loss = self.model(neural_data, day_idx) #MAE returns reconstruction loss
-            loss.backward()
-            self.optimizer.step()
-            total_loss += loss.item()
-            chunk_number += 1
-                
+
+            for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length):
+                self.optimizer.zero_grad()
+                loss = self.model(neural_chunk) #MAE returns reconstruction loss
+                loss.backward()
+                self.optimizer.step()
+                total_loss += loss.item()
+                chunk_number += 1
+                    
             # _, predicted = classification_head_logits.max(1)
             # total += labels.size(0)
             # correct += predicted.eq(labels).sum().item()
 
-        return total_loss / len(self.train_loader)
+        return total_loss / chunk_number
 
     def validate(self):
         self.model.eval()
@@ -79,18 +84,23 @@ class Trainer:
         chunk_number = 0
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validating"):
-                neural_data, day_idx, _ = batch
+                neural_data, day_idx, X_len = batch
+                min_trial_time = torch.min(X_len)
+                if min_trial_time < self.model.encoder.trial_length:
+                    continue
+                neural_data = neural_data[:, :min_trial_time, :]
                 neural_data = neural_data.to(self.device)
-                day_idx = day_idx.to(self.device)
                 # classification_head_logits = self.model(images)['classification_head_logits']
                 # loss = self.criterion(classification_head_logits, labels)
-                loss = self.model(neural_data, day_idx)
-                total_loss += loss.item()
+                for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length):
+                    loss = self.model(neural_chunk)
+                    total_loss += loss.item()
+                    chunk_number+=1
                 # _, predicted = classification_head_logits.max(1)
                 # total += labels.size(0)
                 # correct += predicted.eq(labels).sum().item()
     
-        return total_loss / len(self.val_loader)
+        return total_loss / chunk_number
 
     def train(self):
         best_val_loss = torch.inf

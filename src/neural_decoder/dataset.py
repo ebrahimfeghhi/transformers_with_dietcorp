@@ -65,6 +65,7 @@ class SpeechDataset_MAE(Dataset):
 
         # Step 2: Reorder neural_feats and neural_time_bin
         self.neural_feats = [self.neural_feats[i] for i in sorted_indices]
+        self.days = [self.days[i] for i in sorted_indices]
         self.neural_time_bins = [self.neural_time_bins[i] for i in sorted_indices]
 
     def __len__(self):
@@ -75,7 +76,6 @@ class SpeechDataset_MAE(Dataset):
 
         if self.transform:
             neural_feats = self.transform(neural_feats)
-
         return (
             neural_feats, 
             torch.tensor(self.days[idx], dtype=torch.int64),
