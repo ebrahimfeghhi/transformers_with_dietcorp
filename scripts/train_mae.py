@@ -30,6 +30,7 @@ args['batchSize'] = 256
 args['weight_decay'] = 1e-5
 args['learning_rate'] = 1e-3
 args['num_epochs'] = 10000
+args['gaussianSmoothWidth'] = 2.0
 
 
 args['device'] = 'cuda:0'
