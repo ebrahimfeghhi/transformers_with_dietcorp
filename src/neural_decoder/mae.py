@@ -5,6 +5,7 @@ from einops import repeat
 
 from .bit import Transformer, HybridSpatiotemporalPosEmb
 from .dataset import pad_to_multiple
+from torcheval.metrics import R2Score
 
 class MAE(nn.Module):
     def __init__(
@@ -177,4 +178,13 @@ class MAE(nn.Module):
         # Compute the reconstruction loss (mean squared error)
         recon_loss = F.mse_loss(pred_pixel_values, masked_patches)
         
-        return recon_loss
+        metric = R2Score()
+
+        input_r2 = pred_pixel_values.view(-1, pred_pixel_values.shape[-1])
+        target_r2 = masked_patches.view(-1, masked_patches.shape[-1])
+
+        metric.update(input_r2, target_r2)
+        acc = metric.compute()
+        
+        return recon_loss, acc
+        
