@@ -6,6 +6,7 @@ from einops import repeat
 from .bit import Transformer, HybridSpatiotemporalPosEmb
 from .dataset import pad_to_multiple
 from torcheval.metrics import R2Score
+from .augmentations import GaussianSmoothing
 
 class MAE(nn.Module):
     def __init__(
@@ -17,7 +18,8 @@ class MAE(nn.Module):
         masking_ratio=0.75,
         decoder_depth=1,
         decoder_heads=8,
-        decoder_dim_head=64
+        decoder_dim_head=64, 
+        gaussianSmoothWidth=2.0
     ):
         super().__init__()
         # Ensure the masking ratio is valid
@@ -26,6 +28,12 @@ class MAE(nn.Module):
 
         # Save the encoder (a Vision Transformer to be trained)
         self.encoder = encoder
+        
+        self.gaussianSmoothWidth = gaussianSmoothWidth
+        
+        self.gaussianSmoother = GaussianSmoothing(
+            self.encoder.num_features, 20, self.gaussianSmoothWidth, dim=1
+        )
         
         num_patches = self.encoder.num_patches
         encoder_dim = self.encoder.dim
@@ -84,13 +92,18 @@ class MAE(nn.Module):
 
         return mask.to(device)  # shape: [Num Patches, Num Patches]
 
-    def forward(self, img):
-        device = img.device
+    def forward(self, neuralInput):
+        device = neuralInput.device
+        
+        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        neuralInput = self.gaussianSmoother(neuralInput)
+        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+
 
         # Convert the input image into patches
-        img = pad_to_multiple(img, multiple=4)
-        img = torch.unsqueeze(img, axis=1)
-        patches = self.to_patch(img)  # Shape: (batch_size, num_patches, patch_size)
+        neuralInput = pad_to_multiple(neuralInput, multiple=4)
+        neuralInput = torch.unsqueeze(neuralInput, axis=1)
+        patches = self.to_patch(neuralInput)  # Shape: (batch_size, num_patches, patch_size)
         batch_size, num_patches, *_ = patches.shape
  
         # Embed the patches using the encoder's patch embedding layers
