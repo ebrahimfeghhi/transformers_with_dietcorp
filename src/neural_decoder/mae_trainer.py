@@ -123,7 +123,7 @@ class Trainer:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save(self.model.state_dict(), 'save_best/best_vit_model.pth')
+                #torch.save(self.model.state_dict(), 'save_best/best_vit_model.pth')
                 
                   
             # Log the metrics to wandb
