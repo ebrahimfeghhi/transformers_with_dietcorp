@@ -68,7 +68,7 @@ def getDatasetLoaders(
 def trainModel(args):
     
     
-    wandb.init(project="MAE", entity="ebrahimfeghhi", config=dict(args))
+    wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args))
 
     # Initialize the model
 
@@ -90,7 +90,8 @@ def trainModel(args):
         masking_ratio=args['masking_ratio'],
         decoder_depth=args['num_decoder_layers'],
         decoder_heads = args['num_decoder_heads'],
-        decoder_dim_head = args['decoder_dim_head']
+        decoder_dim_head = args['decoder_dim_head'], 
+        gaussianSmoothWidth=args['gaussianSmoothWidth']
     )
 
     
