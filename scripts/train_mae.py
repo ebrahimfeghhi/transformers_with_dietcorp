@@ -2,13 +2,13 @@
 modelName = 'scratch'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
-                    '/home3/skaasyap/willett/outputs']
+                    '/home3/skaasyap/willett/outputs/']
 possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
                       '/home3/skaasyap/willett/data']
 
 args = {}
-args['outputDir'] = possiblePath_dir[0] + modelName
-args['datasetPath'] = possiblePaths_data[0]
+args['outputDir'] = possiblePath_dir[1] + modelName
+args['datasetPath'] = possiblePaths_data[1]
 
 args['trial_size'] = (100, 256)
 args['patch_size']= (100, 2) #TODO
@@ -30,9 +30,11 @@ args['batchSize'] = 256
 args['weight_decay'] = 1e-5
 args['learning_rate'] = 1e-3
 args['num_epochs'] = 10000
+args['gaussianSmoothWidth'] = 2.0
 
 
-args['device'] = 'cuda:0'
+
+args['device'] = 'cuda:1'
 
 from neural_decoder.mae_main import trainModel
 
