@@ -6,7 +6,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-
+import random
 import wandb
 
 class Trainer:
@@ -26,27 +26,47 @@ class Trainer:
         self.train_accuracies = []
         self.val_losses = []
         self.val_accuracies = []
+        
 
 
+    def segment_data_random_start(self, data: torch.Tensor, N: int):
+        """
+        Segments a tensor of shape (batch_size, time, num_features) into
+        consecutive chunks of length N, starting from a random index.
+        
+        Args:
+            data (torch.Tensor): Input tensor of shape (batch_size, time, num_features).
+            N (int): Length of each segment.
+            
+        Yields:
+            torch.Tensor: Segments of shape (batch_size, N, num_features).
+        """
+        batch_size, time, num_features = data.shape
+        if N > time:
+            raise ValueError("Segment length N must be less than or equal to the time dimension.")
+
+        start = 0
+        indices = list(range(start, time, N))
+
+        for i in indices:
+            if i + N <= time:
+                yield data[:, i:i+N, :]
 
     def train_one_epoch(self):
         self.model.train()
         total_loss = 0
-        correct = 0
-        total = 0
-
+        chunk_number = 0
         for batch in tqdm(self.train_loader, desc="Training"):
-            neural_data, labels = batch
-            neural_data, labels = neural_data.to(self.device), labels.to(self.device)
-
+            neural_data, day_idx, _ = batch
+            neural_data = neural_data.to(self.device)
+            day_idx = day_idx.to(self.device)
             self.optimizer.zero_grad()
-            # classification_head_logits = self.model(neural_data)['classification_head_logits']
-            # loss = self.criterion(classification_head_logits, labels)
-            loss = self.model(neural_data) #MAE returns reconstruction loss
+            loss = self.model(neural_data, day_idx) #MAE returns reconstruction loss
             loss.backward()
             self.optimizer.step()
-
             total_loss += loss.item()
+            chunk_number += 1
+                
             # _, predicted = classification_head_logits.max(1)
             # total += labels.size(0)
             # correct += predicted.eq(labels).sum().item()
@@ -56,25 +76,19 @@ class Trainer:
     def validate(self):
         self.model.eval()
         total_loss = 0
-        correct = 0
-        total = 0
-
+        chunk_number = 0
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validating"):
-                neural_data, labels = batch
-                neural_data, labels = neural_data.to(self.device), labels.to(self.device)
-
+                neural_data, day_idx, _ = batch
+                neural_data = neural_data.to(self.device)
+                day_idx = day_idx.to(self.device)
                 # classification_head_logits = self.model(images)['classification_head_logits']
                 # loss = self.criterion(classification_head_logits, labels)
-
-                loss = self.model(neural_data)
-
+                loss = self.model(neural_data, day_idx)
                 total_loss += loss.item()
                 # _, predicted = classification_head_logits.max(1)
                 # total += labels.size(0)
                 # correct += predicted.eq(labels).sum().item()
-
-
     
         return total_loss / len(self.val_loader)
 
