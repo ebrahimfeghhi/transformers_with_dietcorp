@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import wandb
+from torcheval.metrics import R2Score
 
 class Trainer:
     def __init__(self, model, train_loader, val_loader, device, args):
@@ -21,6 +22,7 @@ class Trainer:
         # self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=args['learning_rate'], weight_decay=args['weight_decay'])
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=args['num_epochs'])
+        self.metric = R2Score()
 
         self.train_losses = []
         self.train_accuracies = []
@@ -57,6 +59,7 @@ class Trainer:
     def train_one_epoch(self):
         self.model.train()
         total_loss = 0
+        total_acc = 0
         chunk_number = 0
         for batch in tqdm(self.train_loader, desc="Training"):
             neural_data, day_idx, X_len = batch
@@ -66,21 +69,23 @@ class Trainer:
 
             for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length):
                 self.optimizer.zero_grad()
-                loss = self.model(neural_chunk) #MAE returns reconstruction loss
+                loss, acc = self.model(neural_chunk) #MAE returns reconstruction loss
                 loss.backward()
                 self.optimizer.step()
                 total_loss += loss.item()
+                total_acc += acc.item()
                 chunk_number += 1
                     
             # _, predicted = classification_head_logits.max(1)
             # total += labels.size(0)
             # correct += predicted.eq(labels).sum().item()
 
-        return total_loss / chunk_number
+        return total_loss / chunk_number, total_acc/chunk_number
 
     def validate(self):
         self.model.eval()
         total_loss = 0
+        total_acc = 0
         chunk_number = 0
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validating"):
@@ -93,21 +98,22 @@ class Trainer:
                 # classification_head_logits = self.model(images)['classification_head_logits']
                 # loss = self.criterion(classification_head_logits, labels)
                 for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length):
-                    loss = self.model(neural_chunk)
+                    loss, acc = self.model(neural_chunk)
                     total_loss += loss.item()
+                    total_acc += acc.item()
                     chunk_number+=1
                 # _, predicted = classification_head_logits.max(1)
                 # total += labels.size(0)
                 # correct += predicted.eq(labels).sum().item()
     
-        return total_loss / chunk_number
+        return total_loss / chunk_number, total_acc/chunk_number
 
     def train(self):
         best_val_loss = torch.inf
 
         for epoch in range(self.args['num_epochs']):
-            train_loss = self.train_one_epoch()
-            val_loss = self.validate()
+            train_loss, train_acc = self.train_one_epoch()
+            val_loss, val_acc = self.validate()
             self.scheduler.step()
 
             self.train_losses.append(train_loss)
@@ -117,13 +123,15 @@ class Trainer:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save(self.model.state_dict(), 'best_vit_model.pth')
+                #torch.save(self.model.state_dict(), 'save_best/best_vit_model.pth')
                 
                   
             # Log the metrics to wandb
             wandb.log({
                 'train_loss': train_loss, 
-                "loss": val_loss
+                'train_r2': train_acc,
+                "loss": val_loss,
+                'val_r2': val_acc,
             })
             
 
