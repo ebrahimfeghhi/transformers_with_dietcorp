@@ -34,12 +34,12 @@ def getDatasetLoaders(
         loadedData = pickle.load(handle)
 
     def _padding(batch):
-        X, day_idx, X_len = zip(*batch)
+        X, days, X_len = zip(*batch)
         X_padded = pad_sequence(X, batch_first=True, padding_value=0)
 
         return (
             X_padded,
-            torch.stack(day_idx), 
+            torch.stack(days), 
             torch.stack(X_len)
         )
 
@@ -71,7 +71,7 @@ def trainModel(args):
     wandb.init(project="MAE", entity="ebrahimfeghhi", config=dict(args))
 
     # Initialize the model
-    '''
+
     enc_model = BiT(
         trial_size=args['trial_size'],
         patch_size=args['patch_size'],
@@ -89,37 +89,18 @@ def trainModel(args):
         decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
         masking_ratio=args['masking_ratio'],
         decoder_depth=args['num_decoder_layers'],
-        decoder_heads=args['num_decoder_heads'],
-        decoder_dim_head=args['num_decoder_dim_head']
+        decoder_heads = args['num_decoder_heads'],
+        decoder_dim_head = args['decoder_dim_head']
     )
-    '''
-    
+
     
     train_loader, test_loader, loadedData = getDatasetLoaders(
         args["datasetPath"],
         args["batchSize"],
     )
-
     
-    model = GRUDecoder(
-        neural_dim=args["nInputFeatures"],
-        n_classes=args["nClasses"],
-        hidden_dim=args["nUnits"],
-        layer_dim=args["nLayers"],
-        nDays=len(loadedData["train"]),
-        dropout=args["dropout"],
-        device=args["device"],
-        strideLen=args["strideLen"],
-        kernelLen=args["kernelLen"],
-        gaussianSmoothWidth=args["gaussianSmoothWidth"],
-        bidirectional=args["bidirectional"],
-    ).to(args["device"])
-
-
-
     model = model.to(args['device'])
     print("model moved to device")
-
 
     # Get data loaders
     # train_loader, val_loader = get_food101_dataloader(batch_size = args.batch_size, num_workers = args.num_workers)
