@@ -70,9 +70,9 @@ class Attention(nn.Module):
 
         # If causal is True, generate the causal mask
         # If a custom mask is provided, apply it
-        if temporal_mask is not None:
-            mask = temporal_mask.unsqueeze(1) 
-            dots = dots.masked_fill(mask == 0, float('-inf'))  # Apply custom mask by setting masked positions to -inf
+        #if temporal_mask is not None:
+        #    mask = temporal_mask.unsqueeze(1) 
+        #    dots = dots.masked_fill(mask == 0, float('-inf'))  # Apply custom mask by setting masked positions to -inf
 
         # Apply softmax to get attention weights
         attn = self.attend(dots)  # Shape: (batch_size, num_heads, num_patches, num_patches)
@@ -183,12 +183,13 @@ class HybridSpatiotemporalPosEmb(nn.Module):
 
     
 class BiT(nn.Module):
-    def __init__(self, *, patch_size, dim, depth, 
+    def __init__(self, *, trial_size, patch_size, dim, depth, 
                  heads, mlp_dim_ratio, dim_head=64, dropout=0.):
         """
         Initializes a Brain Transformer (BiT) model.
         
         Args:
+            trial_size (tuple): time x features
             patch_size (int or tuple): Size of each patch (height, width).
             dim (int): Dimension of the embedding space.
             depth (int): Number of transformer layers.
@@ -200,7 +201,19 @@ class BiT(nn.Module):
         super().__init__()
 
         # Convert image size and patch size to tuples if they are single values
+        trial_length, num_features = pair(trial_size)
         patch_height, patch_width = pair(patch_size)
+        
+        self.trial_length = trial_length
+        
+          # Ensure that the image dimensions are divisible by the patch size
+        assert trial_length % patch_height == 0 and num_features % patch_width == 0, 'Trial dimensions must be divisible by the patch size.'
+
+        # Calculate the number of patches and the dimension of each patch
+        num_patches = (trial_length // patch_height) * (num_features // patch_width)
+        
+        self.num_patches = num_patches
+        self.dim = dim
 
         # Calculate the number of patches and the dimension of each patch
         patch_dim = patch_height * patch_width
@@ -216,8 +229,8 @@ class BiT(nn.Module):
 
         self.dropout = nn.Dropout(dropout)  # Dropout for regularization
         
-        #self.pos_embedding = nn.Parameter(torch.randn(1, N, dim)) 
-        self.pos_embedding = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=dim)
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches, dim))
+        #self.pos_embedding = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=dim)
         
         # Define the transformer encoder
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout)
@@ -238,8 +251,9 @@ class BiT(nn.Module):
         b, n, _ = x.shape  # Get batch size, number of patches, and embedding dimension
 
         # Add positional embeddings to the input
-        pos_embeddings = self.pos_embedding(x)
-        x += pos_embeddings
+        #pos_embeddings = self.pos_embedding(x)
+        #x += pos_embeddings
+        x += self.pos_embedding[:, :n]
         
         # Apply dropout for regularization
         x = self.dropout(x)

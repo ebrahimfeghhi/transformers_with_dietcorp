@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from .augmentations import GaussianSmoothing
-
+import torch.nn.functional as F
 
 class GRUDecoder(nn.Module):
     def __init__(
@@ -37,9 +37,9 @@ class GRUDecoder(nn.Module):
         self.unfolder = torch.nn.Unfold(
             (self.kernelLen, 1), dilation=1, padding=0, stride=self.strideLen
         )
-        self.gaussianSmoother = GaussianSmoothing(
-            neural_dim, 20, self.gaussianSmoothWidth, dim=1
-        )
+        #self.gaussianSmoother = GaussianSmoothing(
+        #    neural_dim, 20, self.gaussianSmoothWidth, dim=1
+        #)
         self.dayWeights = torch.nn.Parameter(torch.randn(nDays, neural_dim, neural_dim))
         self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, neural_dim))
 
@@ -75,19 +75,41 @@ class GRUDecoder(nn.Module):
         # rnn outputs
         if self.bidirectional:
             self.fc_decoder_out = nn.Linear(
-                hidden_dim * 2, n_classes + 1
+                hidden_dim * 2, n_classes
             )  # +1 for CTC blank
         else:
-            self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1)  # +1 for CTC blank
+            self.fc_decoder_out = nn.Linear(hidden_dim, n_classes)  # +1 for CTC blank
 
+    def extract_last_k_of_chunks(self, x: torch.Tensor, chunk_size: int = 32, last_k: int = 4) -> torch.Tensor:
+        """
+        Given a tensor of shape (B, T, N), extract the last `last_k` features
+        from each `chunk_size`-sized chunk along the last dimension (N).
+
+        Returns a tensor of shape (B, T, num_chunks * last_k).
+        """
+        B, T, N = x.shape
+        if N % chunk_size != 0:
+            raise ValueError(f"N={N} must be divisible by chunk_size={chunk_size}")
+        
+        num_chunks = N // chunk_size
+        
+        # Reshape to separate chunks
+        x_chunks = x.view(B, T, num_chunks, chunk_size)
+        
+        # Extract last `last_k` features from each chunk
+        last_k_features = x_chunks[:, :, :, -last_k:]  # shape: (B, T, num_chunks, last_k)
+        
+        # Flatten chunk and feature dimensions back together
+        return last_k_features.reshape(B, T, num_chunks * last_k)
+    
     def forward(self, neuralInput, dayIdx):
         
         # neuralInput is of shape nBatch x SeqLen x NeuralFeats
         
         # (nBatch x SeqLen x NeuralFeats) -> (nBatch x NeuralFeats x SeqLen) 
-        neuralInput = torch.permute(neuralInput, (0, 2, 1))
-        neuralInput = self.gaussianSmoother(neuralInput)
-        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        #neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        #neuralInput = self.gaussianSmoother(neuralInput)
+        #neuralInput = torch.permute(neuralInput, (0, 2, 1))
 
         # apply day layer
         dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
@@ -98,12 +120,17 @@ class GRUDecoder(nn.Module):
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
 
         # stride/kernel
+        # transformedNeural is of shape Batch Size x Timesteps x Num Features 
         stridedInputs = torch.permute(
             self.unfolder(
                 torch.unsqueeze(torch.permute(transformedNeural, (0, 2, 1)), 3)
             ),
             (0, 2, 1),
         )
+        
+        outputs = self.extract_last_k_of_chunks(stridedInputs)
+        stridedInputs = stridedInputs[:, :-1, :]
+        outputs = outputs[:, 1:]
         
         # apply RNN layer
         if self.bidirectional:
@@ -125,4 +152,7 @@ class GRUDecoder(nn.Module):
 
         # get seq
         seq_out = self.fc_decoder_out(hid)
-        return seq_out
+        
+        recon_loss = F.mse_loss(seq_out, outputs)
+        
+        return recon_loss

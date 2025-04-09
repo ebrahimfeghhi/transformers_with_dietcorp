@@ -59,6 +59,13 @@ class SpeechDataset_MAE(Dataset):
                 self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
                 self.phone_seq_lens.append(data[day]["phoneLens"][trial])
                 self.days.append(day)
+                
+                
+        sorted_indices = sorted(range(len(self.neural_time_bins)), key=lambda i: self.neural_time_bins[i], reverse=True)
+
+        # Step 2: Reorder neural_feats and neural_time_bin
+        self.neural_feats = [self.neural_feats[i] for i in sorted_indices]
+        self.neural_time_bins = [self.neural_time_bins[i] for i in sorted_indices]
 
     def __len__(self):
         return self.n_trials
@@ -71,7 +78,8 @@ class SpeechDataset_MAE(Dataset):
 
         return (
             neural_feats, 
-            neural_feats)
+            torch.tensor(self.days[idx], dtype=torch.int64),
+            torch.tensor(self.neural_time_bins[idx], dtype=torch.int32))
         
 def pad_to_multiple(tensor, multiple, dim=1, value=0):
     """

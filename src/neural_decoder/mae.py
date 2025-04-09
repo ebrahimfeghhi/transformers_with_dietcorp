@@ -25,6 +25,9 @@ class MAE(nn.Module):
 
         # Save the encoder (a Vision Transformer to be trained)
         self.encoder = encoder
+        
+        num_patches = self.encoder.num_patches
+        encoder_dim = self.encoder.dim
 
         # Separate the patch embedding layers from the encoder
         # The first layer converts the image into patches
@@ -54,10 +57,11 @@ class MAE(nn.Module):
             mlp_dim_ratio=4
             )
         # Positional embeddings for the decoder tokens
-        self.decoder_pos_emb = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=decoder_dim)
+        #self.decoder_pos_emb = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=decoder_dim)
+        self.decoder_pos_emb = nn.Embedding(num_patches, decoder_dim)
         
         # Linear layer to reconstruct pixel values from decoder outputs
-        self.to_pixels = nn.Linear(decoder_dim, pixel_values_per_patch)
+        self.to_neural = nn.Linear(decoder_dim, pixel_values_per_patch)
         
     def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):
         
@@ -92,9 +96,9 @@ class MAE(nn.Module):
    
         tokens = self.patch_to_emb(patches)  # Shape: (batch_size, num_patches, encoder_dim)
   
-        
-        pos_embeddings = self.encoder.pos_embedding(tokens)
-        tokens += pos_embeddings
+        #pos_embeddings = self.encoder.pos_embedding(tokens)
+        #tokens += pos_embeddings
+        tokens += self.encoder.pos_embedding.to(device, dtype=tokens.dtype)
 
         # Determine the number of patches to mask
         num_masked = int(self.masking_ratio * num_patches)
@@ -112,44 +116,46 @@ class MAE(nn.Module):
         masked_patches = patches[batch_range, masked_indices]
 
         # Encode the unmasked tokens using the encoder's transformer
-        temporal_mask = self.create_temporal_attention_mask(num_patches, device)
+        #temporal_mask = self.create_temporal_attention_mask(num_patches, device)
         # Assume temporal_mask has shape (num_patches, num_patches)
-        temporal_mask = temporal_mask.unsqueeze(0)  # Now shape is (1, num_patches, num_patches)
-        temporal_mask = temporal_mask.repeat(batch_size, 1, 1)  # Now shape is (batch_size, num_patches, num_patches)
+        #temporal_mask = temporal_mask.unsqueeze(0)  # Now shape is (1, num_patches, num_patches)
+        #temporal_mask = temporal_mask.repeat(batch_size, 1, 1)  # Now shape is (batch_size, num_patches, num_patches)
         
         B, T = unmasked_indices.shape
 
         # First, gather the rows (dim=1)
         # This will give you shape: (B, T, N)
-        masked_rows = torch.gather(temporal_mask, dim=1, index=unmasked_indices.unsqueeze(-1).expand(-1, -1, temporal_mask.size(2)))
+        #masked_rows = torch.gather(temporal_mask, dim=1, index=unmasked_indices.unsqueeze(-1).expand(-1, -1, temporal_mask.size(2)))
 
         # Now gather the columns (dim=2)
         # This will give you shape: (B, T, T)
-        masked_submatrix = torch.gather(masked_rows, dim=2, index=unmasked_indices.unsqueeze(1).expand(-1, T, -1))
-        encoded_tokens = self.encoder.transformer(tokens, masked_submatrix)
+        #masked_submatrix = torch.gather(masked_rows, dim=2, index=unmasked_indices.unsqueeze(1).expand(-1, T, -1))
+        encoded_tokens = self.encoder.transformer(tokens)
 
         # Map encoded tokens to decoder dimensions if necessary
         decoder_tokens = self.enc_to_dec(encoded_tokens)
         
         # Add positional embeddings to the decoder tokens of unmasked patches
-        decoder_pos_embeddings = self.decoder_pos_emb(patches)
+        unmasked_decoder_tokens = decoder_tokens + self.decoder_pos_emb(unmasked_indices)
         
+        # Add positional embeddings to the decoder tokens of unmasked patches
+        #decoder_pos_embeddings = self.decoder_pos_emb(patches)
         # Step 1: Expand unmasked_indices to shape (8, 450, 64)
-        expanded_indices = unmasked_indices.unsqueeze(-1).expand(-1, -1, 64)
+        #expanded_indices = unmasked_indices.unsqueeze(-1).expand(-1, -1, 64)
         # Step 2: Use torch.gather to pull the right positions per batch
-        decoder_selected = torch.gather(decoder_pos_embeddings, dim=1, index=expanded_indices)
+        #decoder_selected = torch.gather(decoder_pos_embeddings, dim=1, index=expanded_indices)
         
-        unmasked_decoder_tokens = decoder_tokens + decoder_selected
+        #unmasked_decoder_tokens = decoder_tokens + decoder_selected
 
         # Create mask tokens for the masked patches and add positional embeddings
         mask_tokens = repeat(self.mask_token, 'd -> b n d', b=batch_size, n=num_masked)
+        mask_tokens = mask_tokens + self.decoder_pos_emb(masked_indices)
         
         # Step 1: Expand unmasked_indices to shape (8, 450, 64)
-        expanded_indices = masked_indices.unsqueeze(-1).expand(-1, -1, 64)
+        #expanded_indices = masked_indices.unsqueeze(-1).expand(-1, -1, 64)
         # Step 2: Use torch.gather to pull the right positions per batch
-        decoder_selected = torch.gather(decoder_pos_embeddings, dim=1, index=expanded_indices)
-        
-        mask_tokens = mask_tokens + decoder_selected
+        #decoder_selected = torch.gather(decoder_pos_embeddings, dim=1, index=expanded_indices)
+        #mask_tokens = mask_tokens + decoder_selected
 
         # Initialize the full sequence of decoder tokens
         decoder_sequence = torch.zeros(
@@ -160,14 +166,15 @@ class MAE(nn.Module):
         decoder_sequence[batch_range, masked_indices] = mask_tokens
 
         # Decode the full sequence
-        decoded_tokens = self.decoder(decoder_sequence, temporal_mask)
+        decoded_tokens = self.decoder(decoder_sequence)
 
         # Extract the decoded tokens corresponding to the masked patches
         masked_decoded_tokens = decoded_tokens[batch_range, masked_indices]
 
         # Reconstruct the pixel values from the masked decoded tokens
-        pred_pixel_values = self.to_pixels(masked_decoded_tokens)
+        pred_pixel_values = self.to_neural(masked_decoded_tokens)
 
         # Compute the reconstruction loss (mean squared error)
         recon_loss = F.mse_loss(pred_pixel_values, masked_patches)
+        
         return recon_loss

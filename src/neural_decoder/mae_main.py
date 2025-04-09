@@ -19,6 +19,7 @@ from torch.utils.data import DataLoader
 
 from .mae import MAE
 from .bit import BiT
+from .model import GRUDecoder
 from .dataset import SpeechDataset_MAE
 from .augmentations import mask_electrodes
 
@@ -33,12 +34,13 @@ def getDatasetLoaders(
         loadedData = pickle.load(handle)
 
     def _padding(batch):
-        X, X = zip(*batch)
+        X, day_idx, X_len = zip(*batch)
         X_padded = pad_sequence(X, batch_first=True, padding_value=0)
 
         return (
             X_padded,
-            X_padded
+            torch.stack(day_idx), 
+            torch.stack(X_len)
         )
 
     train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
@@ -47,7 +49,7 @@ def getDatasetLoaders(
     train_loader = DataLoader(
         train_ds,
         batch_size=batchSize,
-        shuffle=True,
+        shuffle=False,
         num_workers=0,
         pin_memory=True,
         collate_fn=_padding,
@@ -69,7 +71,9 @@ def trainModel(args):
     wandb.init(project="MAE", entity="ebrahimfeghhi", config=dict(args))
 
     # Initialize the model
+    '''
     enc_model = BiT(
+        trial_size=args['trial_size'],
         patch_size=args['patch_size'],
         dim=args['dim'],
         depth=args['depth'],
@@ -88,6 +92,28 @@ def trainModel(args):
         decoder_heads=args['num_decoder_heads'],
         decoder_dim_head=args['num_decoder_dim_head']
     )
+    '''
+    
+    
+    train_loader, test_loader, loadedData = getDatasetLoaders(
+        args["datasetPath"],
+        args["batchSize"],
+    )
+
+    
+    model = GRUDecoder(
+        neural_dim=args["nInputFeatures"],
+        n_classes=args["nClasses"],
+        hidden_dim=args["nUnits"],
+        layer_dim=args["nLayers"],
+        nDays=len(loadedData["train"]),
+        dropout=args["dropout"],
+        device=args["device"],
+        strideLen=args["strideLen"],
+        kernelLen=args["kernelLen"],
+        gaussianSmoothWidth=args["gaussianSmoothWidth"],
+        bidirectional=args["bidirectional"],
+    ).to(args["device"])
 
 
 
@@ -97,11 +123,6 @@ def trainModel(args):
 
     # Get data loaders
     # train_loader, val_loader = get_food101_dataloader(batch_size = args.batch_size, num_workers = args.num_workers)
-
-    train_loader, test_loader, loadedData = getDatasetLoaders(
-        args["datasetPath"],
-        args["batchSize"],
-    )
 
     print("dataloaders loaded")
     
