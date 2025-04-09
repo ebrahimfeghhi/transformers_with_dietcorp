@@ -1,9 +1,14 @@
 
 modelName = 'scratch'
 
+possiblePath_dir = ['/data/willett_data/outputs/', 
+                    '/home3/skaasyap/willett/outputs']
+possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
+                      '/home3/skaasyap/willett/data']
+
 args = {}
-args['outputDir'] = '/data/willett_data/outputs/' + modelName
-args['datasetPath'] = '/data/willett_data/ptDecoder_ctc'
+args['outputDir'] = possiblePath_dir[0] + modelName
+args['datasetPath'] = possiblePaths_data[0]
 
 args['trial_size'] = (100, 256)
 args['patch_size']= (100, 2) #TODO
