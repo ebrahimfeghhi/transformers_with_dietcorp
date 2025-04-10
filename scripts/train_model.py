@@ -23,7 +23,7 @@ args['strideLen'] = 4
 args['kernelLen'] = 32
 args['bidirectional'] = False
 args['l2_decay'] = 1e-5
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:3'
 
 from neural_decoder.neural_decoder_trainer import trainModel
 

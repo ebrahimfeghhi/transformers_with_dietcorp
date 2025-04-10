@@ -24,6 +24,7 @@ from .dataset import SpeechDataset_MAE
 from .augmentations import mask_electrodes
 
 import wandb
+wandb.disabled = True
 
 
 def getDatasetLoaders(
@@ -44,6 +45,8 @@ def getDatasetLoaders(
         )
 
     train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
+    print("Block shuffling by batch size")
+    train_ds.shuffle_by_batch(batchSize)
     test_ds = SpeechDataset_MAE(loadedData["test"])
 
     train_loader = DataLoader(
