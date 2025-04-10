@@ -1,0 +1,60 @@
+{
+  "os": "Linux-5.15.0-125-generic-x86_64-with-glibc2.31",
+  "python": "CPython 3.9.18",
+  "startedAt": "2025-04-10T16:30:02.898745Z",
+  "program": "/home3/ebrahim/neural_seq_decoder/scripts/train_mae.py",
+  "codePath": "scripts/train_mae.py",
+  "git": {
+    "remote": "git@github.com:ebrahimfeghhi/neural_seq_decoder.git",
+    "commit": "b30dfa0464942a4ebdab6bd04c465f46cbc6d420"
+  },
+  "email": "efeghhi@gmail.com",
+  "root": "/home3/ebrahim/neural_seq_decoder/scripts",
+  "host": "leia",
+  "executable": "/home3/ebrahim/miniconda3/envs/speech-bci/bin/python",
+  "codePathLocal": "train_mae.py",
+  "cpu_count": 32,
+  "cpu_count_logical": 64,
+  "gpu": "NVIDIA GeForce RTX 3070",
+  "gpu_count": 4,
+  "disk": {
+    "/": {
+      "total": "239288213504",
+      "used": "60066492416"
+    }
+  },
+  "memory": {
+    "total": "134899982336"
+  },
+  "cpu": {
+    "count": 32,
+    "countLogical": 64
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 3070",
+      "memoryTotal": "8589934592",
+      "cudaCores": 5888,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 3070",
+      "memoryTotal": "8589934592",
+      "cudaCores": 5888,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 3070",
+      "memoryTotal": "8589934592",
+      "cudaCores": 5888,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA GeForce RTX 3070",
+      "memoryTotal": "8589934592",
+      "cudaCores": 5888,
+      "architecture": "Ampere"
+    }
+  ],
+  "cudaVersion": "12.2"
+}

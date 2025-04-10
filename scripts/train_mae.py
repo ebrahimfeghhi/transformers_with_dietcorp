@@ -26,15 +26,16 @@ args['num_decoder_layers'] = 2 #TODO
 args['num_decoder_heads'] = 8
 args['decoder_dim_head'] = 4
 
-args['batchSize'] = 256
+args['batchSize'] = 275
 
 args['weight_decay'] = 1e-5
 args['learning_rate'] = 1e-3
 args['num_epochs'] = 10000
 args['gaussianSmoothWidth'] = 2.0
 
+args['extra_notes'] = 'Added day specific layer, added block shuffling.'
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:3'
 
 from neural_decoder.mae_main import trainModel
 

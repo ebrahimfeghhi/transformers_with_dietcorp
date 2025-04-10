@@ -19,7 +19,8 @@ class MAE(nn.Module):
         decoder_depth=1,
         decoder_heads=8,
         decoder_dim_head=64, 
-        gaussianSmoothWidth=2.0
+        gaussianSmoothWidth=2.0, 
+        nDays=24
     ):
         super().__init__()
         # Ensure the masking ratio is valid
@@ -37,7 +38,10 @@ class MAE(nn.Module):
         
         num_patches = self.encoder.num_patches
         encoder_dim = self.encoder.dim
-
+        
+        self.dayWeights = torch.nn.Parameter(torch.randn(nDays, self.encoder.num_features, self.encoder.num_features))
+        self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, self.encoder.num_features))
+        
         # Separate the patch embedding layers from the encoder
         # The first layer converts the image into patches
         self.to_patch = encoder.to_patch_embedding[0]
@@ -92,16 +96,23 @@ class MAE(nn.Module):
 
         return mask.to(device)  # shape: [Num Patches, Num Patches]
 
-    def forward(self, neuralInput):
+    def forward(self, neuralInput, dayIdx):
+        
         device = neuralInput.device
         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
-
+        
+        # apply day layer
+        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+        neuralInput = torch.einsum(
+            "btd,bdk->btk", neuralInput, dayWeights
+        ) + torch.index_select(self.dayBias, 0, dayIdx)
+    
+        #transformedNeural = self.inputLayerNonlinearity(transformedNeural)
 
         # Convert the input image into patches
-        neuralInput = pad_to_multiple(neuralInput, multiple=4)
         neuralInput = torch.unsqueeze(neuralInput, axis=1)
         patches = self.to_patch(neuralInput)  # Shape: (batch_size, num_patches, patch_size)
         batch_size, num_patches, *_ = patches.shape

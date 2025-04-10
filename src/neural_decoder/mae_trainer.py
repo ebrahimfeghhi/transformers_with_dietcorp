@@ -11,6 +11,7 @@ import wandb
 from torcheval.metrics import R2Score
 
 class Trainer:
+    
     def __init__(self, model, train_loader, val_loader, device, args):
         self.model = model
         self.train_loader = train_loader
@@ -29,7 +30,7 @@ class Trainer:
         self.val_losses = []
         self.val_accuracies = []
         
-    def segment_data(self, data: torch.Tensor, N: int, X_len: torch.Tensor):
+    def segment_data(self, data: torch.Tensor, N: int, X_len: torch.Tensor, day_idx: torch.Tensor):
         
         """
         Segments data into time-aligned batches of shape (B', N, F), where each segment
@@ -40,35 +41,48 @@ class Trainer:
             data (torch.Tensor): Input tensor of shape (B, T, F)
             N (int): Length of each time segment
             X_len (torch.Tensor): Valid lengths per trial (B,)
+            day_idx (torch.Tensor): Day that each trial from the batch comes from (B, )
 
         Yields:
-            torch.Tensor: Segments of shape (B', N, F)
+            Tuple[torch.Tensor, torch.Tensor]: 
+                - Segments of shape (B', N, F)
+                - Corresponding day indices of shape (B',)
         """
         B, T, F = data.shape
         max_len = X_len.max().item()
-        
+
         for start in range(0, max_len - N + 1, N):
-            end = start + N
             segments = []
+            segment_days = []
+            end = start + N
             for b in range(B):
+                
                 x_len = X_len[b].item()
+                
+                # no padding issues here because X_len is longer than end.
                 if x_len >= end:
-                    # Normal case
                     segment = data[b, start:end, :]
                     segments.append(segment)
+                    segment_days.append(day_idx[b])
+                    
+                # if there is still some new signal, but not long enough for a chunk
+                # take the last N non padded timesteps.
                 elif x_len > start:
-                    # Edge case: not enough for full window, but enough to backtrack
-                    segment = data[b, -N:, :]
+                    segment = data[b, x_len-N:x_len, :]
                     segments.append(segment)
+                    segment_days.append(day_idx[b])
+                    
+                # if signal has finished, randomly select a chunk to preserve batch size. 
                 else:
                     max_start = x_len - N
                     rand_start = torch.randint(0, max_start + 1, (1,)).item()
                     segment = data[b, rand_start:rand_start + N, :]
+                    segments.append(segment)
+                    segment_days.append(day_idx[b])
 
             if segments:
-                yield torch.stack(segments)  # (B', N, F)
-            
-            
+                yield torch.stack(segments), torch.stack(segment_days)
+
     def train_one_epoch(self):
         self.model.train()
         total_loss = 0
@@ -79,14 +93,20 @@ class Trainer:
             neural_data, day_idx, X_len = batch
             
             # select trials that are longer than chunk size
-            mask = X_len >= self.model.encoder.trial_length 
-            neural_data  = neural_data[mask]
-            neural_data = neural_data.to(self.device)
-
-            for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
-                                                  X_len = X_len):
+            #mask = X_len >= self.model.encoder.trial_length 
+            
+            #neural_data  = neural_data[mask]
+            
+            neural_data, day_idx, X_len = (neural_data.to(self.device), 
+                           day_idx.to(self.device),
+                           X_len.to(self.device))
+            
+            
+            for neural_chunk, day_idx_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
+                                                  X_len = X_len, day_idx = day_idx):
+                
                 self.optimizer.zero_grad()
-                loss, acc = self.model(neural_chunk) #MAE returns reconstruction loss
+                loss, acc = self.model(neural_chunk, day_idx_chunk) #MAE returns reconstruction loss
                 loss.backward()
                 self.optimizer.step()
                 total_loss += loss.item()
@@ -109,15 +129,19 @@ class Trainer:
                 neural_data, day_idx, X_len = batch
             
                 # select trials that are longer than chunk size
-                mask = X_len >= self.model.encoder.trial_length 
-                neural_data  = neural_data[mask]
-                neural_data = neural_data.to(self.device)
+                #mask = X_len >= self.model.encoder.trial_length 
+                #neural_data  = neural_data[mask]
+                            
+                neural_data, day_idx, X_len = (neural_data.to(self.device), 
+                           day_idx.to(self.device),
+                           X_len.to(self.device))
+            
                 # classification_head_logits = self.model(images)['classification_head_logits']
                 # loss = self.criterion(classification_head_logits, labels)
-                for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
-                                                  X_len = X_len):
+                for neural_chunk, day_idx_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
+                                                  X_len = X_len, day_idx = day_idx):
                     
-                    loss, acc = self.model(neural_chunk)
+                    loss, acc = self.model(neural_chunk, day_idx_chunk)
                     total_loss += loss.item()
                     total_acc += acc.item()
                     chunk_number+=1
