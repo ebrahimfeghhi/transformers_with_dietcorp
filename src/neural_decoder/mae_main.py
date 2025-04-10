@@ -91,7 +91,7 @@ def trainModel(args):
         decoder_depth=args['num_decoder_layers'],
         decoder_heads = args['num_decoder_heads'],
         decoder_dim_head = args['decoder_dim_head'], 
-        gaussianSmoothWidth=args['gaussianSmoothWidth']
+        gaussianSmoothWidth = args['gaussianSmoothWidth']
     )
 
     

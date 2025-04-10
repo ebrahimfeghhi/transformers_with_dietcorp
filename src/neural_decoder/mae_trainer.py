@@ -29,45 +29,62 @@ class Trainer:
         self.val_losses = []
         self.val_accuracies = []
         
-
-
-    def segment_data(self, data: torch.Tensor, N: int):
-        """
-        Segments a tensor of shape (batch_size, time, num_features) into
-        consecutive chunks of length N, starting from a random index.
+    def segment_data(self, data: torch.Tensor, N: int, X_len: torch.Tensor):
         
-        Args:
-            data (torch.Tensor): Input tensor of shape (batch_size, time, num_features).
-            N (int): Length of each segment.
-            
-        Yields:
-            torch.Tensor: Segments of shape (batch_size, N, num_features).
         """
-        batch_size, time, num_features = data.shape
-        if N > time:
-            raise ValueError("Segment length N must be less than or equal to the time dimension.")
+        Segments data into time-aligned batches of shape (B', N, F), where each segment
+        includes only trials with sufficient valid data (according to X_len). If a trial's
+        valid length is between start and end, include the last N-length chunk ending at X_len.
 
-        start = 0
-        indices = list(range(start, time, N))
+        Args:
+            data (torch.Tensor): Input tensor of shape (B, T, F)
+            N (int): Length of each time segment
+            X_len (torch.Tensor): Valid lengths per trial (B,)
 
-        for i in indices:
-            if i + N <= time:
-                yield data[:, i:i+N, :]
-            else:
-                yield data[:, -N:, :]
+        Yields:
+            torch.Tensor: Segments of shape (B', N, F)
+        """
+        B, T, F = data.shape
+        max_len = X_len.max().item()
+        
+        for start in range(0, max_len - N + 1, N):
+            end = start + N
+            segments = []
+            for b in range(B):
+                x_len = X_len[b].item()
+                if x_len >= end:
+                    # Normal case
+                    segment = data[b, start:end, :]
+                    segments.append(segment)
+                elif x_len > start:
+                    # Edge case: not enough for full window, but enough to backtrack
+                    segment = data[b, -N:, :]
+                    segments.append(segment)
+                else:
+                    max_start = x_len - N
+                    rand_start = torch.randint(0, max_start + 1, (1,)).item()
+                    segment = data[b, rand_start:rand_start + N, :]
 
+            if segments:
+                yield torch.stack(segments)  # (B', N, F)
+            
+            
     def train_one_epoch(self):
         self.model.train()
         total_loss = 0
         total_acc = 0
         chunk_number = 0
         for batch in tqdm(self.train_loader, desc="Training"):
+            
             neural_data, day_idx, X_len = batch
-            mask = X_len >= 100
+            
+            # select trials that are longer than chunk size
+            mask = X_len >= self.model.encoder.trial_length 
             neural_data  = neural_data[mask]
             neural_data = neural_data.to(self.device)
 
-            for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length):
+            for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
+                                                  X_len = X_len):
                 self.optimizer.zero_grad()
                 loss, acc = self.model(neural_chunk) #MAE returns reconstruction loss
                 loss.backward()
@@ -90,14 +107,16 @@ class Trainer:
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validating"):
                 neural_data, day_idx, X_len = batch
-                min_trial_time = torch.min(X_len)
-                if min_trial_time < self.model.encoder.trial_length:
-                    continue
-                neural_data = neural_data[:, :min_trial_time, :]
+            
+                # select trials that are longer than chunk size
+                mask = X_len >= self.model.encoder.trial_length 
+                neural_data  = neural_data[mask]
                 neural_data = neural_data.to(self.device)
                 # classification_head_logits = self.model(images)['classification_head_logits']
                 # loss = self.criterion(classification_head_logits, labels)
-                for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length):
+                for neural_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
+                                                  X_len = X_len):
+                    
                     loss, acc = self.model(neural_chunk)
                     total_loss += loss.item()
                     total_acc += acc.item()
