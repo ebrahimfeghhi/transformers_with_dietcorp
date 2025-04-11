@@ -7,6 +7,9 @@ from .bit import Transformer, HybridSpatiotemporalPosEmb
 from .dataset import pad_to_multiple
 from torcheval.metrics import R2Score
 from .augmentations import GaussianSmoothing
+from .dataset import sliding_chunks
+from einops.layers.torch import Rearrange
+
 
 class MAE(nn.Module):
     def __init__(
@@ -179,12 +182,12 @@ class MAE(nn.Module):
         decoder_sequence[batch_range, unmasked_indices] = unmasked_decoder_tokens
         decoder_sequence[batch_range, masked_indices] = mask_tokens
         
-        if self.day_specific_tokens:
+        #if self.day_specific_tokens:
             # batch size x nDays x patch Dim
-            day_specific_patches = repeat(self.day_specific_patches, '1 n d -> b n d', b=B, n=self.nDays)
-            day_specific_patches = day_specific_patches[torch.arange(B), dayIdx] + self.decoder_pos_emb_dayspecific(dayIdx)
-            day_specific_patches = day_specific_patches.unsqueeze(1)
-            decoder_sequence = torch.cat((decoder_sequence, day_specific_patches), dim=1)
+        #    day_specific_patches = repeat(self.day_specific_patches, '1 n d -> b n d', b=B, n=self.nDays)
+        #    day_specific_patches = day_specific_patches[torch.arange(B), dayIdx] + self.decoder_pos_emb_dayspecific(dayIdx)
+        #    day_specific_patches = day_specific_patches.unsqueeze(1)
+        #    decoder_sequence = torch.cat((decoder_sequence, day_specific_patches), dim=1)
         
         
         # Decode the full sequence
@@ -217,9 +220,133 @@ class MAE(nn.Module):
         
         return recon_loss, acc
     
+    
+class MAE_EncoderOnly(nn.Module):
+    
+    def __init__(self, mae_model):
+        
+        super().__init__()
+        
+        self.encoder = mae_model.encoder
+        self.to_patch = Rearrange('b t (h p1) (w p2) -> b t (h w) (p1 p2)', p1=32, p2=2)
+        self.patch_to_emb = mae_model.patch_to_emb
+        self.pos_embedding = mae_model.encoder.pos_embedding
+        self.gaussianSmoother = mae_model.gaussianSmoother
+
+    def forward(self, x):
+    
+        # Convert to patches
+        patches = self.to_patch(x)
+        tokens = self.patch_to_emb(patches)
+        
+        # Add position embeddings
+        pos_emb = self.pos_embedding.to(x.device, dtype=tokens.dtype)
+        tokens = tokens + pos_emb
+        B, T, num_patch, patch_dim = tokens.shape
+        # Pass through encoder transformer
+        encoded = self.encoder.transformer(tokens.reshape(B*T, num_patch, patch_dim))
+        
+        return encoded.reshape(B,T,num_patch,patch_dim)
+    
+class GRU_MAE(nn.Module):
+    
+    def __init__(self, 
+                 mae_encoder, 
+                 n_classes=40,
+                 dropout=0.4, 
+                 layer_dim=5,
+                 hidden_dim=1024,
+                 kernelLen = 32,
+                 strideLen = 4,
+                 neural_dim=256,
+                 whiteNoiseSD=0.2,
+                 constantOffsetSD=0.2,
+                 nDays=24) -> None:
+        
+        
+        super().__init__()
+        self.encoder = mae_encoder
+        self.kernelLen = kernelLen
+        self.stride=strideLen
+        self.hidden_dim = hidden_dim
+        self.bidirectional = False
+        self.dropout = dropout
+        self.whiteNoiseSD = whiteNoiseSD
+        self.constantOffsetSD = constantOffsetSD
+        
+        self.dayWeights = torch.nn.Parameter(torch.randn(nDays, neural_dim,
+                                                        neural_dim))
+        self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, neural_dim))
+
+        
+        # GRU layers
+        self.gru_decoder = nn.GRU(
+            (neural_dim) * self.kernelLen,
+            hidden_dim,
+            layer_dim,
+            batch_first=True,
+            dropout=self.dropout,
+            bidirectional=self.bidirectional,
+        )
+        
+        for name, param in self.gru_decoder.named_parameters():
+            if "weight_hh" in name:
+                nn.init.orthogonal_(param)
+            if "weight_ih" in name:
+                nn.init.xavier_uniform_(param)
+                
+        # Input layers
+        for x in range(nDays):
+            setattr(self, "inpLayer" + str(x), nn.Linear(neural_dim, neural_dim))
+
+        for x in range(nDays):
+            thisLayer = getattr(self, "inpLayer" + str(x))
+            thisLayer.weight = torch.nn.Parameter(
+                thisLayer.weight + torch.eye(neural_dim)
+            )
+
+        self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1) 
 
 
+    def forward(self, x, dayIdx):
+        
+        
+        device = x.device
+        
+        # Apply Gaussian smoothing
+        x = torch.permute(x, (0, 2, 1))
+        x = self.encoder.gaussianSmoother(x)
+        x = torch.permute(x, (0, 2, 1))
+        
+        
+        x = sliding_chunks(x, chunk_size=self.kernelLen, stride=self.stride)
+                
+        X = self.encoder(x)
+        
+        breakpoint()
+        
+         # Noise augmentation is faster on GPU
+        if self.whiteNoiseSD > 0:
+            X += torch.randn(X.shape, device=device) * self.whiteNoiseSD
 
+        if self.constantOffsetSD > 0:
+            X += (
+                torch.randn([X.shape[0], 1, X.shape[2]], device=device)
+                * self.constantOffsetSD
+            )
+
+        # apply day layer
+        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+        transformedNeural = torch.einsum(
+            "btd,bdk->btk", X, dayWeights
+        ) + torch.index_select(self.dayBias, 0, dayIdx)
+        transformedNeural = self.inputLayerNonlinearity(transformedNeural)
+        
+        hid, _ = self.gru_decoder(transformedNeural)
+        
+        seq_out = self.fc_decoder_out(hid)
+        
+        return seq_out
 
 '''
     def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):
