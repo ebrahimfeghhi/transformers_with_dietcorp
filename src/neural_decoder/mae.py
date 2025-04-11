@@ -325,22 +325,36 @@ class GRU_MAE(nn.Module):
         
         breakpoint()
         
+        
+           
          # Noise augmentation is faster on GPU
         if self.whiteNoiseSD > 0:
             X += torch.randn(X.shape, device=device) * self.whiteNoiseSD
 
+        # add a constant offset to each patch 
         if self.constantOffsetSD > 0:
             X += (
-                torch.randn([X.shape[0], 1, X.shape[2]], device=device)
+                torch.randn([X.shape[0], 1, X.shape[2], 1], device=device)
                 * self.constantOffsetSD
             )
-
+     
+            
         # apply day layer
+        
+        
+        
+        transformedNeural = torch.einsum("btpd,bpdk->btpk", X, dayWeights)
+        
+        breakpoint()
+        
         dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
         transformedNeural = torch.einsum(
             "btd,bdk->btk", X, dayWeights
         ) + torch.index_select(self.dayBias, 0, dayIdx)
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
+        
+        X = X.reshape(X.shape[0], X.shape[1], X.shape[2]*X.shape[3])
+        
         
         hid, _ = self.gru_decoder(transformedNeural)
         
