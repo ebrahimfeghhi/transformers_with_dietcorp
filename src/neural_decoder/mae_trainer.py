@@ -13,6 +13,7 @@ from torcheval.metrics import R2Score
 class Trainer:
     
     def __init__(self, model, train_loader, val_loader, device, args):
+        
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -29,6 +30,9 @@ class Trainer:
         self.train_accuracies = []
         self.val_losses = []
         self.val_accuracies = []
+        
+        self.save_folder = args['outputDir']
+        os.makedirs(self.save_folder, exist_ok=True)
         
     def segment_data(self, data: torch.Tensor, N: int, X_len: torch.Tensor, day_idx: torch.Tensor):
         
@@ -52,11 +56,14 @@ class Trainer:
         max_len = X_len.max().item()
 
         for start in range(0, max_len - N + 1, N):
+            
             segments = []
             segment_days = []
             end = start + N
+            
             for b in range(B):
                 
+                # get 
                 x_len = X_len[b].item()
                 
                 # no padding issues here because X_len is longer than end.
@@ -80,14 +87,15 @@ class Trainer:
                     segments.append(segment)
                     segment_days.append(day_idx[b])
 
-            if segments:
-                yield torch.stack(segments), torch.stack(segment_days)
+            
+            yield torch.stack(segments), torch.stack(segment_days)
 
     def train_one_epoch(self):
         self.model.train()
         total_loss = 0
         total_acc = 0
         chunk_number = 0
+        
         for batch in tqdm(self.train_loader, desc="Training"):
             
             neural_data, day_idx, X_len = batch
@@ -102,7 +110,8 @@ class Trainer:
                            X_len.to(self.device))
             
             
-            for neural_chunk, day_idx_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
+            for neural_chunk, day_idx_chunk in self.segment_data(neural_data, 
+                                                 N=self.model.encoder.trial_length, 
                                                   X_len = X_len, day_idx = day_idx):
                 
                 self.optimizer.zero_grad()
@@ -152,6 +161,7 @@ class Trainer:
         return total_loss / chunk_number, total_acc/chunk_number
 
     def train(self):
+        
         best_val_loss = torch.inf
 
         for epoch in range(self.args['num_epochs']):
@@ -166,9 +176,15 @@ class Trainer:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                #torch.save(self.model.state_dict(), 'save_best/best_vit_model.pth')
                 
-                  
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': self.model.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'best_val_loss': best_val_loss, 
+                    'val_acc': val_acc
+                }, f'{self.save_folder}/save_best.pth')
+                
             # Log the metrics to wandb
             wandb.log({
                 'train_loss': train_loss, 
@@ -182,7 +198,7 @@ class Trainer:
         #self.plot_results()
 
         # Save final checkpoint after training completes
-        self.save_checkpoint(epoch+1, best_val_loss)
+        #self.save_checkpoint(epoch+1, best_val_loss)
         
     def save_checkpoint(self, epoch, best_val_loss):
         """Saves the model checkpoint at the end of training."""

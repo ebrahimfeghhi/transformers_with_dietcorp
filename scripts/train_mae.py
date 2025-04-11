@@ -1,5 +1,5 @@
 
-modelName = 'scratch'
+modelName = 'mask_0.7'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -37,10 +37,9 @@ args['gaussianSmoothWidth'] = 2.0
 args['day_specific'] = False
 args['day_specific_tokens'] = False
 
-
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:3'
 
 from neural_decoder.mae_main import trainModel
 

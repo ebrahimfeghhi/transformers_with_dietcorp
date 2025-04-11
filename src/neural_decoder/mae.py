@@ -15,6 +15,8 @@ class MAE(nn.Module):
         encoder,
         decoder_dim,
         encoder_dim,
+        day_specific,
+        day_specific_tokens, 
         masking_ratio=0.75,
         decoder_depth=1,
         decoder_heads=8,
@@ -31,6 +33,7 @@ class MAE(nn.Module):
         self.encoder = encoder
         
         self.gaussianSmoothWidth = gaussianSmoothWidth
+        self.day_specific = day_specific
         
         self.gaussianSmoother = GaussianSmoothing(
             self.encoder.num_features, 20, self.gaussianSmoothWidth, dim=1
@@ -38,9 +41,12 @@ class MAE(nn.Module):
         
         num_patches = self.encoder.num_patches
         encoder_dim = self.encoder.dim
+        self.nDays = nDays
         
-        self.dayWeights = torch.nn.Parameter(torch.randn(nDays, self.encoder.num_features, self.encoder.num_features))
-        self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, self.encoder.num_features))
+        if self.day_specific:
+            self.dayWeights = torch.nn.Parameter(torch.randn(nDays, decoder_dim,
+                                                            decoder_dim))
+            self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, decoder_dim))
         
         # Separate the patch embedding layers from the encoder
         # The first layer converts the image into patches
@@ -69,33 +75,21 @@ class MAE(nn.Module):
             dim_head=decoder_dim_head,
             mlp_dim_ratio=4
             )
-        # Positional embeddings for the decoder tokens
-        #self.decoder_pos_emb = HybridSpatiotemporalPosEmb(num_space=16, max_time=10000, embedding_dim=decoder_dim)
-        self.decoder_pos_emb = nn.Embedding(num_patches, decoder_dim)
         
+        self.day_specific_tokens = day_specific_tokens
+        
+        if self.day_specific_tokens:
+            
+            self.day_specific_patches = nn.Parameter(torch.randn(1, nDays, decoder_dim)) 
+            self.decoder_pos_emb_dayspecific = nn.Embedding(nDays, decoder_dim)
+            
+    
+        self.decoder_pos_emb = nn.Embedding(num_patches, decoder_dim)
+            
+            
         # Linear layer to reconstruct pixel values from decoder outputs
         self.to_neural = nn.Linear(decoder_dim, pixel_values_per_patch)
         
-    def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):
-        
-        mask = torch.full((num_patches, num_patches), 0)
-
-        timesteps = num_patches // patches_per_timestep
-        
-        for t_q in range(timesteps):  # time index of query
-            for dt in range(N + 1):  # how far back to look
-                t_k = t_q - dt  # key timestep
-                if t_k < 0:
-                    continue
-                q_start = t_q * patches_per_timestep
-                q_end = (t_q + 1) * patches_per_timestep
-                k_start = t_k * patches_per_timestep
-                k_end = (t_k + 1) * patches_per_timestep
-                # allow attention: set to 0 (non-masked)
-                mask[q_start:q_end, k_start:k_end] = 1
-
-        return mask.to(device)  # shape: [Num Patches, Num Patches]
-
     def forward(self, neuralInput, dayIdx):
         
         device = neuralInput.device
@@ -104,12 +98,6 @@ class MAE(nn.Module):
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         
-        # apply day layer
-        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
-        neuralInput = torch.einsum(
-            "btd,bdk->btk", neuralInput, dayWeights
-        ) + torch.index_select(self.dayBias, 0, dayIdx)
-    
         #transformedNeural = self.inputLayerNonlinearity(transformedNeural)
 
         # Convert the input image into patches
@@ -186,10 +174,19 @@ class MAE(nn.Module):
         decoder_sequence = torch.zeros(
             batch_size, num_patches, self.decoder_dim, device=device
         )
+        
         # Place unmasked decoder tokens and mask tokens in their original positions
         decoder_sequence[batch_range, unmasked_indices] = unmasked_decoder_tokens
         decoder_sequence[batch_range, masked_indices] = mask_tokens
-
+        
+        if self.day_specific_tokens:
+            # batch size x nDays x patch Dim
+            day_specific_patches = repeat(self.day_specific_patches, '1 n d -> b n d', b=B, n=self.nDays)
+            day_specific_patches = day_specific_patches[torch.arange(B), dayIdx] + self.decoder_pos_emb_dayspecific(dayIdx)
+            day_specific_patches = day_specific_patches.unsqueeze(1)
+            decoder_sequence = torch.cat((decoder_sequence, day_specific_patches), dim=1)
+        
+        
         # Decode the full sequence
         decoded_tokens = self.decoder(decoder_sequence)
 
@@ -197,18 +194,52 @@ class MAE(nn.Module):
         masked_decoded_tokens = decoded_tokens[batch_range, masked_indices]
 
         # Reconstruct the pixel values from the masked decoded tokens
-        pred_pixel_values = self.to_neural(masked_decoded_tokens)
-
+        pred_neural_values = self.to_neural(masked_decoded_tokens)
+        
+        # apply day layer
+        #if self.day_specific:
+        #    dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+        #    
+        #    pred_neural_values = torch.einsum(
+        #        "btd,bdk->btk", pred_neural_values, dayWeights
+        #    ) + torch.index_select(self.dayBias, 0, dayIdx)
+            
         # Compute the reconstruction loss (mean squared error)
-        recon_loss = F.mse_loss(pred_pixel_values, masked_patches)
+        recon_loss = F.mse_loss(pred_neural_values, masked_patches)
         
         metric = R2Score()
 
-        input_r2 = pred_pixel_values.view(-1, pred_pixel_values.shape[-1])
+        input_r2 = pred_neural_values.view(-1, pred_neural_values.shape[-1])
         target_r2 = masked_patches.view(-1, masked_patches.shape[-1])
 
         metric.update(input_r2, target_r2)
         acc = metric.compute()
         
         return recon_loss, acc
+    
+
+
+
+
+'''
+    def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):
+        
+        mask = torch.full((num_patches, num_patches), 0)
+
+        timesteps = num_patches // patches_per_timestep
+        
+        for t_q in range(timesteps):  # time index of query
+            for dt in range(N + 1):  # how far back to look
+                t_k = t_q - dt  # key timestep
+                if t_k < 0:
+                    continue
+                q_start = t_q * patches_per_timestep
+                q_end = (t_q + 1) * patches_per_timestep
+                k_start = t_k * patches_per_timestep
+                k_end = (t_k + 1) * patches_per_timestep
+                # allow attention: set to 0 (non-masked)
+                mask[q_start:q_end, k_start:k_end] = 1
+
+        return mask.to(device)  # shape: [Num Patches, Num Patches]
+'''
         
