@@ -24,7 +24,7 @@ import wandb
 def trainModel(args):
     
 
-    wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args))
+    wandb.init(project="MAE + GRU", entity="skaasyap-ucla", config=dict(args))
 
     # Initialize the model
 
@@ -57,11 +57,14 @@ def trainModel(args):
     model.load_state_dict(checkpoint['model_state_dict'])
     encoder_only_model = MAE_EncoderOnly(model)
     
-    for param in encoder_only_model.parameters():
-        param.requires_grad = False
+    if args['freeze_mae_encoder']:
         
-    encoder_only_model.eval()
-    
+        print("FREEZING MAE")
+        for param in encoder_only_model.parameters():
+            param.requires_grad = False
+            
+        encoder_only_model.eval()
+        
     train_loader, test_loader, loadedData = getDatasetLoaders(
         args["datasetPath"],
         args["batchSize"]
