@@ -20,11 +20,10 @@ from torch.utils.data import DataLoader
 from .mae import MAE
 from .bit import BiT
 from .model import GRUDecoder
-from .dataset import SpeechDataset_MAE
+from .dataset import SpeechDataset_MAE, ShuffleByBatchSampler
 from .augmentations import mask_electrodes
 
 import wandb
-wandb.disabled = True
 
 
 def getDatasetLoaders(
@@ -45,13 +44,12 @@ def getDatasetLoaders(
         )
 
     train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
-    print("Block shuffling by batch size")
-    train_ds.shuffle_by_batch(batchSize)
+    train_sampler = ShuffleByBatchSampler(train_ds, batch_size=batchSize)
     test_ds = SpeechDataset_MAE(loadedData["test"])
 
     train_loader = DataLoader(
         train_ds,
-        batch_size=batchSize,
+        batch_sampler=train_sampler,
         shuffle=False,
         num_workers=0,
         pin_memory=True,
@@ -94,7 +92,9 @@ def trainModel(args):
         decoder_depth=args['num_decoder_layers'],
         decoder_heads = args['num_decoder_heads'],
         decoder_dim_head = args['decoder_dim_head'], 
-        gaussianSmoothWidth = args['gaussianSmoothWidth']
+        gaussianSmoothWidth = args['gaussianSmoothWidth'], 
+        day_specific=args['day_specific'], 
+        day_specific_tokens = args['day_specific_tokens']
     )
 
     
@@ -114,7 +114,8 @@ def trainModel(args):
     device = args['device']
 
     # Get the Trainer
-    trainer = Trainer(model = model, train_loader = train_loader, val_loader = test_loader, device = device, args = args)
+    trainer = Trainer(model = model, train_loader = train_loader, 
+                      val_loader = test_loader, device = device, args = args)
 
     print("trainer loaded")
 

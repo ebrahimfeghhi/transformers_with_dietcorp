@@ -73,7 +73,8 @@ class SpeechDataset_MAE(Dataset):
                 
         
         # sort trials by length for more effective chunking.         
-        sorted_indices = sorted(range(len(self.neural_time_bins)), key=lambda i: self.neural_time_bins[i], reverse=True)
+        sorted_indices = sorted(range(len(self.neural_time_bins)), 
+                        key=lambda i: self.neural_time_bins[i], reverse=True)
         self.neural_feats = [self.neural_feats[i] for i in sorted_indices]
         self.days = [self.days[i] for i in sorted_indices]
         self.neural_time_bins = [self.neural_time_bins[i] for i in sorted_indices]
@@ -92,7 +93,6 @@ class SpeechDataset_MAE(Dataset):
         batches = [indices[i:i+batch_size] for i in range(0, n, batch_size)]
 
         # Step 2: Shuffle the batch order
-        import random
         random.shuffle(batches)
 
         # Step 3: Flatten shuffled batches back into a single index list
@@ -126,3 +126,30 @@ def pad_to_multiple(tensor, multiple, dim=1, value=0):
     pad_dims = [0] * (2 * tensor.dim())
     pad_dims[-2 * dim - 1] = padding_needed  # padding at the end
     return F.pad(tensor, pad_dims, value=value)
+
+
+from torch.utils.data import Sampler
+import random
+
+class ShuffleByBatchSampler(Sampler):
+    def __init__(self, dataset, batch_size):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.dataset_len = len(dataset)
+
+    def __iter__(self):
+        n = self.dataset_len
+        indices = list(range(n))
+
+        # Step 1: Group into batches
+        batches = [indices[i:i + self.batch_size] for i in range(0, n, self.batch_size)]
+
+        # Step 2: Shuffle the batch order
+        random.shuffle(batches)
+
+        # Step 3: Yield batches (lists of indices)
+        for batch in batches:
+            yield batch
+
+    def __len__(self):
+        return (self.dataset_len + self.batch_size - 1) // self.batch_size
