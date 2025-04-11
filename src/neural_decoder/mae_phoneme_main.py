@@ -52,7 +52,8 @@ def trainModel(args):
         day_specific_tokens = False
     )
     
-    checkpoint = torch.load(args['best_model_path'])
+    
+    checkpoint = torch.load(args['best_model_path'], map_location=args['device'])
     model.load_state_dict(checkpoint['model_state_dict'])
     encoder_only_model = MAE_EncoderOnly(model)
     

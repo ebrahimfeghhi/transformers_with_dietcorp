@@ -9,8 +9,8 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[1] + modelName
-args['datasetPath'] = possiblePaths_data[3]
+args['outputDir'] = possiblePath_dir[0] + modelName
+args['datasetPath'] = possiblePaths_data[0]
 
 args['seqLen'] = 150
 args['maxTimeSeriesLen'] = 1200
@@ -53,11 +53,11 @@ args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 16
 args['dropout'] = 0.1
 
-args['best_model_path'] = possiblePath_dir[1] + modelName + '/save_best.pth'
+args['best_model_path'] = possiblePath_dir[0] + modelName + '/save_best.pth'
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:1'
 
 from neural_decoder.mae_phoneme_main import trainModel
 
