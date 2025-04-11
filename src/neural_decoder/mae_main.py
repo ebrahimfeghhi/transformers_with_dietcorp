@@ -20,51 +20,10 @@ from torch.utils.data import DataLoader
 from .mae import MAE
 from .bit import BiT
 from .model import GRUDecoder
-from .dataset import SpeechDataset_MAE, ShuffleByBatchSampler
+from .dataset import getDatasetLoaders_MAE
 from .augmentations import mask_electrodes
 
 import wandb
-
-
-def getDatasetLoaders(
-    datasetName,
-    batchSize,
-):
-    with open(datasetName, "rb") as handle:
-        loadedData = pickle.load(handle)
-
-    def _padding(batch):
-        X, days, X_len = zip(*batch)
-        X_padded = pad_sequence(X, batch_first=True, padding_value=0)
-
-        return (
-            X_padded,
-            torch.stack(days), 
-            torch.stack(X_len)
-        )
-
-    train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
-    train_sampler = ShuffleByBatchSampler(train_ds, batch_size=batchSize)
-    test_ds = SpeechDataset_MAE(loadedData["test"])
-
-    train_loader = DataLoader(
-        train_ds,
-        batch_sampler=train_sampler,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-    test_loader = DataLoader(
-        test_ds,
-        batch_size=batchSize,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-
-    return train_loader, test_loader, loadedData
 
 def trainModel(args):
     
@@ -98,10 +57,9 @@ def trainModel(args):
     )
 
     
-    train_loader, test_loader, loadedData = getDatasetLoaders(
+    train_loader, test_loader, loadedData = getDatasetLoaders_MAE(
         args["datasetPath"],
-        args["batchSize"],
-    )
+        args["batchSize"])
     
     model = model.to(args['device'])
     print("model moved to device")

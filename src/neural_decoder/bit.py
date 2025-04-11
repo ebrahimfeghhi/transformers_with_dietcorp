@@ -204,6 +204,9 @@ class BiT(nn.Module):
         trial_length, num_features = pair(trial_size)
         patch_height, patch_width = pair(patch_size)
         
+        self.patch_height = patch_height
+        self.patch_width = patch_width
+        
         self.trial_length = trial_length
         self.num_features = num_features
         

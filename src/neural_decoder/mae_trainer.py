@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import random
 import wandb
 from torcheval.metrics import R2Score
+from .dataset import segment_data
 
 class Trainer:
     
@@ -33,62 +34,6 @@ class Trainer:
         
         self.save_folder = args['outputDir']
         os.makedirs(self.save_folder, exist_ok=True)
-        
-    def segment_data(self, data: torch.Tensor, N: int, X_len: torch.Tensor, day_idx: torch.Tensor):
-        
-        """
-        Segments data into time-aligned batches of shape (B', N, F), where each segment
-        includes only trials with sufficient valid data (according to X_len). If a trial's
-        valid length is between start and end, include the last N-length chunk ending at X_len.
-
-        Args:
-            data (torch.Tensor): Input tensor of shape (B, T, F)
-            N (int): Length of each time segment
-            X_len (torch.Tensor): Valid lengths per trial (B,)
-            day_idx (torch.Tensor): Day that each trial from the batch comes from (B, )
-
-        Yields:
-            Tuple[torch.Tensor, torch.Tensor]: 
-                - Segments of shape (B', N, F)
-                - Corresponding day indices of shape (B',)
-        """
-        B, T, F = data.shape
-        max_len = X_len.max().item()
-
-        for start in range(0, max_len - N + 1, N):
-            
-            segments = []
-            segment_days = []
-            end = start + N
-            
-            for b in range(B):
-                
-                # get 
-                x_len = X_len[b].item()
-                
-                # no padding issues here because X_len is longer than end.
-                if x_len >= end:
-                    segment = data[b, start:end, :]
-                    segments.append(segment)
-                    segment_days.append(day_idx[b])
-                    
-                # if there is still some new signal, but not long enough for a chunk
-                # take the last N non padded timesteps.
-                elif x_len > start:
-                    segment = data[b, x_len-N:x_len, :]
-                    segments.append(segment)
-                    segment_days.append(day_idx[b])
-                    
-                # if signal has finished, randomly select a chunk to preserve batch size. 
-                else:
-                    max_start = x_len - N
-                    rand_start = torch.randint(0, max_start + 1, (1,)).item()
-                    segment = data[b, rand_start:rand_start + N, :]
-                    segments.append(segment)
-                    segment_days.append(day_idx[b])
-
-            
-            yield torch.stack(segments), torch.stack(segment_days)
 
     def train_one_epoch(self):
         self.model.train()
@@ -110,7 +55,7 @@ class Trainer:
                            X_len.to(self.device))
             
             
-            for neural_chunk, day_idx_chunk in self.segment_data(neural_data, 
+            for neural_chunk, day_idx_chunk in segment_data(neural_data, 
                                                  N=self.model.encoder.trial_length, 
                                                   X_len = X_len, day_idx = day_idx):
                 
@@ -129,10 +74,12 @@ class Trainer:
         return total_loss / chunk_number, total_acc/chunk_number
 
     def validate(self):
+        
         self.model.eval()
         total_loss = 0
         total_acc = 0
         chunk_number = 0
+        
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validating"):
                 neural_data, day_idx, X_len = batch
@@ -147,7 +94,7 @@ class Trainer:
             
                 # classification_head_logits = self.model(images)['classification_head_logits']
                 # loss = self.criterion(classification_head_logits, labels)
-                for neural_chunk, day_idx_chunk in self.segment_data(neural_data, N=self.model.encoder.trial_length, 
+                for neural_chunk, day_idx_chunk in segment_data(neural_data, N=self.model.encoder.trial_length, 
                                                   X_len = X_len, day_idx = day_idx):
                     
                     loss, acc = self.model(neural_chunk, day_idx_chunk)
