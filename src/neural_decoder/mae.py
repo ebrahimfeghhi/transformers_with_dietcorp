@@ -267,12 +267,13 @@ class GRU_MAE(nn.Module):
         super().__init__()
         self.encoder = mae_encoder
         self.kernelLen = kernelLen
-        self.stride=strideLen
+        self.strideLen=strideLen
         self.hidden_dim = hidden_dim
         self.bidirectional = False
         self.dropout = dropout
         self.whiteNoiseSD = whiteNoiseSD
         self.constantOffsetSD = constantOffsetSD
+        self.neural_dim = neural_dim
         
         self.dayWeights = torch.nn.Parameter(torch.randn(nDays, neural_dim,
                                                         neural_dim))
@@ -311,56 +312,41 @@ class GRU_MAE(nn.Module):
     def forward(self, x, dayIdx):
         
         
-        device = x.device
         
         # Apply Gaussian smoothing
         x = torch.permute(x, (0, 2, 1))
         x = self.encoder.gaussianSmoother(x)
         x = torch.permute(x, (0, 2, 1))
         
-        
-        x = sliding_chunks(x, chunk_size=self.kernelLen, stride=self.stride)
+         # apply day layer
+        #dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+        #breakpoint()
+        #x = torch.einsum(
+        #    "btd,bdk->btk", x, dayWeights
+        #) + torch.index_select(self.dayBias, 0, dayIdx)
+        x = sliding_chunks(x, chunk_size=self.kernelLen, stride=self.strideLen)
                 
-        X = self.encoder(x)
+        x = self.encoder(x)
         
-        breakpoint()
-        
-        
-           
          # Noise augmentation is faster on GPU
-        if self.whiteNoiseSD > 0:
-            X += torch.randn(X.shape, device=device) * self.whiteNoiseSD
+        #if self.whiteNoiseSD > 0:
+        #    X += torch.randn(X.shape, device=device) * self.whiteNoiseSD
 
         # add a constant offset to each patch 
-        if self.constantOffsetSD > 0:
-            X += (
-                torch.randn([X.shape[0], 1, X.shape[2], 1], device=device)
-                * self.constantOffsetSD
-            )
-     
-            
+        #if self.constantOffsetSD > 0:
+        #    X += (
+        #        torch.randn([X.shape[0], 1, X.shape[2], 1], device=device)
+        #        * self.constantOffsetSD
+        #    )   
         # apply day layer
         
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[2]*x.shape[3])
         
+        x, _ = self.gru_decoder(x)
         
-        transformedNeural = torch.einsum("btpd,bpdk->btpk", X, dayWeights)
+        x = self.fc_decoder_out(x)
         
-        breakpoint()
-        
-        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
-        transformedNeural = torch.einsum(
-            "btd,bdk->btk", X, dayWeights
-        ) + torch.index_select(self.dayBias, 0, dayIdx)
-        transformedNeural = self.inputLayerNonlinearity(transformedNeural)
-        
-        X = X.reshape(X.shape[0], X.shape[1], X.shape[2]*X.shape[3])
-        
-        
-        hid, _ = self.gru_decoder(transformedNeural)
-        
-        seq_out = self.fc_decoder_out(hid)
-        
-        return seq_out
+        return x
 
 '''
     def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):

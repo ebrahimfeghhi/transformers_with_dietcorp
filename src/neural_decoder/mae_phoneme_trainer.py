@@ -3,21 +3,16 @@ import pickle
 import time
 
 from edit_distance import SequenceMatcher
-import hydra
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader
 
-from .mae import MAE_EncoderOnly, GRU_MAE
-from .dataset import SpeechDataset
-from .augmentations import mask_electrodes
+from .mae import GRU_MAE
+from .dataset import pad_to_multiple
 
 import wandb
 
 def start_run(args, mae_encoder, trainLoader, testLoader, loadedData):
     
-    wandb.init(project="Neural Decoder", entity="ebrahimfeghhi", config=dict(args))
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
@@ -73,6 +68,19 @@ def start_run(args, mae_encoder, trainLoader, testLoader, loadedData):
             y_len.to(args["device"]),
             dayIdx.to(args["device"]),
         )
+        
+        # Noise augmentation is faster on GPU
+        if args["whiteNoiseSD"] > 0:
+            X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
+
+        if args["constantOffsetSD"] > 0:
+            X += (
+                torch.randn([X.shape[0], 1, X.shape[2]], device=args["device"])
+                * args["constantOffsetSD"]
+            )
+            
+        X = pad_to_multiple(X, multiple=args['kernelLen'])
+
             
         # Compute prediction error
         pred = model.forward(X, dayIdx)
