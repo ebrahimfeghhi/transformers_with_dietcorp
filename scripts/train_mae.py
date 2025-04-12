@@ -1,5 +1,5 @@
 
-modelName = 'mask_0.7'
+modelName = 'mask_0.5_2_pad'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -12,20 +12,21 @@ args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[3]
 
-args['trial_size'] = (32, 256)
-args['patch_size']= (32, 2) #TODO
-args['dim'] = 64 #TODO
-args['depth'] = 12 #TODO
-args['heads'] = 4
+args['patch_size']= (5, 256) #TODO
+args['dim'] = 512 #TODO
+args['depth'] = 9 #TODO
+args['heads'] = 8
 args['mlp_dim_ratio'] = 4 #TODO
-args['dim_head'] = 16
+args['dim_head'] = 64
 args['dropout'] = 0.1
 
-args['decoder_dim'] = 64
-args['masking_ratio'] = 0.7
+args['whiteNoiseSD'] = 0
+args['constantOffsetSD'] = 0
+args['decoder_dim'] = 512
+args['masking_ratio'] = 0.5
 args['num_decoder_layers'] = 3 #TODO
-args['num_decoder_heads'] = 4
-args['decoder_dim_head'] = 16
+args['num_decoder_heads'] = 8
+args['decoder_dim_head'] = 64
 
 args['batchSize'] = 275
 
@@ -34,8 +35,7 @@ args['learning_rate'] = 1e-3
 args['num_epochs'] = 10000
 args['gaussianSmoothWidth'] = 2.0
 
-args['day_specific'] = False
-args['day_specific_tokens'] = False
+args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
