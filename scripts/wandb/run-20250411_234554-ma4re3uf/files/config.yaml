@@ -1,0 +1,80 @@
+_wandb:
+    value:
+        cli_version: 0.19.9
+        m: []
+        python_version: 3.9.18
+        t:
+            "1":
+                - 1
+                - 50
+                - 55
+            "2":
+                - 1
+                - 50
+                - 55
+            "3":
+                - 16
+                - 23
+                - 55
+            "4": 3.9.18
+            "5": 0.19.9
+            "8":
+                - 5
+            "12": 0.19.9
+            "13": linux-x86_64
+batchSize:
+    value: 275
+constantOffsetSD:
+    value: 0.2
+datasetPath:
+    value: /home3/skaasyap/willett/data_log_both
+day_specific:
+    value: false
+day_specific_tokens:
+    value: false
+decoder_dim:
+    value: 64
+decoder_dim_head:
+    value: 16
+depth:
+    value: 12
+device:
+    value: cuda:3
+dim:
+    value: 64
+dim_head:
+    value: 16
+dropout:
+    value: 0.1
+extra_notes:
+    value: ""
+gaussianSmoothWidth:
+    value: 2
+heads:
+    value: 4
+learning_rate:
+    value: 0.001
+masking_ratio:
+    value: 0.7
+mlp_dim_ratio:
+    value: 4
+num_decoder_heads:
+    value: 4
+num_decoder_layers:
+    value: 3
+num_epochs:
+    value: 10000
+outputDir:
+    value: /home3/skaasyap/willett/outputs/mask_0.7
+patch_size:
+    value:
+        - 32
+        - 2
+trial_size:
+    value:
+        - 32
+        - 256
+weight_decay:
+    value: 1e-05
+whiteNoiseSD:
+    value: 0.8
