@@ -14,12 +14,12 @@ args['outputDir'] = possiblePath_dir[0] + modelName
 args['datasetPath'] = possiblePaths_data[1]
 
 args['patch_size']= (5, 256) #TODO
-args['dim'] = 1280 #TODO
-args['depth'] = 4 #TODO
-args['heads'] = 20
+args['dim'] = 512 #TODO
+args['depth'] = 9 #TODO
+args['heads'] = 8
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0.1
+args['dropout'] = 0.4
 
 args['whiteNoiseSD'] = 0.8
 args['gaussianSmoothWidth'] = 2.0
@@ -29,18 +29,20 @@ args['nClasses'] = 40
 args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
-args['lrStart'] = 0.03
-args['lrEnd'] = 0.03
+args['lrStart'] = 0.05
+args['lrEnd'] = 0.05
 
 args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:0'
 
 args['seed'] = 0
 
-args['n_epochs'] = 1000
+args['T5_style_pos'] = True
+
+args['n_epochs'] = 10000
 
 
 from neural_decoder.neural_decoder_trainer import trainModel
@@ -55,7 +57,8 @@ model = BiT_Phoneme(
     dropout=args['dropout'],
     look_ahead=0,
     nDays=args['nDays'],
-    gaussianSmoothWidth=args['gaussianSmoothWidth']
+    gaussianSmoothWidth=args['gaussianSmoothWidth'],
+    T5_style_pos=args['T5_style_pos']
 ).to(args['device'])
 
 trainModel(args, model)
