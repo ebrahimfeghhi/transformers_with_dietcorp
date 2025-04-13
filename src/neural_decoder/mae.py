@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from einops import repeat
 
-from .bit import Transformer, HybridSpatiotemporalPosEmb
+from .bit import Transformer
 from .dataset import pad_to_multiple
 from torcheval.metrics import R2Score
 from .augmentations import GaussianSmoothing
@@ -17,6 +17,27 @@ import torch.nn.functional as F
 from einops import repeat
 from torchmetrics.regression import R2Score
 from .bit import create_temporal_mask, get_sinusoidal_pos_emb
+
+def sample_mask_spans_batch(batch_size, num_patches, mask_ratio=0.5, span_len=3, device=None):
+    """
+    Generate contiguous masking spans for a batch of sequences.
+
+    Returns:
+        mask: (B, num_patches) bool tensor where 1 = masked
+    """
+    mask = torch.zeros(batch_size, num_patches, dtype=torch.bool, device=device)
+    num_to_mask = int(mask_ratio * num_patches)
+
+    for b in range(batch_size):
+        masked = 0
+        while masked < num_to_mask:
+            start = torch.randint(0, num_patches - span_len + 1, (1,), device=device).item()
+            span = min(span_len, num_to_mask - masked)
+            mask[b, start:start + span] = True
+            masked += span
+
+    return mask
+
 
 class MAE(nn.Module):
     def __init__(
@@ -32,6 +53,7 @@ class MAE(nn.Module):
         decoder_heads=8,
         decoder_dim_head=64,
         gaussianSmoothWidth=2.0,
+        mask_span_len = 3
     ):
         super().__init__()
         assert 0 < masking_ratio < 1, 'masking ratio must be between 0 and 1'
@@ -41,10 +63,11 @@ class MAE(nn.Module):
         self.decoder_dim = decoder_dim
         self.whiteNoiseSD = whiteNoiseSD
         self.constantOffsetSD = constantOffsetSD
+        self.mask_span_len = mask_span_len
 
         # Gaussian smoothing
         self.gaussianSmoother = GaussianSmoothing(
-            self.encoder.num_features, 20, gaussianSmoothWidth, dim=1
+            self.encoder.patch_width, 20, gaussianSmoothWidth, dim=1
         )
 
         # Patch embedding split from encoder
@@ -75,6 +98,8 @@ class MAE(nn.Module):
     def forward(self, neuralInput, dayIdx):
         device = neuralInput.device
 
+        neuralInput = pad_to_multiple(neuralInput, multiple=self.encoder.patch_height)
+        
         # Apply Gaussian smoothing to denoise
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
@@ -110,17 +135,14 @@ class MAE(nn.Module):
 
         # Encode the unmasked tokens
         seq_len = unmasked_tokens.shape[1]
-        temporal_mask = create_temporal_mask(seq_len, look_ahead=0, device=device)
+        temporal_mask = create_temporal_mask(seq_len=seq_len, look_ahead=self.encoder.look_ahead, device=device)
         encoded_tokens = self.encoder.transformer(unmasked_tokens, mask=temporal_mask)
 
         decoder_tokens = self.enc_to_dec(encoded_tokens)
 
         # Add decoder pos embeddings
-        if self.use_sinusoidal_pos_emb:
-            dec_pos_emb = get_sinusoidal_pos_emb(num_patches, self.decoder_dim, device=device)
-            decoder_pos = dec_pos_emb.unsqueeze(0).expand(B, -1, -1)
-        else:
-            raise NotImplementedError("Only sinusoidal decoder pos embedding is currently supported.")
+        dec_pos_emb = get_sinusoidal_pos_emb(num_patches, self.decoder_dim, device=device)
+        decoder_pos = dec_pos_emb.unsqueeze(0).expand(B, -1, -1)
 
         # Index decoder pos emb for unmasked/masked
         unmasked_pos = decoder_pos[batch_range, unmasked_indices]
@@ -139,7 +161,7 @@ class MAE(nn.Module):
 
         # Decode
         seq_len = decoder_sequence.shape[1]
-        decoder_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=device)
+        decoder_mask = create_temporal_mask(seq_len=seq_len, look_ahead=self.encoder.look_ahead, device=device)
 
         # Apply masked decoder
         decoded_tokens = self.decoder(decoder_sequence, mask=decoder_mask)

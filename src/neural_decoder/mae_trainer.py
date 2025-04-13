@@ -54,19 +54,14 @@ class Trainer:
                            day_idx.to(self.device),
                            X_len.to(self.device))
             
-            
-            for neural_chunk, day_idx_chunk in segment_data(neural_data, 
-                                                 N=self.model.encoder.trial_length, 
-                                                  X_len = X_len, day_idx = day_idx):
+            self.optimizer.zero_grad()
+            loss, acc = self.model(neural_data, day_idx) #MAE returns reconstruction loss
+            loss.backward()
+            self.optimizer.step()
+            total_loss += loss.item()
+            total_acc += acc.item()
+            chunk_number += 1
                 
-                self.optimizer.zero_grad()
-                loss, acc = self.model(neural_chunk, day_idx_chunk) #MAE returns reconstruction loss
-                loss.backward()
-                self.optimizer.step()
-                total_loss += loss.item()
-                total_acc += acc.item()
-                chunk_number += 1
-                    
             # _, predicted = classification_head_logits.max(1)
             # total += labels.size(0)
             # correct += predicted.eq(labels).sum().item()
@@ -92,15 +87,11 @@ class Trainer:
                            day_idx.to(self.device),
                            X_len.to(self.device))
             
-                # classification_head_logits = self.model(images)['classification_head_logits']
-                # loss = self.criterion(classification_head_logits, labels)
-                for neural_chunk, day_idx_chunk in segment_data(neural_data, N=self.model.encoder.trial_length, 
-                                                  X_len = X_len, day_idx = day_idx):
-                    
-                    loss, acc = self.model(neural_chunk, day_idx_chunk)
-                    total_loss += loss.item()
-                    total_acc += acc.item()
-                    chunk_number+=1
+               
+                loss, acc = self.model(neural_data, day_idx)
+                total_loss += loss.item()
+                total_acc += acc.item()
+                chunk_number+=1
                 # _, predicted = classification_head_logits.max(1)
                 # total += labels.size(0)
                 # correct += predicted.eq(labels).sum().item()

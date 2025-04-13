@@ -25,22 +25,23 @@ from .augmentations import mask_electrodes
 
 import wandb
 
+
+
 def trainModel(args):
     
     
     wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args))
 
     # Initialize the model
-
     enc_model = BiT(
-        trial_size=args['trial_size'],
         patch_size=args['patch_size'],
         dim=args['dim'],
         depth=args['depth'],
         heads=args['heads'],
         mlp_dim_ratio=args['mlp_dim_ratio'],
         dim_head=args['dim_head'],
-        dropout=args['dropout']
+        dropout=args['dropout'], 
+        look_ahead=args['look_ahead']
     )
 
     model = MAE(
@@ -52,8 +53,8 @@ def trainModel(args):
         decoder_heads = args['num_decoder_heads'],
         decoder_dim_head = args['decoder_dim_head'], 
         gaussianSmoothWidth = args['gaussianSmoothWidth'], 
-        day_specific=args['day_specific'], 
-        day_specific_tokens = args['day_specific_tokens']
+        constantOffsetSD=args['constantOffsetSD'], 
+        whiteNoiseSD=args['whiteNoiseSD']
     )
 
     
