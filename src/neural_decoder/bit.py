@@ -5,6 +5,8 @@ import math
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+from .augmentations import GaussianSmoothing
+from .dataset import pad_to_multiple
 
 class FFN(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
@@ -41,7 +43,7 @@ def get_sinusoidal_pos_emb(seq_len, dim, device=None):
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
     return pe  # (seq_len, dim)
-d
+
 def create_temporal_mask(seq_len, look_ahead=0, device=None):
     """
     Create a temporal attention mask where each position i can attend to:
@@ -117,11 +119,7 @@ class Transformer(nn.Module):
 class BiT(nn.Module):
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head=64, dropout=0., look_ahead=0):
-        """
-        Args:
-            patch_size (tuple): (time, feature) patch size.
-            look_ahead (int): how many future patches each token can attend to.
-        """
+
         super().__init__()
 
         patch_height, patch_width = pair(patch_size)
@@ -165,5 +163,95 @@ class BiT(nn.Module):
 
         # Apply transformer with temporal masking
         x = self.transformer(x, mask=temporal_mask)
+        
+        breakpoint()
 
         return x
+    
+# Main BiT model
+class BiT_Phoneme(nn.Module):
+    
+    def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
+                 dim_head=64, dropout=0., look_ahead=0, nDays=24, gaussianSmoothWidth=2.0, 
+                 nClasses=40):
+   
+        super().__init__()
+
+        patch_height, patch_width = pair(patch_size)
+        self.patch_height = patch_height
+        self.patch_width = patch_width
+        self.dim = dim
+        self.look_ahead = look_ahead  # new
+        self.gaussianSmoothWidth = gaussianSmoothWidth
+        self.inputLayerNonlinearity = torch.nn.Softsign()
+
+        patch_dim = patch_height * patch_width
+
+        self.to_patch_embedding = nn.Sequential(
+            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
+                      p1=patch_height, p2=patch_width),
+            nn.LayerNorm(patch_dim),
+            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(dim)
+        )
+
+        self.dropout = nn.Dropout(dropout)
+        self.register_buffer('pos_embedding', None, persistent=False)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout)
+        
+        
+        self.gaussianSmoother = GaussianSmoothing(
+            patch_width, 20, self.gaussianSmoothWidth, dim=1
+        )
+        
+        self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
+        self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
+        
+        self.projection = nn.Linear(dim, nClasses+1)
+
+    def forward(self, neuralInput, dayIdx):
+        """
+        Args:
+            neuralInout: Tensor of shape (B, 1, T, F)
+            dayIdx: tensor of shape (B)
+        Returns:
+            Tensor: (B, num_patches, dim)
+        """
+        
+        neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
+        
+        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        neuralInput = self.gaussianSmoother(neuralInput)
+        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+
+        # apply day layer
+        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+        transformedNeural = torch.einsum(
+            "btd,bdk->btk", neuralInput, dayWeights
+        ) + torch.index_select(self.dayBias, 0, dayIdx)
+        transformedNeural = self.inputLayerNonlinearity(transformedNeural)
+        
+        
+        neuralInput = neuralInput.unsqueeze(1)
+        x = self.to_patch_embedding(neuralInput)  # (B, T_patches, dim)
+        b, seq_len, _ = x.shape
+
+        # Positional encoding
+        pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
+        x = x + pos_emb.unsqueeze(0)
+
+        x = self.dropout(x)
+
+        # Create temporal mask
+        temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
+
+        # Apply transformer with temporal masking
+        x = self.transformer(x, mask=temporal_mask)
+        
+        out = self.projection(x)
+
+        return out
+    
+    def compute_length(self, X_len):
+        
+        return (X_len / self.patch_height).to(torch.int32)

@@ -1,0 +1,13 @@
+method: grid
+name: bit_phoneme_hyperparam_sweep
+metric:
+  name: val_cer
+  goal: minimize
+
+parameters:
+  dim:
+    values: [256, 512, 768]
+  depth:
+    values: [6, 9, 12]
+  dim_head:
+    values: [64]

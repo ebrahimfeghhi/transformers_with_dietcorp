@@ -122,3 +122,7 @@ class GRUDecoder(nn.Module):
         # get seq
         seq_out = self.fc_decoder_out(hid)
         return seq_out
+    
+    def compute_length(self, X_len):
+        
+        return  ((X_len - self.kernelLen) / self.strideLen).to(torch.int32)
