@@ -11,6 +11,154 @@ from .dataset import sliding_chunks
 from einops.layers.torch import Rearrange
 
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from einops import repeat
+from torchmetrics.regression import R2Score
+from .bit import create_temporal_mask, get_sinusoidal_pos_emb
+
+class MAE(nn.Module):
+    def __init__(
+        self,
+        *,
+        encoder,
+        decoder_dim,
+        encoder_dim,
+        whiteNoiseSD=0.8,
+        constantOffsetSD=0.2,
+        masking_ratio=0.75,
+        decoder_depth=1,
+        decoder_heads=8,
+        decoder_dim_head=64,
+        gaussianSmoothWidth=2.0,
+    ):
+        super().__init__()
+        assert 0 < masking_ratio < 1, 'masking ratio must be between 0 and 1'
+        self.masking_ratio = masking_ratio
+
+        self.encoder = encoder
+        self.decoder_dim = decoder_dim
+        self.whiteNoiseSD = whiteNoiseSD
+        self.constantOffsetSD = constantOffsetSD
+
+        # Gaussian smoothing
+        self.gaussianSmoother = GaussianSmoothing(
+            self.encoder.num_features, 20, gaussianSmoothWidth, dim=1
+        )
+
+        # Patch embedding split from encoder
+        self.to_patch = encoder.to_patch_embedding[0]
+        self.patch_to_emb = nn.Sequential(*encoder.to_patch_embedding[1:])
+
+        pixel_values_per_patch = encoder.to_patch_embedding[2].weight.shape[-1]
+
+        # Linear map encoder → decoder dim if needed
+        self.enc_to_dec = (
+            nn.Linear(encoder_dim, decoder_dim)
+            if encoder_dim != decoder_dim
+            else nn.Identity()
+        )
+
+        self.mask_token = nn.Parameter(torch.randn(decoder_dim))
+
+        self.decoder = Transformer(
+            dim=decoder_dim,
+            depth=decoder_depth,
+            heads=decoder_heads,
+            dim_head=decoder_dim_head,
+            mlp_dim_ratio=4
+        )
+
+        self.to_neural = nn.Linear(decoder_dim, pixel_values_per_patch)
+
+    def forward(self, neuralInput, dayIdx):
+        device = neuralInput.device
+
+        # Apply Gaussian smoothing to denoise
+        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        neuralInput = self.gaussianSmoother(neuralInput)
+        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+
+        B = neuralInput.size(0)
+
+        # Patchify input: (B, 1, T, F) → (B, num_patches, patch_size)
+        neuralInput = neuralInput.unsqueeze(1)
+        patches = self.to_patch(neuralInput)
+        B, num_patches, _ = patches.shape
+
+        # Embed patches
+        tokens = self.patch_to_emb(patches)
+
+        # Add sinusoidal positional embeddings (same as encoder)
+        pos_emb = get_sinusoidal_pos_emb(num_patches, tokens.size(-1), device=device)
+        tokens = tokens + pos_emb.unsqueeze(0)
+
+        # Mask a subset of tokens
+        num_masked = int(self.masking_ratio * num_patches)
+        rand_indices = torch.rand(B, num_patches, device=device).argsort(dim=-1)
+        masked_indices = rand_indices[:, :num_masked]
+        unmasked_indices = rand_indices[:, num_masked:]
+        # Sort only the selected indices to restore time order
+        masked_indices = torch.sort(masked_indices, dim=-1).values
+        unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+
+        batch_range = torch.arange(B, device=device)[:, None]
+
+        unmasked_tokens = tokens[batch_range, unmasked_indices]
+        masked_patches = patches[batch_range, masked_indices]
+
+        # Encode the unmasked tokens
+        seq_len = unmasked_tokens.shape[1]
+        temporal_mask = create_temporal_mask(seq_len, look_ahead=0, device=device)
+        encoded_tokens = self.encoder.transformer(unmasked_tokens, mask=temporal_mask)
+
+        decoder_tokens = self.enc_to_dec(encoded_tokens)
+
+        # Add decoder pos embeddings
+        if self.use_sinusoidal_pos_emb:
+            dec_pos_emb = get_sinusoidal_pos_emb(num_patches, self.decoder_dim, device=device)
+            decoder_pos = dec_pos_emb.unsqueeze(0).expand(B, -1, -1)
+        else:
+            raise NotImplementedError("Only sinusoidal decoder pos embedding is currently supported.")
+
+        # Index decoder pos emb for unmasked/masked
+        unmasked_pos = decoder_pos[batch_range, unmasked_indices]
+        masked_pos = decoder_pos[batch_range, masked_indices]
+
+        unmasked_decoder_tokens = decoder_tokens + unmasked_pos
+
+        # Create and embed mask tokens
+        mask_tokens = repeat(self.mask_token, 'd -> b n d', b=B, n=num_masked)
+        mask_tokens = mask_tokens + masked_pos
+
+        # Initialize full decoder input
+        decoder_sequence = torch.zeros(B, num_patches, self.decoder_dim, device=device)
+        decoder_sequence[batch_range, unmasked_indices] = unmasked_decoder_tokens
+        decoder_sequence[batch_range, masked_indices] = mask_tokens
+
+        # Decode
+        seq_len = decoder_sequence.shape[1]
+        decoder_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=device)
+
+        # Apply masked decoder
+        decoded_tokens = self.decoder(decoder_sequence, mask=decoder_mask)
+
+        # Extract outputs for masked positions
+        masked_decoded_tokens = decoded_tokens[batch_range, masked_indices]
+        pred_neural_values = self.to_neural(masked_decoded_tokens)
+
+        # Compute loss and R²
+        recon_loss = F.mse_loss(pred_neural_values, masked_patches)
+        metric = R2Score()
+        metric.update(pred_neural_values.view(-1, pred_neural_values.shape[-1]),
+                      masked_patches.view(-1, masked_patches.shape[-1]))
+        acc = metric.compute()
+
+        return recon_loss, acc
+
+'''
+
 class MAE(nn.Module):
     def __init__(
         self,
@@ -348,7 +496,7 @@ class GRU_MAE(nn.Module):
         
         return x
 
-'''
+
     def create_temporal_attention_mask(self, num_patches, device, patches_per_timestep=16, N=20):
         
         mask = torch.full((num_patches, num_patches), 0)
