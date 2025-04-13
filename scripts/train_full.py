@@ -1,66 +1,61 @@
 
-modelName = 'mask_0.7'
+modelName = 'phoneme_run_1'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
 possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
+                      '/data/willett_data/ptDecoder_ctc_both', 
                       '/home3/skaasyap/willett/data', 
                       '/home3/skaasyap/willett/data_log', 
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
 args['outputDir'] = possiblePath_dir[0] + modelName
-args['datasetPath'] = possiblePaths_data[0]
+args['datasetPath'] = possiblePaths_data[1]
 
-args['seqLen'] = 150
-args['maxTimeSeriesLen'] = 1200
-args['batchSize'] = 64
-args['lrStart'] = 0.02
-args['lrEnd'] = 0.02
-args['nUnits'] = 1024
-args['nBatch'] = 10000 #3000
-args['nLayers'] = 3
-args['seed'] = 0
-args['nClasses'] = 40
-args['nInputFeatures'] = 256
-args['dropout'] = 0.4
-args['whiteNoiseSD'] = 0
-args['constantOffsetSD'] = 0
-args['gaussianSmoothWidth'] = 2.0
-args['strideLen'] = 4
-args['kernelLen'] = 32
-args['bidirectional'] = False
-args['l2_decay'] = 1e-5
-
-args['freeze_mae_encoder'] = True
-
-args['weight_decay'] = 1e-5
-args['learning_rate'] = 1e-3
-args['num_epochs'] = 10000
-args['gaussianSmoothWidth'] = 2.0
-
-args['decoder_dim'] = 64
-args['masking_ratio'] = 0.7
-args['num_decoder_layers'] = 3 #TODO
-args['num_decoder_heads'] = 4
-args['decoder_dim_head'] = 16
-
-
-args['trial_size'] = (32, 256)
-args['patch_size']= (32, 2) #TODO
-args['dim'] = 64 #TODO
-args['depth'] = 12 #TODO
-args['heads'] = 4
+args['patch_size']= (5, 256) #TODO
+args['dim'] = 1280 #TODO
+args['depth'] = 4 #TODO
+args['heads'] = 20
 args['mlp_dim_ratio'] = 4 #TODO
-args['dim_head'] = 16
+args['dim_head'] = 64
 args['dropout'] = 0.1
 
-args['best_model_path'] = possiblePath_dir[0] + modelName + '/save_best.pth'
+args['whiteNoiseSD'] = 0.8
+args['gaussianSmoothWidth'] = 2.0
+args['constantOffsetSD'] = 0.2
+args['nDays'] = 24
+args['nClasses'] = 40
+args['batchSize'] = 64
+
+args['l2_decay'] = 1e-5
+args['lrStart'] = 0.03
+args['lrEnd'] = 0.03
+
+args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
 args['device'] = 'cuda:1'
 
-from neural_decoder.mae_phoneme_main import trainModel
+args['seed'] = 0
 
-trainModel(args)
+args['n_epochs'] = 1000
+
+
+from neural_decoder.neural_decoder_trainer import trainModel
+from neural_decoder.bit import BiT_Phoneme
+
+model = BiT_Phoneme(
+    patch_size=args['patch_size'],
+    dim=args['dim'],
+    depth=args['depth'],
+    heads=args['heads'],
+    mlp_dim_ratio=args['mlp_dim_ratio'],
+    dropout=args['dropout'],
+    look_ahead=0,
+    nDays=args['nDays'],
+    gaussianSmoothWidth=args['gaussianSmoothWidth']
+).to(args['device'])
+
+trainModel(args, model)

@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+/home2/ebrahim/neural_seq_decoder/scripts/wandb/
 /home2/ebrahim/neural_seq_decoder/src/neural_decoder/save_best/
 
 # C extensions
