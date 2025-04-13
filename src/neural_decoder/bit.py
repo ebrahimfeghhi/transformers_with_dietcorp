@@ -41,13 +41,19 @@ def get_sinusoidal_pos_emb(seq_len, dim, device=None):
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
     return pe  # (seq_len, dim)
-
-# Temporal attention mask allowing each token to attend to all tokens behind it
-# and up to `look_ahead` tokens ahead
+d
 def create_temporal_mask(seq_len, look_ahead=0, device=None):
-    idx = torch.arange(seq_len, device=device)
-    mask = (idx.unsqueeze(0) - idx.unsqueeze(1)) >= -look_ahead  # allows [i - k, ..., i + N]
-    return mask.unsqueeze(0).unsqueeze(0)  # (1, 1, seq_len, seq_len)
+    """
+    Create a temporal attention mask where each position i can attend to:
+    positions [0, ..., i + look_ahead], up to seq_len - 1
+
+    Returns: (1, 1, seq_len, seq_len) boolean tensor
+    """
+    i = torch.arange(seq_len, device=device).unsqueeze(1)  # query positions
+    j = torch.arange(seq_len, device=device).unsqueeze(0)  # key positions
+
+    mask = j <= i + look_ahead  # allow attention to past and limited future
+    return mask.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, seq_len, seq_len)
 
 # Attention block
 class Attention(nn.Module):
