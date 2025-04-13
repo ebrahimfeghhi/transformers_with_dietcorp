@@ -12,54 +12,39 @@ class FFN(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
         self.net = nn.Sequential(
-            # norm -> linear -> activation -> dropout -> linear -> dropout
-            # we first norm with a layer norm
             nn.LayerNorm(dim),
             nn.Linear(dim, hidden_dim),
-            # we project in a higher dimension hidden_dim
             nn.GELU(),
-            # we apply the GELU activation function
             nn.Dropout(dropout),
-            # we apply dropout
             nn.Linear(hidden_dim, dim),
-            # we project back to the original dimension dim
             nn.Dropout(dropout)
-            # we apply dropout
         )
 
     def forward(self, x):
         return self.net(x)
-        
 
-# Utility to handle tuple input
+
+
+
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
-# Sinusoidal positional embeddings (dynamic for any length)
 def get_sinusoidal_pos_emb(seq_len, dim, device=None):
     position = torch.arange(seq_len, device=device).unsqueeze(1)
     div_term = torch.exp(torch.arange(0, dim, 2, device=device) * -(math.log(10000.0) / dim))
     pe = torch.zeros(seq_len, dim, device=device)
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
-    return pe  # (seq_len, dim)
+    return pe
 
 def create_temporal_mask(seq_len, look_ahead=0, device=None):
-    """
-    Create a temporal attention mask where each position i can attend to:
-    positions [0, ..., i + look_ahead], up to seq_len - 1
+    i = torch.arange(seq_len, device=device).unsqueeze(1)
+    j = torch.arange(seq_len, device=device).unsqueeze(0)
+    mask = j <= i + look_ahead
+    return mask.unsqueeze(0).unsqueeze(0)
 
-    Returns: (1, 1, seq_len, seq_len) boolean tensor
-    """
-    i = torch.arange(seq_len, device=device).unsqueeze(1)  # query positions
-    j = torch.arange(seq_len, device=device).unsqueeze(0)  # key positions
-
-    mask = j <= i + look_ahead  # allow attention to past and limited future
-    return mask.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, seq_len, seq_len)
-
-# Attention block
 class Attention(nn.Module):
-    def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0., max_rel_dist=200, use_relative_bias=True):
         super().__init__()
         inner_dim = dim_head * heads
         project_out = not (heads == 1 and dim_head == dim)
@@ -78,12 +63,38 @@ class Attention(nn.Module):
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
 
-    def forward(self, x, temporal_mask=None):
+        # T5-style relative position bias
+        self.max_rel_dist = max_rel_dist
+        self.use_relative_bias = use_relative_bias
+        if self.use_relative_bias:
+            self.rel_pos_bias = nn.Embedding(2 * max_rel_dist - 1, 1)
+
+    def forward(self, x, temporal_mask=None, original_indices=None):
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim=-1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.heads), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale  # (b, h, n, n)
+
+        # Add relative positional bias if enabled
+        if self.use_relative_bias:
+            if original_indices is not None:
+                rel_bias = []
+                for b in range(x.size(0)):
+                    orig = original_indices[b]  # shape: (num_unmasked,)
+                    rel_pos = orig[:, None] - orig[None, :]  # (T, T)
+                    rel_pos = rel_pos.clamp(-self.max_rel_dist + 1, self.max_rel_dist - 1) + self.max_rel_dist - 1
+                    bias = self.rel_pos_bias(rel_pos).squeeze(-1)  # (T, T)
+                    rel_bias.append(bias)
+                rel_bias = torch.stack(rel_bias, dim=0).unsqueeze(1)  # (B, 1, T, T)
+            else:
+                seq_len = x.size(1)
+                i = torch.arange(seq_len, device=x.device).unsqueeze(1)
+                j = torch.arange(seq_len, device=x.device).unsqueeze(0)
+                rel_pos = (i - j).clamp(-self.max_rel_dist + 1, self.max_rel_dist - 1) + self.max_rel_dist - 1
+                rel_bias = self.rel_pos_bias(rel_pos).squeeze(-1).unsqueeze(0).unsqueeze(0)
+    
+        dots = dots + rel_bias
 
         if temporal_mask is not None:
             dots = dots.masked_fill(temporal_mask == 0, float('-inf'))
@@ -96,24 +107,24 @@ class Attention(nn.Module):
 
         return self.to_out(out)
 
-# Transformer with masking support
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout=0.):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout=0., use_relative_bias=True):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         mlp_dim = mlp_dim_ratio * dim
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout),
+                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout, use_relative_bias=use_relative_bias),
                 FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout)
             ]))
 
-    def forward(self, x, mask=None):
+    def forward(self, x, mask=None, original_indices=None):
         for attn, ffn in self.layers:
-            x = attn(x, temporal_mask=mask) + x
+            x = attn(x, temporal_mask=mask, original_indices=original_indices) + x
             x = ffn(x) + x
         return self.norm(x)
+
 
 # Main BiT model
 class BiT(nn.Module):
@@ -173,7 +184,7 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head=64, dropout=0., look_ahead=0, nDays=24, gaussianSmoothWidth=2.0, 
-                 nClasses=40):
+                 nClasses=40, T5_style_pos=True):
    
         super().__init__()
 
@@ -184,6 +195,7 @@ class BiT_Phoneme(nn.Module):
         self.look_ahead = look_ahead  # new
         self.gaussianSmoothWidth = gaussianSmoothWidth
         self.inputLayerNonlinearity = torch.nn.Softsign()
+        self.T5_style_pos = T5_style_pos
 
         patch_dim = patch_height * patch_width
 
@@ -196,8 +208,10 @@ class BiT_Phoneme(nn.Module):
         )
 
         self.dropout = nn.Dropout(dropout)
-        self.register_buffer('pos_embedding', None, persistent=False)
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout)
+        if self.T5_style_pos == False:
+            self.register_buffer('pos_embedding', None, persistent=False)
+        
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout, use_relative_bias=self.T5_style_pos)
         
         
         self.gaussianSmoother = GaussianSmoothing(
@@ -237,8 +251,9 @@ class BiT_Phoneme(nn.Module):
         b, seq_len, _ = x.shape
 
         # Positional encoding
-        pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
-        x = x + pos_emb.unsqueeze(0)
+        if self.T5_style_pos:
+            pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
+            x = x + pos_emb.unsqueeze(0)
 
         x = self.dropout(x)
 
