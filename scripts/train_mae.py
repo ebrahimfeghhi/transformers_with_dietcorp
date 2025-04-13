@@ -4,13 +4,14 @@ modelName = 'mask_0.5_2_pad'
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
 possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
+                      '/data/willett_data/ptDecoder_ctc_both', 
                       '/home3/skaasyap/willett/data', 
                       '/home3/skaasyap/willett/data_log', 
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[1] + modelName
-args['datasetPath'] = possiblePaths_data[3]
+args['outputDir'] = possiblePath_dir[0] + modelName
+args['datasetPath'] = possiblePaths_data[1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 512 #TODO
@@ -39,7 +40,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:0'
 
 from neural_decoder.mae_main import trainModel
 
