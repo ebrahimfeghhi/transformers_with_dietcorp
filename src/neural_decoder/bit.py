@@ -176,16 +176,11 @@ class BiT(nn.Module):
 
         return x
     
-    
-
-
-    
-# Main BiT model
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head=64, dropout=0., look_ahead=0, nDays=24, gaussianSmoothWidth=2.0, 
-                 nClasses=40, T5_style_pos=True, max_mask_pct=0.1):
+                 nClasses=40, T5_style_pos=True, max_mask_pct=0.1, mae_mode=False):
    
         super().__init__()
 
@@ -199,6 +194,7 @@ class BiT_Phoneme(nn.Module):
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
         self.patch_dim = patch_height * patch_width
+        self.mae_mode = mae_mode
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -208,7 +204,7 @@ class BiT_Phoneme(nn.Module):
             nn.LayerNorm(dim)
         )
         
-          # Patch embedding split from encoder
+        # Patch embedding split from encoder
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
@@ -254,9 +250,9 @@ class BiT_Phoneme(nn.Module):
         ) + torch.index_select(self.dayBias, 0, dayIdx)
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
         
-        
         neuralInput = neuralInput.unsqueeze(1)
-        x = self.to_patch_embedding(neuralInput)
+        #x = self.to_patch_embedding(neuralInput)
+        x = self.to_patch(neuralInput)
         b, seq_len, _ = x.shape
         
         #if self.masking_ratio > 0:
@@ -267,13 +263,13 @@ class BiT_Phoneme(nn.Module):
         #    masked_input[batch_range, unmasked_indices] = x[batch_range, unmasked_indices]
         #    masked_input[batch_range, masked_indices] = mask_tokens
         #    x = masked_input
-        if self.training:
+        if self.training and self.max_mask_pct > 0:
             x = self.apply_specaugment_mask(x, X_len, num_masks=2)
 
         # Positional encoding
-        if self.T5_style_pos == False:
-            pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
-            x = x + pos_emb.unsqueeze(0)
+        #if self.T5_style_pos == False:
+        #    pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
+        #    x = x + pos_emb.unsqueeze(0)
 
         x = self.dropout(x)
 
@@ -304,30 +300,52 @@ class BiT_Phoneme(nn.Module):
         return masked_indices, unmasked_indices, num_masked
     
     def apply_specaugment_mask(self, X, X_len, num_masks=2):
-        
         """
-        Applies SpecAugment-style time masking directly to X using self.mask as replacement.
-
+        Fully vectorized SpecAugment-style time masking (no loops at all).
         Args:
-            X: Tensor of shape (B, P, D)
-            X_len: LongTensor of shape (B,) with valid lengths
-            num_masks: Number of time masks per sample
-            max_mask_pct: Max percentage of valid length to mask per chunk
-
+            X: (B, P, D) input tensor
+            X_len: (B,) valid lengths in timepoints
         Returns:
-            X_masked: Tensor of shape (B, P, D) with masked regions replaced by self.mask
+            X_masked: (B, P, D) with masked patches
         """
-        
         B, P, D = X.shape
-        X_masked = X.clone()
+        device = X.device
 
-        for b in range(B):
-            valid_len = X_len[b].item() // self.patch_height
-            for _ in range(num_masks):
-                max_mask_len = max(1, int(self.max_mask_pct * valid_len))
-                t = torch.randint(1, max_mask_len + 1, (1,)).item()
-                t0 = torch.randint(0, max(valid_len - t + 1, 1), (1,)).item()
-                mask_tokens = repeat(self.mask_token, 'd -> 1 n d', n=t)
-                X_masked[b, t0:t0 + t, :] = mask_tokens
+        valid_lens = (X_len // self.patch_height).to(device)
+        max_mask_lens = (self.max_mask_pct * valid_lens).long()  # (B,)
+
+        # Repeat B num_masks times to simulate multiple masks per sample
+        B_rep = B * num_masks
+
+        # Expand inputs for vectorized masking
+        valid_lens_rep = valid_lens.repeat_interleave(num_masks)            # (B * num_masks,)
+        max_mask_lens_rep = max_mask_lens.repeat_interleave(num_masks)      # (B * num_masks,)
+
+        # Random mask lengths and start positions
+        t = (torch.rand(B_rep, device=device) * (max_mask_lens_rep + 1).float()).floor().long()                   # (B * num_masks,)
+        max_start = (valid_lens_rep - t + 1).clamp(min=1)
+        t0 = (torch.rand(B_rep, device=device) * max_start.float()).floor().long()  # (B * num_masks,)
+
+        # Build the global mask (B, P)
+        arange = torch.arange(P, device=device).unsqueeze(0)              # (1, P)
+        t0_exp = t0.unsqueeze(1)                                          # (B_rep, 1)
+        t1_exp = (t0 + t).unsqueeze(1)                                    # (B_rep, 1)
+        mask_chunks = (arange >= t0_exp) & (arange < t1_exp)              # (B_rep, P)
+
+        # Get index of sample in batch for each mask chunk
+        batch_idx = torch.arange(B, device=device).repeat_interleave(num_masks)  # (B * num_masks,)
+
+        # Now scatter all the masks into the full mask (B, P)
+        patch_idx = mask_chunks.nonzero(as_tuple=False)     # (N_masked, 2)
+        b_indices = batch_idx[patch_idx[:, 0]]               # map each row to actual batch index
+        p_indices = patch_idx[:, 1]                          # patch/time index
+
+        mask = torch.zeros(B, P, dtype=torch.bool, device=device)
+        mask[b_indices, p_indices] = True
+
+        # Apply the mask
+        X_masked = X.clone()
+        #mask_tokens = repeat(self.mask_token, 'd -> 1 n d', n=t)
+        X_masked[mask] = self.mask_token
                         
         return X_masked
