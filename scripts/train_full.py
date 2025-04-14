@@ -10,16 +10,17 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[0] + modelName
-args['datasetPath'] = possiblePaths_data[1]
+args['outputDir'] = possiblePath_dir[1] + modelName
+args['datasetPath'] = possiblePaths_data[-1]
 
-args['patch_size']= (5, 256) #TODO
-args['dim'] = 512 #TODO
-args['depth'] = 9 #TODO
-args['heads'] = 8
+args['patch_size']= (4, 256) #TODO
+args['dim'] = 384 #TODO
+args['depth'] = 7 #TODO
+args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.4
+args['max_mask_pct'] = 0.2
 
 args['whiteNoiseSD'] = 0.8
 args['gaussianSmoothWidth'] = 2.0
@@ -58,7 +59,8 @@ model = BiT_Phoneme(
     look_ahead=0,
     nDays=args['nDays'],
     gaussianSmoothWidth=args['gaussianSmoothWidth'],
-    T5_style_pos=args['T5_style_pos']
+    T5_style_pos=args['T5_style_pos'], 
+    max_mask_pct=args['max_mask_pct']
 ).to(args['device'])
 
 trainModel(args, model)

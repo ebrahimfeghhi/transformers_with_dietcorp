@@ -23,9 +23,6 @@ class FFN(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-
-
-
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
@@ -179,12 +176,16 @@ class BiT(nn.Module):
 
         return x
     
+    
+
+
+    
 # Main BiT model
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head=64, dropout=0., look_ahead=0, nDays=24, gaussianSmoothWidth=2.0, 
-                 nClasses=40, T5_style_pos=True):
+                 nClasses=40, T5_style_pos=True, max_mask_pct=0.1):
    
         super().__init__()
 
@@ -196,16 +197,20 @@ class BiT_Phoneme(nn.Module):
         self.gaussianSmoothWidth = gaussianSmoothWidth
         self.inputLayerNonlinearity = torch.nn.Softsign()
         self.T5_style_pos = T5_style_pos
-
-        patch_dim = patch_height * patch_width
+        self.max_mask_pct = max_mask_pct
+        self.patch_dim = patch_height * patch_width
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
                       p1=patch_height, p2=patch_width),
-            nn.LayerNorm(patch_dim),
-            nn.Linear(patch_dim, dim),
+            nn.LayerNorm(self.patch_dim),
+            nn.Linear(self.patch_dim, dim),
             nn.LayerNorm(dim)
         )
+        
+          # Patch embedding split from encoder
+        self.to_patch = self.to_patch_embedding[0]
+        self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
         self.dropout = nn.Dropout(dropout)
         if self.T5_style_pos == False:
@@ -222,8 +227,11 @@ class BiT_Phoneme(nn.Module):
         self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
         
         self.projection = nn.Linear(dim, nClasses+1)
+        
+        self.mask_token = nn.Parameter(torch.randn(self.dim))
+        
 
-    def forward(self, neuralInput, dayIdx):
+    def forward(self, neuralInput, X_len, dayIdx):
         """
         Args:
             neuralInout: Tensor of shape (B, 1, T, F)
@@ -231,6 +239,7 @@ class BiT_Phoneme(nn.Module):
         Returns:
             Tensor: (B, num_patches, dim)
         """
+        device = neuralInput.device
         
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
         
@@ -247,11 +256,22 @@ class BiT_Phoneme(nn.Module):
         
         
         neuralInput = neuralInput.unsqueeze(1)
-        x = self.to_patch_embedding(neuralInput)  # (B, T_patches, dim)
+        x = self.to_patch_embedding(neuralInput)
         b, seq_len, _ = x.shape
+        
+        #if self.masking_ratio > 0:
+        #    masked_indices, unmasked_indices, num_masked = self.simple_mask(b, seq_len, device)
+        #    batch_range = torch.arange(b, device=device)[:, None]
+        #    mask_tokens = repeat(self.mask_token, 'd -> b n d', b=b, n=num_masked)
+        #    masked_input = torch.zeros(b, seq_len, self.dim, device=device)
+        #    masked_input[batch_range, unmasked_indices] = x[batch_range, unmasked_indices]
+        #    masked_input[batch_range, masked_indices] = mask_tokens
+        #    x = masked_input
+        if self.training:
+            x = self.apply_specaugment_mask(x, X_len, num_masks=2)
 
         # Positional encoding
-        if self.T5_style_pos:
+        if self.T5_style_pos == False:
             pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
             x = x + pos_emb.unsqueeze(0)
 
@@ -270,3 +290,44 @@ class BiT_Phoneme(nn.Module):
     def compute_length(self, X_len):
         
         return (X_len / self.patch_height).to(torch.int32)
+    
+    def simple_mask(self, B, num_patches, device):
+        # Mask a subset of tokens
+        num_masked = int(self.masking_ratio * num_patches)
+        rand_indices = torch.rand(B, num_patches, device=device).argsort(dim=-1)
+        masked_indices = rand_indices[:, :num_masked]
+        unmasked_indices = rand_indices[:, num_masked:]
+        # Sort only the selected indices to restore time order
+        masked_indices = torch.sort(masked_indices, dim=-1).values
+        unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+        
+        return masked_indices, unmasked_indices, num_masked
+    
+    def apply_specaugment_mask(self, X, X_len, num_masks=2):
+        
+        """
+        Applies SpecAugment-style time masking directly to X using self.mask as replacement.
+
+        Args:
+            X: Tensor of shape (B, P, D)
+            X_len: LongTensor of shape (B,) with valid lengths
+            num_masks: Number of time masks per sample
+            max_mask_pct: Max percentage of valid length to mask per chunk
+
+        Returns:
+            X_masked: Tensor of shape (B, P, D) with masked regions replaced by self.mask
+        """
+        
+        B, P, D = X.shape
+        X_masked = X.clone()
+
+        for b in range(B):
+            valid_len = X_len[b].item() // self.patch_height
+            for _ in range(num_masks):
+                max_mask_len = max(1, int(self.max_mask_pct * valid_len))
+                t = torch.randint(1, max_mask_len + 1, (1,)).item()
+                t0 = torch.randint(0, max(valid_len - t + 1, 1), (1,)).item()
+                mask_tokens = repeat(self.mask_token, 'd -> 1 n d', n=t)
+                X_masked[b, t0:t0 + t, :] = mask_tokens
+                        
+        return X_masked
