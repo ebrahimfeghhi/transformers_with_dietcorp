@@ -13,14 +13,14 @@ args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
-args['patch_size']= (4, 256) #TODO
+args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
-args['depth'] = 7 #TODO
+args['depth'] = 11 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.4
-args['max_mask_pct'] = 0.2
+args['max_mask_pct'] = 0
 
 args['whiteNoiseSD'] = 0.8
 args['gaussianSmoothWidth'] = 2.0
