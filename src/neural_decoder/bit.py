@@ -180,7 +180,7 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head=64, dropout=0., look_ahead=0, nDays=24, gaussianSmoothWidth=2.0, 
-                 nClasses=40, T5_style_pos=True, max_mask_pct=0.1, mae_mode=False):
+                 nClasses=40, T5_style_pos=True, max_mask_pct=0.1, num_masks=2):
    
         super().__init__()
 
@@ -194,7 +194,7 @@ class BiT_Phoneme(nn.Module):
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
         self.patch_dim = patch_height * patch_width
-        self.mae_mode = mae_mode
+        self.num_masks = num_masks
 
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -212,7 +212,8 @@ class BiT_Phoneme(nn.Module):
         if self.T5_style_pos == False:
             self.register_buffer('pos_embedding', None, persistent=False)
         
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout, use_relative_bias=self.T5_style_pos)
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, 
+                                       dropout, use_relative_bias=self.T5_style_pos)
         
         
         self.gaussianSmoother = GaussianSmoothing(
@@ -224,7 +225,7 @@ class BiT_Phoneme(nn.Module):
         
         self.projection = nn.Linear(dim, nClasses+1)
         
-        self.mask_token = nn.Parameter(torch.randn(self.dim))
+        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
         
 
     def forward(self, neuralInput, X_len, dayIdx):
@@ -251,20 +252,15 @@ class BiT_Phoneme(nn.Module):
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
         
         neuralInput = neuralInput.unsqueeze(1)
-        #x = self.to_patch_embedding(neuralInput)
-        x = self.to_patch(neuralInput)
-        b, seq_len, _ = x.shape
-        
-        #if self.masking_ratio > 0:
-        #    masked_indices, unmasked_indices, num_masked = self.simple_mask(b, seq_len, device)
-        #    batch_range = torch.arange(b, device=device)[:, None]
-        #    mask_tokens = repeat(self.mask_token, 'd -> b n d', b=b, n=num_masked)
-        #    masked_input = torch.zeros(b, seq_len, self.dim, device=device)
-        #    masked_input[batch_range, unmasked_indices] = x[batch_range, unmasked_indices]
-        #    masked_input[batch_range, masked_indices] = mask_tokens
-        #    x = masked_input
+                
         if self.training and self.max_mask_pct > 0:
-            x = self.apply_specaugment_mask(x, X_len, num_masks=2)
+            x = self.to_patch(neuralInput)
+            x = self.apply_specaugment_mask(x, X_len, num_masks=self.num_masks)
+            x = self.patch_to_emb(x)
+        else:
+            x = self.to_patch_embedding(neuralInput)
+            
+        b, seq_len, _ = x.shape
 
         # Positional encoding
         #if self.T5_style_pos == False:
@@ -299,53 +295,113 @@ class BiT_Phoneme(nn.Module):
         
         return masked_indices, unmasked_indices, num_masked
     
-    def apply_specaugment_mask(self, X, X_len, num_masks=2):
+    def apply_specaugment_mask(self, X, X_len, constant_mask=False):
         """
         Fully vectorized SpecAugment-style time masking (no loops at all).
+        
         Args:
             X: (B, P, D) input tensor
             X_len: (B,) valid lengths in timepoints
+            constant_mask_lengths: if True, make the mask lengths the same across all batches
+
         Returns:
             X_masked: (B, P, D) with masked patches
+            mask: (B, P) boolean mask of where values were masked
+            masked_indices: list of 1D LongTensors, each with indices of masked patches per batch
+            unmasked_indices: list of 1D LongTensors, each with indices of unmasked patches per batch
         """
         B, P, D = X.shape
         device = X.device
 
-        valid_lens = (X_len // self.patch_height).to(device)
+        if constant_mask:
+            # get valid len of smallest trial in batch and repeat for all batches. 
+            valid_lens = torch.min((X_len // self.patch_height).to(device)).repeat(B)
+        else:
+            valid_lens = (X_len // self.patch_height).to(device)
+            
         max_mask_lens = (self.max_mask_pct * valid_lens).long()  # (B,)
 
         # Repeat B num_masks times to simulate multiple masks per sample
-        B_rep = B * num_masks
+        B_rep = B * self.num_masks
 
         # Expand inputs for vectorized masking
-        valid_lens_rep = valid_lens.repeat_interleave(num_masks)            # (B * num_masks,)
-        max_mask_lens_rep = max_mask_lens.repeat_interleave(num_masks)      # (B * num_masks,)
+        # repeat_interleave works like tile, so values corresponding to the same batch are next to each other
+        valid_lens_rep = valid_lens.repeat_interleave(self.num_masks)            # (B * num_masks,)
+        max_mask_lens_rep = max_mask_lens.repeat_interleave(self.num_masks)      # (B * num_masks,)
 
-        # Random mask lengths and start positions
-        t = (torch.rand(B_rep, device=device) * (max_mask_lens_rep + 1).float()).floor().long()                   # (B * num_masks,)
+        if constant_mask:
+            # select the same t for every batch. 
+            t = (torch.rand(self.num_masks, device=device).repeat(B) * (max_mask_lens_rep + 1).float()).floor().long()  # (B * num_masks,)
+        else:
+            t = (torch.rand(B_rep, device=device) * (max_mask_lens_rep + 1).float()).floor().long()  # (B * num_masks,)
+            
         max_start = (valid_lens_rep - t + 1).clamp(min=1)
-        t0 = (torch.rand(B_rep, device=device) * max_start.float()).floor().long()  # (B * num_masks,)
+        
+        if constant_mask:
+            t0 = (torch.rand(self.num_masks, device=device).repeat(B) * max_start.float()).floor().long()               # (B * num_masks,)
+        else:
+            t0 = (torch.rand(B_rep, device=device) * max_start.float()).floor().long()               # (B * num_masks,)
 
         # Build the global mask (B, P)
-        arange = torch.arange(P, device=device).unsqueeze(0)              # (1, P)
-        t0_exp = t0.unsqueeze(1)                                          # (B_rep, 1)
-        t1_exp = (t0 + t).unsqueeze(1)                                    # (B_rep, 1)
-        mask_chunks = (arange >= t0_exp) & (arange < t1_exp)              # (B_rep, P)
+        arange = torch.arange(P, device=device).unsqueeze(0)       # (1, P)
+        t0_exp = t0.unsqueeze(1)                                   # (B_rep, 1)
+        t1_exp = (t0 + t).unsqueeze(1)                             # (B_rep, 1)
+        mask_chunks = (arange >= t0_exp) & (arange < t1_exp)       # (B_rep, P)
 
         # Get index of sample in batch for each mask chunk
-        batch_idx = torch.arange(B, device=device).repeat_interleave(num_masks)  # (B * num_masks,)
+        batch_idx = torch.arange(B, device=device).repeat_interleave(self.num_masks)  # (B * num_masks,)
 
         # Now scatter all the masks into the full mask (B, P)
-        patch_idx = mask_chunks.nonzero(as_tuple=False)     # (N_masked, 2)
-        b_indices = batch_idx[patch_idx[:, 0]]               # map each row to actual batch index
-        p_indices = patch_idx[:, 1]                          # patch/time index
+        patch_idx = mask_chunks.nonzero(as_tuple=False)  # (N_masked, 2)
+        b_indices = batch_idx[patch_idx[:, 0]]           # (N_masked,)
+        p_indices = patch_idx[:, 1]                      # (N_masked,)
 
         mask = torch.zeros(B, P, dtype=torch.bool, device=device)
         mask[b_indices, p_indices] = True
+        
+        # mask: (B, P) boolean, True for masked
+        B, P = mask.shape
 
+        # Number of masked patches per batch (assumed same for all batches)
+        N = mask.sum(dim=1)[0].item()
+        U = P - N  # Number of unmasked per batch
+                        
+        masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
+        masked_indices = masked_indices[:, 1].reshape(B, N)
+        masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
+    
+        unmasked = ~mask  # invert the mask
+        unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
+        unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+        
         # Apply the mask
         X_masked = X.clone()
-        #mask_tokens = repeat(self.mask_token, 'd -> 1 n d', n=t)
         X_masked[mask] = self.mask_token
-                        
-        return X_masked
+
+        return X_masked, mask, masked_indices, unmasked_indices
+    
+    
+    def apply_specaugment_mask_constant(self, X, X_len):
+        
+        B, P, D = X.shape
+        device = X.device
+        
+        # get valid len of smallest trial in batch.
+        valid_lens = torch.min((X_len // self.patch_height).to(device))
+        min_valid_len = valid_lens.repeat(B)
+        
+        # max mask length based on smallest trial. 
+        max_mask_lens = (self.max_mask_pct * min_valid_len).long()
+        
+        # Repeat B num_masks times to simulate multiple masks per sample
+        B_rep = B * self.num_masks
+
+        # Expand inputs for vectorized masking
+        valid_lens_rep = valid_lens.repeat_interleave(self.num_masks)            # (B * num_masks,)
+        max_mask_lens_rep = max_mask_lens.repeat_interleave(self.num_masks)      # (B * num_masks,)
+        
+        
+        
+        
+        
+        

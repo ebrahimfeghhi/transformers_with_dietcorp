@@ -55,7 +55,7 @@ class Trainer:
                            X_len.to(self.device))
             
             self.optimizer.zero_grad()
-            loss, acc = self.model(neural_data, day_idx) #MAE returns reconstruction loss
+            loss, acc = self.model(neural_data, X_len, day_idx) #MAE returns reconstruction loss
             loss.backward()
             self.optimizer.step()
             total_loss += loss.item()
@@ -88,7 +88,7 @@ class Trainer:
                            X_len.to(self.device))
             
                
-                loss, acc = self.model(neural_data, day_idx)
+                loss, acc = self.model(neural_data, X_len, day_idx)
                 total_loss += loss.item()
                 total_acc += acc.item()
                 chunk_number+=1
