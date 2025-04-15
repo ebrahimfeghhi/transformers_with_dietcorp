@@ -255,7 +255,7 @@ class BiT_Phoneme(nn.Module):
                 
         if self.training and self.max_mask_pct > 0:
             x = self.to_patch(neuralInput)
-            x = self.apply_specaugment_mask(x, X_len, num_masks=self.num_masks)
+            x, _ = self.apply_specaugment_mask(x, X_len)
             x = self.patch_to_emb(x)
         else:
             x = self.to_patch_embedding(neuralInput)
@@ -360,48 +360,24 @@ class BiT_Phoneme(nn.Module):
         mask[b_indices, p_indices] = True
         
         # mask: (B, P) boolean, True for masked
-        B, P = mask.shape
+        #B, P = mask.shape
 
         # Number of masked patches per batch (assumed same for all batches)
-        N = mask.sum(dim=1)[0].item()
-        U = P - N  # Number of unmasked per batch
+        #N = mask.sum(dim=1)[0].item()
+        #U = P - N  # Number of unmasked per batch
                         
-        masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
-        masked_indices = masked_indices[:, 1].reshape(B, N)
-        masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
+        #masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
+        #masked_indices = masked_indices[:, 1].reshape(B, N)
+        #masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
     
-        unmasked = ~mask  # invert the mask
-        unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
-        unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+        #unmasked = ~mask  # invert the mask
+        #unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
+        #unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
         
         # Apply the mask
         X_masked = X.clone()
         X_masked[mask] = self.mask_token
 
-        return X_masked, mask, masked_indices, unmasked_indices
+        return X_masked, mask
     
     
-    def apply_specaugment_mask_constant(self, X, X_len):
-        
-        B, P, D = X.shape
-        device = X.device
-        
-        # get valid len of smallest trial in batch.
-        valid_lens = torch.min((X_len // self.patch_height).to(device))
-        min_valid_len = valid_lens.repeat(B)
-        
-        # max mask length based on smallest trial. 
-        max_mask_lens = (self.max_mask_pct * min_valid_len).long()
-        
-        # Repeat B num_masks times to simulate multiple masks per sample
-        B_rep = B * self.num_masks
-
-        # Expand inputs for vectorized masking
-        valid_lens_rep = valid_lens.repeat_interleave(self.num_masks)            # (B * num_masks,)
-        max_mask_lens_rep = max_mask_lens.repeat_interleave(self.num_masks)      # (B * num_masks,)
-        
-        
-        
-        
-        
-        
