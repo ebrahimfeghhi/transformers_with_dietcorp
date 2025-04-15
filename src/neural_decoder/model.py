@@ -13,6 +13,7 @@ class GRUDecoder(nn.Module):
         layer_dim,
         nDays=24,
         dropout=0,
+        input_dropout=0.2, 
         device="cuda",
         strideLen=4,
         kernelLen=14,
@@ -29,6 +30,7 @@ class GRUDecoder(nn.Module):
         self.nDays = nDays
         self.device = device
         self.dropout = dropout
+        self.input_dropout = input_dropout
         self.strideLen = strideLen
         self.kernelLen = kernelLen
         self.gaussianSmoothWidth = gaussianSmoothWidth
@@ -72,6 +74,8 @@ class GRUDecoder(nn.Module):
                 thisLayer.weight + torch.eye(neural_dim)
             )
 
+        self.inputDropoutLayer = nn.Dropout(p=input_dropout)  # <--- NEW
+
         # rnn outputs
         if self.bidirectional:
             self.fc_decoder_out = nn.Linear(
@@ -85,6 +89,7 @@ class GRUDecoder(nn.Module):
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        
 
         # apply day layer
         dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
@@ -92,6 +97,8 @@ class GRUDecoder(nn.Module):
             "btd,bdk->btk", neuralInput, dayWeights
         ) + torch.index_select(self.dayBias, 0, dayIdx)
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
+        
+        transformedNeural = self.inputDropoutLayer(transformedNeural)
 
         # stride/kernel
         stridedInputs = torch.permute(
