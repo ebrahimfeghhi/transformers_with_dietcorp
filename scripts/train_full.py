@@ -15,12 +15,12 @@ args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
-args['depth'] = 11 #TODO
+args['depth'] = 7 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0.4
-args['max_mask_pct'] = 0
+args['dropout'] = 0.3
+args['max_mask_pct'] = 0.2
 
 args['whiteNoiseSD'] = 0.8
 args['gaussianSmoothWidth'] = 2.0
@@ -37,7 +37,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:2'
 
 args['seed'] = 0
 

@@ -51,7 +51,7 @@ class DummySpecAug:
 
             mask = torch.zeros(B, P, dtype=torch.bool, device=device)
             mask[b_indices, p_indices] = True
-
+            breakpoint()
             # Apply the mask
             X_masked = X.clone()
             #mask_tokens = repeat(self.mask_token, 'd -> 1 n d', n=t)

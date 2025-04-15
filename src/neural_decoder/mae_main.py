@@ -18,7 +18,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from .mae import MAE
-from .bit import BiT
+from .bit import BiT_Phoneme
 from .model import GRUDecoder
 from .dataset import getDatasetLoaders_MAE
 from .augmentations import mask_electrodes
@@ -33,15 +33,18 @@ def trainModel(args):
     wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args))
 
     # Initialize the model
-    enc_model = BiT(
+    enc_model = BiT_Phoneme(
         patch_size=args['patch_size'],
         dim=args['dim'],
         depth=args['depth'],
         heads=args['heads'],
         mlp_dim_ratio=args['mlp_dim_ratio'],
-        dim_head=args['dim_head'],
-        dropout=args['dropout'], 
-        look_ahead=args['look_ahead']
+        dropout=args['dropout'],
+        look_ahead=0,
+        nDays=args['nDays'],
+        gaussianSmoothWidth=args['gaussianSmoothWidth'],
+        T5_style_pos=args['T5_style_pos'], 
+        max_mask_pct=args['max_mask_pct']
     )
 
     model = MAE(
