@@ -22,7 +22,9 @@ args['dim_head'] = 64
 args['dropout'] = 0.1
 args['T5_style_pos'] = True
 args['look_ahead'] = 0 
-args['max_mask_pct'] = 0.6
+args['input_dropout'] = 0.2
+args['max_mask_pct'] = 0.35
+args['num_masks'] = 3
 args['nDays'] = 24
 
 args['whiteNoiseSD'] = 0
@@ -32,6 +34,7 @@ args['masking_ratio'] = 0.5
 args['num_decoder_layers'] = 3 #TODO
 args['num_decoder_heads'] = 6
 args['decoder_dim_head'] = 64
+args['nClasses'] = 40
 
 args['batchSize'] = 64
 
@@ -44,7 +47,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:2'
 
 from neural_decoder.mae_main import trainModel
 

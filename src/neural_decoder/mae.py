@@ -108,7 +108,7 @@ class MAE(nn.Module):
         ## Sort only the selected indices to restore time order
         #masked_indices = torch.sort(masked_indices, dim=-1).values
         #unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
-        _, mask, masked_indices, unmasked_indices = self.encoder.apply_specaugment_mask(patches, X_len, constant_mask=True)
+        masked_indices, unmasked_indices = self.encoder.apply_specaugment_mask(patches, X_len, constant_mask=True)
         
         batch_range = torch.arange(B, device=device)[:, None]
         unmasked_tokens = tokens[batch_range, unmasked_indices] # B x P x D, B x P 
@@ -119,19 +119,11 @@ class MAE(nn.Module):
         seq_len = unmasked_tokens.shape[1]
         temporal_mask = create_temporal_mask(seq_len=seq_len, 
                         look_ahead=self.encoder.look_ahead, device=device)
+        
         encoded_tokens = self.encoder.transformer(unmasked_tokens, mask=temporal_mask, original_indices=unmasked_indices)
 
         decoder_tokens = self.enc_to_dec(encoded_tokens)
 
-        # Add decoder pos embeddings
-        #dec_pos_emb = get_sinusoidal_pos_emb(num_patches, self.decoder_dim, device=device)
-        #decoder_pos = dec_pos_emb.unsqueeze(0).expand(B, -1, -1)
-
-        # Index decoder pos emb for unmasked/masked
-        #unmasked_pos = decoder_pos[batch_range, unmasked_indices]
-        #masked_pos = decoder_pos[batch_range, masked_indices]
-
-        #unmasked_decoder_tokens = decoder_tokens + unmasked_pos
         unmasked_decoder_tokens = decoder_tokens
         
 
@@ -160,6 +152,7 @@ class MAE(nn.Module):
         metric = R2Score()
         metric.update(pred_neural_values.view(-1, pred_neural_values.shape[-1]),
                       masked_patches.view(-1, masked_patches.shape[-1]))
+        
         acc = metric.compute()
 
         return recon_loss, acc

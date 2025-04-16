@@ -291,7 +291,7 @@ class BiT_Phoneme(nn.Module):
         
         return masked_indices, unmasked_indices, num_masked
     
-    def apply_specaugment_mask(self, X, X_len, constant_mask=False):
+    def apply_specaugment_mask(self, X, X_len, constant_mask=False, mask_range=[]):
         """
         Fully vectorized SpecAugment-style time masking (no loops at all).
         
@@ -327,7 +327,7 @@ class BiT_Phoneme(nn.Module):
 
         if constant_mask:
             # select the same t for every batch. 
-            t = (torch.rand(self.num_masks, device=device).repeat(B) * (max_mask_lens_rep + 1).float()).floor().long()  # (B * num_masks,)
+            t = (torch.rand(self.num_masks, device=device).repeat(B) * (max_mask_lens_rep + 1).float()).floor().long().clamp(min=1)  # (B * num_masks,)
         else:
             t = (torch.rand(B_rep, device=device) * (max_mask_lens_rep + 1).float()).floor().long()  # (B * num_masks,)
             
@@ -343,7 +343,7 @@ class BiT_Phoneme(nn.Module):
         t0_exp = t0.unsqueeze(1)                                   # (B_rep, 1)
         t1_exp = (t0 + t).unsqueeze(1)                             # (B_rep, 1)
         mask_chunks = (arange >= t0_exp) & (arange < t1_exp)       # (B_rep, P)
-
+        
         # Get index of sample in batch for each mask chunk
         batch_idx = torch.arange(B, device=device).repeat_interleave(self.num_masks)  # (B * num_masks,)
 
@@ -359,20 +359,23 @@ class BiT_Phoneme(nn.Module):
         #B, P = mask.shape
 
         # Number of masked patches per batch (assumed same for all batches)
-        #N = mask.sum(dim=1)[0].item()
-        #U = P - N  # Number of unmasked per batch
-                        
-        #masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
-        #masked_indices = masked_indices[:, 1].reshape(B, N)
-        #masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
-    
-        #unmasked = ~mask  # invert the mask
-        #unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
-        #unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+        if constant_mask:
+            N = mask.sum(dim=1)[0].item()
+            U = P - N  # Number of unmasked per batch
+                            
+            masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
+            masked_indices = masked_indices[:, 1].reshape(B, N)
+            masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
         
-        # Apply the mask
-        X_masked = X.clone()
-        X_masked[mask] = self.mask_token
+            unmasked = ~mask  # invert the mask
+            unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
+            unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+            
+            # Apply the mask
+            X_masked = X.clone()
+            X_masked[mask] = self.mask_token
+            
+            return masked_indices, unmasked_indices
 
         return X_masked, mask
     
