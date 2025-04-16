@@ -371,11 +371,13 @@ class BiT_Phoneme(nn.Module):
             unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
             unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
             
-            # Apply the mask
-            X_masked = X.clone()
-            X_masked[mask] = self.mask_token
+           
             
             return masked_indices, unmasked_indices
+        
+        # Apply the mask
+        X_masked = X.clone()
+        X_masked[mask] = self.mask_token
 
         return X_masked, mask
     

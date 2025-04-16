@@ -21,12 +21,12 @@ args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.4
 args['input_dropout'] = 0.2
-args['max_mask_pct'] = 0.33
+args['max_mask_pct'] = 0.3
 args['num_masks'] = 3
 
-args['whiteNoiseSD'] = 0.4
+args['whiteNoiseSD'] = 0.8
 args['gaussianSmoothWidth'] = 2.0
-args['constantOffsetSD'] = 0.1
+args['constantOffsetSD'] = 0.2
 args['nDays'] = 24
 args['nClasses'] = 40
 args['batchSize'] = 64
