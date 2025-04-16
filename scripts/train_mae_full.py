@@ -10,14 +10,14 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[1] + modelName
-args['datasetPath'] = possiblePaths_data[-1]
+args['outputDir'] = possiblePath_dir[0] + modelName
+args['datasetPath'] = possiblePaths_data[1]
 
 
 # define parameters for baseline encoder 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
-args['depth'] = 7 #TODO
+args['depth'] = 9 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
@@ -31,7 +31,7 @@ args['nDays'] = 24
 # define parameters for phoneme decoder
 args['patch_size_phon']= None
 args['dim_phon'] = 384 #TODO
-args['depth_phon'] = 4 #TODO
+args['depth_phon'] = 6 #TODO
 args['heads_phon'] = 6
 args['mlp_dim_ratio_phon'] = 4 #TODO
 args['dim_head_phon'] = 64
@@ -51,9 +51,10 @@ args['decoder_dim_head'] = 64
 args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
-args['lrStart'] = 0.05
-args['lrEnd'] = 0.05
-args['mae_loss_scalar'] = 0.01
+args['lrStart'] = 1e-3
+args['lrEnd'] = 1e-3
+args['mae_loss_scalar'] = 1
+args['phoneme_loss_scalar'] = 0
 args['num_epochs'] = 10000
 args['gaussianSmoothWidth'] = 2.0
 
