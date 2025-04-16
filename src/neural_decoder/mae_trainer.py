@@ -150,29 +150,4 @@ class Trainer:
         }, checkpoint_path)
         print(f"Checkpoint saved at '{checkpoint_path}'")
 
-    def plot_results(self):
-        epochs = range(1, self.args['num_epochs'] + 1)
-
-        plt.figure(figsize=(12, 5))
-        plt.subplot(1, 2, 1)
-        plt.plot(epochs, self.train_losses, label='Train Loss')
-        plt.plot(epochs, self.val_losses, label='Validation Loss')
-        plt.title('Training and Validation Loss')
-        plt.xlabel('Epochs')
-        plt.ylabel('Loss')
-        plt.legend()
-
-        plt.subplot(1, 2, 2)
-        plt.plot(epochs, self.train_accuracies, label='Train Accuracy')
-        plt.plot(epochs, self.val_accuracies, label='Validation Accuracy')
-        plt.title('Training and Validation Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('Accuracy')
-        plt.legend()
-
-        plt.tight_layout()
-        plt.savefig('training_results.png')
-        plt.close()
-
-
 

@@ -50,7 +50,6 @@ class SpeechDataset(Dataset):
             torch.tensor(self.days[idx], dtype=torch.int64),
         )
         
-
 class SpeechDataset_MAE(Dataset):
     
     def __init__(self, data, transform=None):
@@ -80,8 +79,10 @@ class SpeechDataset_MAE(Dataset):
         sorted_indices = sorted(range(len(self.neural_time_bins)), 
                         key=lambda i: self.neural_time_bins[i], reverse=True)
         self.neural_feats = [self.neural_feats[i] for i in sorted_indices]
-        self.days = [self.days[i] for i in sorted_indices]
+        self.phone_seqs = [self.phone_seqs[i] for i in sorted_indices]
         self.neural_time_bins = [self.neural_time_bins[i] for i in sorted_indices]
+        self.phone_seq_lens = [self.phone_seq_lens[i] for i in sorted_indices]
+        self.days = [self.days[i] for i in sorted_indices]
         
     def shuffle_by_batch(self, batch_size):
         
@@ -114,10 +115,14 @@ class SpeechDataset_MAE(Dataset):
 
         if self.transform:
             neural_feats = self.transform(neural_feats)
+            
         return (
-            neural_feats, 
+            neural_feats,
+            torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
+            torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
+            torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
             torch.tensor(self.days[idx], dtype=torch.int64),
-            torch.tensor(self.neural_time_bins[idx], dtype=torch.int32))
+        )
         
 def pad_to_multiple(tensor, multiple, dim=1, value=0):
     """
@@ -166,13 +171,16 @@ def getDatasetLoaders_MAE(
         loadedData = pickle.load(handle)
 
     def _padding(batch):
-        X, days, X_len = zip(*batch)
+        X, y, X_lens, y_lens, days = zip(*batch)
         X_padded = pad_sequence(X, batch_first=True, padding_value=0)
+        y_padded = pad_sequence(y, batch_first=True, padding_value=0)
 
         return (
             X_padded,
-            torch.stack(days), 
-            torch.stack(X_len)
+            y_padded,
+            torch.stack(X_lens),
+            torch.stack(y_lens),
+            torch.stack(days),
         )
 
     train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
@@ -240,8 +248,6 @@ def getDatasetLoaders(
     )
 
     return train_loader, test_loader, loadedData
-
-
 
 def segment_data(data: torch.Tensor, N: int, X_len: torch.Tensor, day_idx: torch.Tensor):
     

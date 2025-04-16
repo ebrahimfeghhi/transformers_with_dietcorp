@@ -21,8 +21,8 @@ args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.4
 args['input_dropout'] = 0.2
-args['max_mask_pct'] = 0.3
-args['num_masks'] = 3
+args['max_mask_pct'] = 0.05
+args['num_masks'] = 20
 
 args['whiteNoiseSD'] = 0.8
 args['gaussianSmoothWidth'] = 2.0
@@ -39,7 +39,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 

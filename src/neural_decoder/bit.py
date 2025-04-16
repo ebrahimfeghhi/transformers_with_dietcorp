@@ -121,66 +121,12 @@ class Transformer(nn.Module):
             x = attn(x, temporal_mask=mask, original_indices=original_indices) + x
             x = ffn(x) + x
         return self.norm(x)
-
-
-# Main BiT model
-class BiT(nn.Module):
-    def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
-                 dim_head=64, dropout=0., look_ahead=0):
-
-        super().__init__()
-
-        patch_height, patch_width = pair(patch_size)
-        self.patch_height = patch_height
-        self.patch_width = patch_width
-        self.dim = dim
-        self.look_ahead = look_ahead  # new
-
-        patch_dim = patch_height * patch_width
-
-        self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
-                      p1=patch_height, p2=patch_width),
-            nn.LayerNorm(patch_dim),
-            nn.Linear(patch_dim, dim),
-            nn.LayerNorm(dim)
-        )
-
-        self.dropout = nn.Dropout(dropout)
-        self.register_buffer('pos_embedding', None, persistent=False)
-        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, dropout)
-
-    def forward(self, neural_data):
-        """
-        Args:
-            neural_data: Tensor of shape (B, 1, T, F)
-        Returns:
-            Tensor: (B, num_patches, dim)
-        """
-        x = self.to_patch_embedding(neural_data)  # (B, T_patches, dim)
-        b, seq_len, _ = x.shape
-
-        # Positional encoding
-        pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
-        x = x + pos_emb.unsqueeze(0)
-
-        x = self.dropout(x)
-
-        # Create temporal mask
-        temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
-
-        # Apply transformer with temporal masking
-        x = self.transformer(x, mask=temporal_mask)
-        
-        breakpoint()
-
-        return x
     
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks):
+                 nClasses, T5_style_pos, max_mask_pct, num_masks, mae_mode):
    
         super().__init__()
 
@@ -193,40 +139,47 @@ class BiT_Phoneme(nn.Module):
         self.inputLayerNonlinearity = torch.nn.Softsign()
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
-        self.patch_dim = patch_height * patch_width
         self.num_masks = num_masks
-
-        self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
-                      p1=patch_height, p2=patch_width),
-            nn.LayerNorm(self.patch_dim),
-            nn.Linear(self.patch_dim, dim),
-            nn.LayerNorm(dim)
-        )
+        self.mae_mode = mae_mode
         
-        # Patch embedding split from encoder
-        self.to_patch = self.to_patch_embedding[0]
-        self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
+        if self.mae_mode == False:
+            
+            self.patch_dim = patch_height * patch_width
+            
+            self.to_patch_embedding = nn.Sequential(
+                Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
+                        p1=patch_height, p2=patch_width),
+                nn.LayerNorm(self.patch_dim),
+                nn.Linear(self.patch_dim, dim),
+                nn.LayerNorm(dim)
+            )
+            
+            # Patch embedding split from encoder
+            self.to_patch = self.to_patch_embedding[0]
+            self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
+            
+            self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
+            self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
+            self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
+            
+            self.gaussianSmoother = GaussianSmoothing(
+                patch_width, 20, self.gaussianSmoothWidth, dim=1
+            )
+                
+        else:
+            
+            self.dayWeights = torch.nn.Parameter(torch.randn(nDays, self.dim, self.dim))
+            self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, self.dim))      
+            
 
         self.dropout = nn.Dropout(input_dropout)
-        
-        if self.T5_style_pos == False:
-            self.register_buffer('pos_embedding', None, persistent=False)
         
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, 
                                        dropout, use_relative_bias=self.T5_style_pos)
         
-        
-        self.gaussianSmoother = GaussianSmoothing(
-            patch_width, 20, self.gaussianSmoothWidth, dim=1
-        )
-        
-        self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
-        self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
-        
+       
         self.projection = nn.Linear(dim, nClasses+1)
         
-        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
         
 
     def forward(self, neuralInput, X_len, dayIdx):
@@ -237,13 +190,14 @@ class BiT_Phoneme(nn.Module):
         Returns:
             Tensor: (B, num_patches, dim)
         """
-        device = neuralInput.device
         
-        neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
-        
-        neuralInput = torch.permute(neuralInput, (0, 2, 1))
-        neuralInput = self.gaussianSmoother(neuralInput)
-        neuralInput = torch.permute(neuralInput, (0, 2, 1))
+        if self.mae_mode == False:
+            
+            neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
+            
+            neuralInput = torch.permute(neuralInput, (0, 2, 1))
+            neuralInput = self.gaussianSmoother(neuralInput)
+            neuralInput = torch.permute(neuralInput, (0, 2, 1))
 
         # apply day layer
         dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
@@ -251,18 +205,23 @@ class BiT_Phoneme(nn.Module):
             "btd,bdk->btk", neuralInput, dayWeights
         ) + torch.index_select(self.dayBias, 0, dayIdx)
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
-        
-        neuralInput = neuralInput.unsqueeze(1)
                 
-        if self.training and self.max_mask_pct > 0:
-            x = self.to_patch(neuralInput)
-            x, _ = self.apply_specaugment_mask(x, X_len)
-            x = self.patch_to_emb(x)
+        # if in mae mode, input has already been patched. 
+        if self.mae_mode == False: 
+            neuralInput = neuralInput.unsqueeze(1)
+            if self.training and self.max_mask_pct > 0:
+                x = self.to_patch(neuralInput)
+                x, _ = self.apply_specaugment_mask(x, X_len)
+                x = self.patch_to_emb(x)
+            else:
+                x = self.to_patch_embedding(neuralInput)
+                
         else:
-            x = self.to_patch_embedding(neuralInput)
-            
+            x = neuralInput
+                
         b, seq_len, _ = x.shape
-
+        
+        # apply input level dropout. 
         x = self.dropout(x)
 
         # Create temporal mask
@@ -370,9 +329,7 @@ class BiT_Phoneme(nn.Module):
             unmasked = ~mask  # invert the mask
             unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
             unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
-            
-           
-            
+        
             return masked_indices, unmasked_indices
         
         # Apply the mask

@@ -23,8 +23,8 @@ args['dropout'] = 0.1
 args['T5_style_pos'] = True
 args['look_ahead'] = 0 
 args['input_dropout'] = 0.2
-args['max_mask_pct'] = 0.1
-args['num_masks'] = 10
+args['max_mask_pct'] = 0.05
+args['num_masks'] = 20
 args['nDays'] = 24
 
 args['whiteNoiseSD'] = 0
@@ -47,7 +47,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:2'
+args['device'] = 'cuda:3'
 
 from neural_decoder.mae_main import trainModel
 
