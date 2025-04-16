@@ -55,7 +55,6 @@ def trainModel(args):
         encoder=enc_model,
         encoder_dim = args['dim'], 
         decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
-        masking_ratio=args['masking_ratio'],
         decoder_depth=args['num_decoder_layers'],
         decoder_heads = args['num_decoder_heads'],
         decoder_dim_head = args['decoder_dim_head'], 
