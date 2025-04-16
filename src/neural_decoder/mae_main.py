@@ -36,15 +36,19 @@ def trainModel(args):
     enc_model = BiT_Phoneme(
         patch_size=args['patch_size'],
         dim=args['dim'],
+        dim_head=args['dim_head'],
         depth=args['depth'],
         heads=args['heads'],
         mlp_dim_ratio=args['mlp_dim_ratio'],
         dropout=args['dropout'],
+        input_dropout=args['input_dropout'], 
         look_ahead=0,
         nDays=args['nDays'],
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
         T5_style_pos=args['T5_style_pos'], 
-        max_mask_pct=args['max_mask_pct']
+        max_mask_pct=args['max_mask_pct'], 
+        num_masks=args['num_masks'], 
+        nClasses=args['nClasses']
     )
 
     model = MAE(
