@@ -179,8 +179,8 @@ class BiT(nn.Module):
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
-                 dim_head=64, dropout=0., look_ahead=0, nDays=24, gaussianSmoothWidth=2.0, 
-                 nClasses=40, T5_style_pos=True, max_mask_pct=0.1, num_masks=2):
+                 dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
+                 nClasses, T5_style_pos, max_mask_pct, num_masks):
    
         super().__init__()
 
@@ -208,7 +208,8 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(input_dropout)
+        
         if self.T5_style_pos == False:
             self.register_buffer('pos_embedding', None, persistent=False)
         
@@ -261,11 +262,6 @@ class BiT_Phoneme(nn.Module):
             x = self.to_patch_embedding(neuralInput)
             
         b, seq_len, _ = x.shape
-
-        # Positional encoding
-        #if self.T5_style_pos == False:
-        #    pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
-        #    x = x + pos_emb.unsqueeze(0)
 
         x = self.dropout(x)
 

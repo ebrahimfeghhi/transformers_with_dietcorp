@@ -20,7 +20,9 @@ args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.4
-args['max_mask_pct'] = 0
+args['input_dropout'] = 0.1
+args['max_mask_pct'] = 0.2
+args['num_masks'] = 3
 
 args['whiteNoiseSD'] = 0.4
 args['gaussianSmoothWidth'] = 2.0
@@ -37,7 +39,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:0'
 
 args['seed'] = 0
 
@@ -52,15 +54,19 @@ from neural_decoder.bit import BiT_Phoneme
 model = BiT_Phoneme(
     patch_size=args['patch_size'],
     dim=args['dim'],
+    dim_head=args['dim_head'], 
+    nClasses=args['nClasses'],
     depth=args['depth'],
     heads=args['heads'],
     mlp_dim_ratio=args['mlp_dim_ratio'],
     dropout=args['dropout'],
+    input_dropout=args['input_dropout'],
     look_ahead=0,
     nDays=args['nDays'],
     gaussianSmoothWidth=args['gaussianSmoothWidth'],
     T5_style_pos=args['T5_style_pos'], 
-    max_mask_pct=args['max_mask_pct']
+    max_mask_pct=args['max_mask_pct'], 
+    num_masks=args['num_masks']
 ).to(args['device'])
 
 trainModel(args, model)
