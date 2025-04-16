@@ -23,8 +23,8 @@ args['dropout'] = 0.1
 args['T5_style_pos'] = True
 args['look_ahead'] = 0 
 args['input_dropout'] = 0.2
-args['max_mask_pct'] = 0.35
-args['num_masks'] = 3
+args['max_mask_pct'] = 0.1
+args['num_masks'] = 10
 args['nDays'] = 24
 
 args['whiteNoiseSD'] = 0
