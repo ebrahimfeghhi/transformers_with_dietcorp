@@ -17,7 +17,7 @@ args['datasetPath'] = possiblePaths_data[1]
 # define parameters for baseline encoder 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
-args['depth'] = 12 #TODO
+args['depth'] = 5 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
@@ -31,7 +31,7 @@ args['nDays'] = 24
 # define parameters for phoneme decoder
 args['patch_size_phon']= None
 args['dim_phon'] = 384 #TODO
-args['depth_phon'] = 5 #TODO
+args['depth_phon'] = 7 #TODO
 args['heads_phon'] = 6
 args['mlp_dim_ratio_phon'] = 4 #TODO
 args['dim_head_phon'] = 64
@@ -53,7 +53,7 @@ args['batchSize'] = 64
 args['l2_decay'] = 1e-5
 args['lrStart'] = 0.001
 args['lrEnd'] = 0.001
-args['mae_scalar_loss'] = 1
+args['mae_scalar_loss'] = 0
 args['phoneme_scalar_loss'] = 1
 args['num_epochs'] = 10000
 args['gaussianSmoothWidth'] = 2.0

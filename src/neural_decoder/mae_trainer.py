@@ -24,7 +24,19 @@ class Trainer:
 
         # self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=args['learning_rate'], weight_decay=args['weight_decay'])
-        self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=args['num_epochs'])
+        if args['cosineAnnealing']:
+        
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=args['num_epochs'])
+        
+        else:
+            
+            self.scheduler = torch.optim.lr_scheduler.LinearLR(
+                self.optimizer,
+                start_factor=1.0,
+                end_factor=args['learning_rate'] / args['learning_rate'],
+                total_iters=args["num_epochs"],
+            )
+            
         self.metric = R2Score()
 
         self.train_losses = []
@@ -55,7 +67,7 @@ class Trainer:
                            X_len.to(self.device))
             
             self.optimizer.zero_grad()
-            loss, acc, pred = self.model(neural_data, X_len, day_idx) #MAE returns reconstruction loss
+            loss, acc = self.model(neural_data, X_len, day_idx) #MAE returns reconstruction loss
             loss.backward()
             self.optimizer.step()
             total_loss += loss.item()
@@ -87,7 +99,7 @@ class Trainer:
                            day_idx.to(self.device),
                            X_len.to(self.device))
             
-                loss, acc, pred = self.model(neural_data, X_len, day_idx)
+                loss, acc = self.model(neural_data, X_len, day_idx)
                 total_loss += loss.item()
                 total_acc += acc.item()
                 chunk_number+=1

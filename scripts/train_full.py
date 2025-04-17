@@ -33,7 +33,9 @@ args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
 args['lrStart'] = 0.001
-args['lrEnd'] = 0.001
+args['lrEnd'] = 1e-4
+args['T_mult'] = 2
+args['T_0'] = 50
 
 args['look_ahead'] = 0 
 
