@@ -46,7 +46,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:1'
 
 from neural_decoder.mae_main import trainModel
 
