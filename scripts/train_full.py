@@ -10,8 +10,8 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[1] + modelName
-args['datasetPath'] = possiblePaths_data[-1]
+args['outputDir'] = possiblePath_dir[0] + modelName
+args['datasetPath'] = possiblePaths_data[1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
@@ -24,9 +24,9 @@ args['input_dropout'] = 0.2
 args['max_mask_pct'] = 0.05
 args['num_masks'] = 20
 
-args['whiteNoiseSD'] = 0.8
+args['whiteNoiseSD'] = 0
 args['gaussianSmoothWidth'] = 2.0
-args['constantOffsetSD'] = 0.2
+args['constantOffsetSD'] = 0
 args['nDays'] = 24
 args['nClasses'] = 40
 args['batchSize'] = 64
@@ -39,7 +39,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 
