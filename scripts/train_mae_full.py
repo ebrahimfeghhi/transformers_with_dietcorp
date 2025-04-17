@@ -31,7 +31,7 @@ args['nDays'] = 24
 # define parameters for phoneme decoder
 args['patch_size_phon']= None
 args['dim_phon'] = 384 #TODO
-args['depth_phon'] = 6 #TODO
+args['depth_phon'] = 1 #TODO
 args['heads_phon'] = 6
 args['mlp_dim_ratio_phon'] = 4 #TODO
 args['dim_head_phon'] = 64
@@ -60,7 +60,7 @@ args['gaussianSmoothWidth'] = 2.0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 
@@ -75,7 +75,7 @@ from neural_decoder.mae import MAE
 
 
 # define the encoder module. 
-
+'''
 # Encoder part. 
 enc_model = BiT_Phoneme(
     patch_size=args['patch_size'],
@@ -130,5 +130,59 @@ model = MAE(
     constantOffsetSD=args['constantOffsetSD'], 
     whiteNoiseSD=args['whiteNoiseSD']
 ).to(args['device'])
+'''
+# Initialize the model
+enc_model = BiT_Phoneme(
+    patch_size=args['patch_size'],
+    dim=args['dim'],
+    dim_head=args['dim_head'],
+    depth=args['depth'],
+    heads=args['heads'],
+    mlp_dim_ratio=args['mlp_dim_ratio'],
+    dropout=args['dropout'],
+    input_dropout=args['input_dropout'], 
+    look_ahead=0,
+    nDays=args['nDays'],
+    gaussianSmoothWidth=args['gaussianSmoothWidth'],
+    T5_style_pos=args['T5_style_pos'], 
+    max_mask_pct=args['max_mask_pct'], 
+    num_masks=args['num_masks'], 
+    nClasses=args['nClasses'], 
+    mae_mode=False
+).to(args['device'])
+
+    # Decoder for phoneme logits. 
+phoneme_decoder = BiT_Phoneme(
+    patch_size=None,
+    dim=args['dim'],
+    dim_head=args['dim_head'], 
+    nClasses=args['nClasses'],
+    depth=args['depth'],
+    heads=args['heads'],
+    mlp_dim_ratio=args['mlp_dim_ratio'],
+    dropout=args['dropout'],
+    input_dropout=args['input_dropout'],
+    look_ahead=0,
+    nDays=args['nDays'],
+    gaussianSmoothWidth=0,
+    T5_style_pos=args['T5_style_pos'], 
+    max_mask_pct=None, 
+    num_masks=None, 
+    mae_mode=True
+).to(args['device'])
+
+model = MAE(
+    encoder=enc_model,
+    phoneme_decoder=phoneme_decoder, 
+    encoder_dim = args['dim'], 
+    decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
+    decoder_depth=args['num_decoder_layers'],
+    decoder_heads = args['num_decoder_heads'],
+    decoder_dim_head = args['decoder_dim_head'], 
+    gaussianSmoothWidth = args['gaussianSmoothWidth'], 
+    constantOffsetSD=args['constantOffsetSD'], 
+    whiteNoiseSD=args['whiteNoiseSD']
+).to(args['device'])
+
 
 trainModel(args, model)

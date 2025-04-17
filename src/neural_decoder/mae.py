@@ -142,36 +142,30 @@ class MAE(nn.Module):
         
         acc = metric.compute()
         
-        if self.constantOffsetSD > 0:
+        if self.phoneme_decoder is not None:
             
-            constantOffset = (
-                torch.randn([decoded_tokens.shape[0], 1, decoded_tokens.shape[2]], device=device)
-                * self.constantOffsetSD
-            )
-            decoded_tokens[batch_range, unmasked_indices] += constantOffset
+            if self.constantOffsetSD > 0:
                 
-        if self.whiteNoiseSD > 0:
-            whiteNoise = torch.randn(decoded_tokens[batch_range, unmasked_indices].shape, 
-                                    device=device) * self.whiteNoiseSD
-            whiteNoise = torch.permute(whiteNoise, (0,2,1))
-            blurred_whiteNoise = self.gaussianSmoother_whiteNoise(whiteNoise)
-            blurred_whiteNoise = torch.permute(whiteNoise, (0,2,1))
-            decoded_tokens[batch_range, unmasked_indices] += blurred_whiteNoise
+                constantOffset = (
+                    torch.randn([decoded_tokens.shape[0], 1, decoded_tokens.shape[2]], device=device)
+                    * self.constantOffsetSD
+                )
+                decoded_tokens[batch_range, unmasked_indices] += constantOffset
+                    
+            if self.whiteNoiseSD > 0:
+                whiteNoise = torch.randn(decoded_tokens[batch_range, unmasked_indices].shape, 
+                                        device=device) * self.whiteNoiseSD
+                whiteNoise = torch.permute(whiteNoise, (0,2,1))
+                blurred_whiteNoise = self.gaussianSmoother_whiteNoise(whiteNoise)
+                blurred_whiteNoise = torch.permute(whiteNoise, (0,2,1))
+                decoded_tokens[batch_range, unmasked_indices] += blurred_whiteNoise
             
-        # phoneme decoder should have the following structure:
-        # 1) Apply gaussian blurred whiteNoise and constantOffsetSD to non-masked patches. 
-        # 2) Apply day specific layers and input-nonlinearity. 
-        # 3) Apply input dropout.
-        # 4) Apply N layer causal transformer. 
-        # 5) Apply linear layer to output nClasses+1
+            phoneme_logits = self.phoneme_decoder(decoded_tokens, X_len, dayIdx)
+            
         
-        # It should then process the decoded tokens through N causal transformer 
-        # layers, and output nClasses + 1 logits.
+            return recon_loss, acc, phoneme_logits
         
-        phoneme_logits = self.phoneme_decoder(decoded_tokens, X_len, dayIdx)
-        
-      
-        return recon_loss, acc, phoneme_logits
+        return recon_loss, acc
     
     
     def compute_length(self, X_len):

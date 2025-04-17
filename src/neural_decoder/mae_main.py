@@ -48,11 +48,33 @@ def trainModel(args):
         T5_style_pos=args['T5_style_pos'], 
         max_mask_pct=args['max_mask_pct'], 
         num_masks=args['num_masks'], 
-        nClasses=args['nClasses']
+        nClasses=args['nClasses'], 
+        mae_mode=False
     )
+    
+        # Decoder for phoneme logits. 
+    phoneme_decoder = BiT_Phoneme(
+        patch_size=None,
+        dim=args['dim'],
+        dim_head=args['dim_head'], 
+        nClasses=args['nClasses'],
+        depth=args['depth'],
+        heads=args['heads'],
+        mlp_dim_ratio=args['mlp_dim_ratio'],
+        dropout=args['dropout'],
+        input_dropout=args['input_dropout'],
+        look_ahead=0,
+        nDays=args['nDays'],
+        gaussianSmoothWidth=0,
+        T5_style_pos=args['T5_style_pos'], 
+        max_mask_pct=None, 
+        num_masks=None, 
+        mae_mode=True
+    ).to(args['device'])
 
     model = MAE(
         encoder=enc_model,
+        phoneme_decoder=phoneme_decoder, 
         encoder_dim = args['dim'], 
         decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
         decoder_depth=args['num_decoder_layers'],

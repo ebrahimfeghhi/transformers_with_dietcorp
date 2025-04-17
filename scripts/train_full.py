@@ -47,6 +47,9 @@ args['T5_style_pos'] = True
 
 args['n_epochs'] = 10000
 
+args['AdamW'] = True
+args['CosineAnnealing'] = True
+
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme

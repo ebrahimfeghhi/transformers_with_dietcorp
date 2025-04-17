@@ -11,52 +11,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .model import GRUDecoder
-from .dataset import SpeechDataset
+from .dataset import getDatasetLoaders
 from .augmentations import mask_electrodes
 
 import wandb
-
-def getDatasetLoaders(
-    datasetName,
-    batchSize,
-):
-    with open(datasetName, "rb") as handle:
-        loadedData = pickle.load(handle)
-
-    def _padding(batch):
-        X, y, X_lens, y_lens, days = zip(*batch)
-        X_padded = pad_sequence(X, batch_first=True, padding_value=0)
-        y_padded = pad_sequence(y, batch_first=True, padding_value=0)
-
-        return (
-            X_padded,
-            y_padded,
-            torch.stack(X_lens),
-            torch.stack(y_lens),
-            torch.stack(days),
-        )
-
-    train_ds = SpeechDataset(loadedData["train"], transform=None)
-    test_ds = SpeechDataset(loadedData["test"])
-
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=batchSize,
-        shuffle=True,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-    test_loader = DataLoader(
-        test_ds,
-        batch_size=batchSize,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-
-    return train_loader, test_loader, loadedData
 
 def trainModel(args, model):
     
@@ -78,19 +36,33 @@ def trainModel(args, model):
     wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
 
     loss_ctc = torch.nn.CTCLoss(blank=0, reduction="mean", zero_infinity=True)
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=args["lrStart"],
-        betas=(0.9, 0.999),
-        eps=0.1,
-        weight_decay=args["l2_decay"],
-    )
-    scheduler = torch.optim.lr_scheduler.LinearLR(
-        optimizer,
-        start_factor=1.0,
-        end_factor=args["lrEnd"] / args["lrStart"],
-        total_iters=args["n_epochs"],
-    )
+    
+    if args['AdamW']:
+        
+         optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'])
+         
+    else:
+        
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=args["lrStart"],
+            betas=(0.9, 0.999),
+            eps=0.1,
+            weight_decay=args["l2_decay"],
+        )
+        
+    if args['cosineAnnealing']:
+        
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['num_epochs'])
+        
+    else:
+        
+        scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=1.0,
+            end_factor=args["lrEnd"] / args["lrStart"],
+            total_iters=args["n_epochs"],
+        )
     
     # --train--
     testLoss = []
@@ -227,5 +199,7 @@ def trainModel(args, model):
 
         with open(args["outputDir"] + "/trainingStats", "wb") as file:
             pickle.dump(tStats, file)
+            
+        scheduler.step()
 
 
