@@ -43,7 +43,7 @@ class Trainer:
         
         for batch in tqdm(self.train_loader, desc="Training"):
             
-            neural_data, day_idx, X_len = batch
+            neural_data, _, X_len, _, day_idx = batch
             
             # select trials that are longer than chunk size
             #mask = X_len >= self.model.encoder.trial_length 
@@ -55,7 +55,7 @@ class Trainer:
                            X_len.to(self.device))
             
             self.optimizer.zero_grad()
-            loss, acc = self.model(neural_data, X_len, day_idx) #MAE returns reconstruction loss
+            loss, acc, pred = self.model(neural_data, X_len, day_idx) #MAE returns reconstruction loss
             loss.backward()
             self.optimizer.step()
             total_loss += loss.item()
@@ -77,7 +77,7 @@ class Trainer:
         
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc="Validating"):
-                neural_data, day_idx, X_len = batch
+                neural_data, _, X_len, _, day_idx = batch
             
                 # select trials that are longer than chunk size
                 #mask = X_len >= self.model.encoder.trial_length 
@@ -87,8 +87,7 @@ class Trainer:
                            day_idx.to(self.device),
                            X_len.to(self.device))
             
-               
-                loss, acc = self.model(neural_data, X_len, day_idx)
+                loss, acc, pred = self.model(neural_data, X_len, day_idx)
                 total_loss += loss.item()
                 total_acc += acc.item()
                 chunk_number+=1
