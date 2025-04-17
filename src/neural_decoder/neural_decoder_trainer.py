@@ -53,7 +53,7 @@ def trainModel(args, model):
         
     if args['cosineAnnealing']:
         
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['num_epochs'])
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['n_epochs'])
         
     else:
         

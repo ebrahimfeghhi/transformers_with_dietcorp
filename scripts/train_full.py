@@ -32,14 +32,14 @@ args['nClasses'] = 40
 args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
-args['lrStart'] = 0.05
-args['lrEnd'] = 0.05
+args['lrStart'] = 0.001
+args['lrEnd'] = 0.001
 
 args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:3'
 
 args['seed'] = 0
 
@@ -48,7 +48,7 @@ args['T5_style_pos'] = True
 args['n_epochs'] = 10000
 
 args['AdamW'] = True
-args['CosineAnnealing'] = True
+args['cosineAnnealing'] = False
 
 
 from neural_decoder.neural_decoder_trainer import trainModel
@@ -69,7 +69,8 @@ model = BiT_Phoneme(
     gaussianSmoothWidth=args['gaussianSmoothWidth'],
     T5_style_pos=args['T5_style_pos'], 
     max_mask_pct=args['max_mask_pct'], 
-    num_masks=args['num_masks']
+    num_masks=args['num_masks'], 
+    mae_mode=False
 ).to(args['device'])
 
 trainModel(args, model)
