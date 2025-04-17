@@ -37,22 +37,34 @@ def trainModel(args, model):
     wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
 
     loss_ctc = torch.nn.CTCLoss(blank=0, reduction="mean", zero_infinity=True)
-    #optimizer = torch.optim.Adam(
-    #    model.parameters(),
-    #    lr=args["lrStart"],
-    #    betas=(0.9, 0.999),
-    #    eps=0.1,
-    #    weight_decay=args["l2_decay"],
-    #)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'])
     
-    scheduler = torch.optim.lr_scheduler.LinearLR(
-        optimizer,
-        start_factor=1.0,
-        end_factor=args["lrEnd"] / args["lrStart"],
-        total_iters=args["n_epochs"],
-    )
-    
+    if args['AdamW']:
+        
+         optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'])
+         
+    else:
+        
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=args["lrStart"],
+            betas=(0.9, 0.999),
+            eps=0.1,
+            weight_decay=args["l2_decay"],
+        )
+        
+    if args['cosineAnnealing']:
+        
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['n_epochs'])
+        
+    else:
+        
+        scheduler = torch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=1.0,
+            end_factor=args["lrEnd"] / args["lrStart"],
+            total_iters=args["n_epochs"],
+        )
+
     # --train--
     testLoss = []
     testCER = []
@@ -82,14 +94,14 @@ def trainModel(args, model):
             
             adjustedLens = model.compute_length(X_len)
 
-            #loss = loss_ctc(
-            #    torch.permute(pred.log_softmax(2), [1, 0, 2]),
-            #    y,
-            #   adjustedLens,
-            #    y_len,
-            #)
+            loss = loss_ctc(
+                torch.permute(pred.log_softmax(2), [1, 0, 2]),
+                y,
+               adjustedLens,
+                y_len,
+            )
             
-            total_loss = mae_loss
+            total_loss = args['phoneme_scalar_loss']*loss + args['mae_scalar_loss']*mae_loss
         
             # Backpropagation
             optimizer.zero_grad()
@@ -98,14 +110,11 @@ def trainModel(args, model):
             scheduler.step()
             
             #train_loss.append(loss.cpu().detach().numpy())
-            train_loss.append(0)
+            train_loss.append(loss.cpu().detach().numpy())
             train_mae_loss.append(mae_loss.cpu().detach().numpy())
             train_mae_r2.append(mae_r2.cpu().detach().numpy())
             # print(endTime - startTime)
             
-        print(np.mean(train_mae_r2))
-        breakpoint()
-
         with torch.no_grad():
             
             avgTrainLoss = np.mean(train_loss)
@@ -203,4 +212,5 @@ def trainModel(args, model):
         with open(args["outputDir"] + "/trainingStats", "wb") as file:
             pickle.dump(tStats, file)
 
+        scheduler.step()
 

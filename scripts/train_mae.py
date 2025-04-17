@@ -42,6 +42,8 @@ args['learning_rate'] = 1e-3
 args['num_epochs'] = 10000
 args['gaussianSmoothWidth'] = 2.0
 
+args['cosineAnnealing'] = False
+
 args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")

@@ -53,7 +53,12 @@ def trainModel(args, model):
         
     if args['cosineAnnealing']:
         
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['n_epochs'])
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=args['T_0'],      # 🔁 First restart after T_0 epochs
+            T_mult=args['T_mult'],    # 📈 Decay slows down by T_mult each time (T_mult*T_0, 2*T_mult*T_0)
+            eta_min=args['lrEnd'] # 🔽 Don’t decay all the way to 0
+        )
         
     else:
         
