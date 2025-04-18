@@ -17,7 +17,7 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from .mae import MAE
+from .mae import MAE, MAE_with_mask
 from .bit import BiT_Phoneme
 from .model import GRUDecoder
 from .dataset import getDatasetLoaders_MAE
@@ -52,9 +52,8 @@ def trainModel(args):
         mae_mode=False
     )
 
-    model = MAE(
+    model = MAE_with_mask(
         encoder=enc_model,
-        phoneme_decoder=None, 
         encoder_dim = args['dim'], 
         decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
         decoder_depth=args['num_decoder_layers'],
@@ -70,12 +69,6 @@ def trainModel(args):
         args["batchSize"])
     
     model = model.to(args['device'])
-    print("model moved to device")
-
-    # Get data loaders
-    # train_loader, val_loader = get_food101_dataloader(batch_size = args.batch_size, num_workers = args.num_workers)
-
-    print("dataloaders loaded")
     
     device = args['device']
 

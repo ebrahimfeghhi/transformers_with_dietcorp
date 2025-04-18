@@ -112,7 +112,7 @@ class MAE_with_mask(nn.Module):
         temporal_mask = create_temporal_mask(seq_len=seq_len, 
                         look_ahead=self.encoder.look_ahead, device=device)
         
-        decoder_sequence = self.encoder.transformer(encoder_sequence, mask=temporal_mask, original_indices=unmasked_indices)
+        decoder_sequence = self.encoder.transformer(encoder_sequence, mask=temporal_mask)
 
         # Decode
         seq_len = decoder_sequence.shape[1]
