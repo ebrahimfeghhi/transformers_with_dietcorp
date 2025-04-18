@@ -339,3 +339,44 @@ class BiT_Phoneme(nn.Module):
         return X_masked, mask
     
     
+    def load_pretrained_transformer(self, ckpt_path):
+        
+        
+        """
+        Load pretrained transformer weights and mask token from a checkpoint.
+        Assumes 'encoder.transformer.*' and 'encoder.mask_token' exist in the checkpoint.
+        Handles device mismatch automatically.
+        """
+        
+        import torch
+        from collections import OrderedDict
+
+        # Load checkpoint
+        state_dict = torch.load(ckpt_path, map_location='cpu')['model_state_dict']
+
+        # Determine device of the current model
+        device = next(self.parameters()).device
+
+        # --- Load Transformer weights ---
+        transformer_weights = OrderedDict()
+        prefix = "encoder.transformer."
+
+        for k, v in state_dict.items():
+            if k.startswith(prefix):
+                new_key = k[len(prefix):]
+                transformer_weights[new_key] = v.to(device)
+
+        missing, unexpected = self.transformer.load_state_dict(transformer_weights, strict=False)
+        print(f"Transformer loaded with {len(missing)} missing and {len(unexpected)} unexpected keys.")
+
+        # --- Load mask token ---
+        mask_key = "encoder.mask_token"
+        if hasattr(self, "mask_token") and mask_key in state_dict:
+            with torch.no_grad():
+                self.mask_token.data.copy_(state_dict[mask_key].to(device))
+            print("Mask token loaded successfully.")
+        else:
+            print("Mask token not found in checkpoint or not defined in model.")
+
+    
+    
