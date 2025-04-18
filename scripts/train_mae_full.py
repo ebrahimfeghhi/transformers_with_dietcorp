@@ -21,39 +21,25 @@ args['depth'] = 5 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0.1
+args['dropout'] = 0.4
+args['dropout_reconstruct'] = 0.1
+args['input_dropout'] = 0.2
 args['T5_style_pos'] = True
 args['look_ahead'] = 0 
 args['max_mask_pct'] = 0.05
 args['num_masks'] = 20
 args['nDays'] = 24
 
-# define parameters for phoneme decoder
-args['patch_size_phon']= None
-args['dim_phon'] = 384 #TODO
-args['depth_phon'] = 7 #TODO
-args['heads_phon'] = 6
-args['mlp_dim_ratio_phon'] = 4 #TODO
-args['dim_head_phon'] = 64
-args['dropout_phon'] = 0.4
-args['input_dropout'] = 0.2
-args['whiteNoiseSD'] = 0.4
-args['constantOffsetSD'] = 0.1
-args['nClasses'] = 40
+args['whiteNoiseSD'] = 0
+args['constantOffsetSD'] = 0
 
-
-# define parameters for reconstruction loss
-args['decoder_dim'] = 384
-args['num_decoder_layers'] = 5 #TODO
-args['num_decoder_heads'] = 6
-args['decoder_dim_head'] = 64
 
 args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
 args['lrStart'] = 0.001
 args['lrEnd'] = 0.001
-args['mae_scalar_loss'] = 0
+args['mae_scalar_loss'] = 1
 args['phoneme_scalar_loss'] = 1
 args['num_epochs'] = 10000
 args['gaussianSmoothWidth'] = 2.0
@@ -73,66 +59,19 @@ args['cosineAnnealing'] = True
 
 
 from neural_decoder.neural_decoder_trainer_mae import trainModel
-from neural_decoder.bit import BiT_Phoneme
-from neural_decoder.mae import MAE
+from neural_decoder.bit_with_adapt import BiT_with_adapt
 
 
-# define the encoder module. 
-
-# Encoder part. 
-enc_model = BiT_Phoneme(
-    patch_size=args['patch_size'],
-    dim=args['dim'],
-    dim_head=args['dim_head'],
-    depth=args['depth'],
-    heads=args['heads'],
-    mlp_dim_ratio=args['mlp_dim_ratio'],
-    dropout=args['dropout'],
-    input_dropout=args['input_dropout'], 
-    look_ahead=0,
-    nDays=args['nDays'],
-    gaussianSmoothWidth=args['gaussianSmoothWidth'],
-    T5_style_pos=args['T5_style_pos'], 
-    max_mask_pct=args['max_mask_pct'], 
-    num_masks=args['num_masks'], 
-    nClasses=args['nClasses'], 
-    mae_mode=False
-).to(args['device'])
+mdoel = BiT_with_adapt(patch_size=args['patch_size'], 
+               dim=args['dim'], depth_phoneme=args['depth_phoneme'], 
+               depth_reconstruct=args['depth_reconstruct'], heads=args['heads'], 
+               mlp_dim_ratio=args['mlp_dim_ratio'], dim_head=args['dim_head'], 
+               dropout=args['dropout'], dropout_reconstruct=args['dropout_reconstruct'], 
+               input_dropout=args['input_dropout'], look_ahead=0, nDays=args['nDays'], 
+               gaussianSmoothWidth=args['gaussianSmoothWidth'], nClasses=args['nClasses'], 
+               T5_style_pos=True, max_mask_pct=args['max_mask_pct'], num_masks=args['num_masks']).to(args['deivce'])
 
 
-# Decoder for phoneme logits. 
-phoneme_decoder = BiT_Phoneme(
-    patch_size=None,
-    dim=args['dim_phon'],
-    dim_head=args['dim_head_phon'], 
-    nClasses=args['nClasses'],
-    depth=args['depth_phon'],
-    heads=args['heads_phon'],
-    mlp_dim_ratio=args['mlp_dim_ratio_phon'],
-    dropout=args['dropout_phon'],
-    input_dropout=args['input_dropout'],
-    look_ahead=0,
-    nDays=args['nDays'],
-    gaussianSmoothWidth=0,
-    T5_style_pos=args['T5_style_pos'], 
-    max_mask_pct=None, 
-    num_masks=None, 
-    mae_mode=True
-).to(args['device'])
-
-
-model = MAE(
-    encoder=enc_model,
-    phoneme_decoder=phoneme_decoder, 
-    encoder_dim = args['dim'], 
-    decoder_dim = args['decoder_dim'], #same shape as the encoder model outputs
-    decoder_depth=args['num_decoder_layers'],
-    decoder_heads = args['num_decoder_heads'],
-    decoder_dim_head = args['decoder_dim_head'], 
-    gaussianSmoothWidth = args['gaussianSmoothWidth'], 
-    constantOffsetSD=args['constantOffsetSD'], 
-    whiteNoiseSD=args['whiteNoiseSD']
-).to(args['device'])
 
 
 trainModel(args, model)
