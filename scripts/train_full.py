@@ -10,8 +10,8 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[0] + modelName
-args['datasetPath'] = possiblePaths_data[1]
+args['outputDir'] = possiblePath_dir[1] + modelName
+args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
@@ -24,34 +24,36 @@ args['input_dropout'] = 0.2
 args['max_mask_pct'] = 0.05
 args['num_masks'] = 20
 
-args['whiteNoiseSD'] = 0
+args['whiteNoiseSD'] = 0.2
 args['gaussianSmoothWidth'] = 2.0
-args['constantOffsetSD'] = 0
+args['constantOffsetSD'] = 0.05
 args['nDays'] = 24
 args['nClasses'] = 40
 args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
 args['lrStart'] = 0.001
-args['lrEnd'] = 1e-4
-args['T_mult'] = 2
-args['T_0'] = 50
+args['lrEnd'] = 0.001
+args['milestones'] = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000] # number of epochs after which to drop the learning rate
+args['gamma'] = 0.7943 # factor by which to drop the learning rate at milestone 
+
 
 args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:3'
 
 args['seed'] = 0
 
 args['T5_style_pos'] = True
 
-args['n_epochs'] = 10000
+args['n_epochs'] = 1500
 
 args['AdamW'] = True
-args['cosineAnnealing'] = False
+args['learning_scheduler'] = 'cosine'
 
+args['load_pretrained_mae'] = ""
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
@@ -74,5 +76,10 @@ model = BiT_Phoneme(
     num_masks=args['num_masks'], 
     mae_mode=False
 ).to(args['device'])
+
+if len(args['load_pretrained_mae']) > 0:
+    print("LOADING PRETRAINED MAE WEIGHTS")
+    model.load_pretrained_transformer(args['load_pretrained_mae'])
+    
 
 trainModel(args, model)

@@ -51,17 +51,23 @@ def trainModel(args, model):
             weight_decay=args["l2_decay"],
         )
         
-    if args['cosineAnnealing']:
+    if args['learning_scheduler'] == 'multistep': 
+
+        print("Multistep scheduler")
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args['milestones'], gamma=args['gamma'])
         
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    elif args['learning_scheduler'] == 'cosine':
+        
+        print("Cosine scheduler")
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer,
-            T_0=args['T_0'],      # 🔁 First restart after T_0 epochs
-            T_mult=args['T_mult'],    # 📈 Decay slows down by T_mult each time (T_mult*T_0, 2*T_mult*T_0)
-            eta_min=args['lrEnd'] # 🔽 Don’t decay all the way to 0
+            T_max=args['n_epochs'],     # Total epochs to decay over
+            eta_min=args['lrEnd']    # Final learning rate
         )
-        
+            
     else:
         
+        print("Linear scheduler")
         scheduler = torch.optim.lr_scheduler.LinearLR(
             optimizer,
             start_factor=1.0,
@@ -115,9 +121,7 @@ def trainModel(args, model):
             # Backpropagation
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
-            scheduler.step()
-            
+            optimizer.step()            
             train_loss.append(loss.cpu().detach().numpy())
         
             # print(endTime - startTime)
