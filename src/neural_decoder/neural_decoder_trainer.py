@@ -16,6 +16,20 @@ from .augmentations import mask_electrodes
 
 import wandb
 
+
+def lr_lambda(epoch):
+    if epoch < 200:
+        return 1.0    # 1e-3
+    elif epoch < 300:
+        return 0.5    # 5e-4
+    elif epoch < 400:
+        return 0.1    # 1e-4
+    elif epoch < 500:
+        return 0.05   # 5e-5
+    else:
+        return 0.01   # 1e-5
+
+
 def trainModel(args, model):
     
     wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args))
@@ -39,7 +53,8 @@ def trainModel(args, model):
     
     if args['AdamW']:
         
-         optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'])
+         optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
+                                       betas=(args['beta1'], args['beta2']))
          
     else:
         
@@ -74,6 +89,10 @@ def trainModel(args, model):
             T_mult=args['T_mult'],      # next cycle is 1000 long (up to 1500)
             eta_min=args['lrEnd']
         )
+        
+    elif args['learning_scheduler'] == 'custom':
+        print("Custom scheduler")
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         
     else:
         

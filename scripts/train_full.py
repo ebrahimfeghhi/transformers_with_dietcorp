@@ -42,6 +42,8 @@ args['gamma'] = 0.7943 # factor by which to drop the learning rate at milestone
 args['T_0'] = 500
 args['T_mult'] = 2
 
+args['beta_1'] = 0.90
+args['beta_2'] = 0.98
 
 args['look_ahead'] = 0 
 
@@ -53,10 +55,10 @@ args['seed'] = 0
 
 args['T5_style_pos'] = True
 
-args['n_epochs'] = 1500
+args['n_epochs'] = 2000
 
 args['AdamW'] = True
-args['learning_scheduler'] = 'warmcosine'
+args['learning_scheduler'] = ''
 
 args['load_pretrained_mae'] = ""
 
