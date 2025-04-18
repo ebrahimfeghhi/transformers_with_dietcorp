@@ -32,17 +32,22 @@ args['nClasses'] = 40
 args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
+
 args['lrStart'] = 0.001
-args['lrEnd'] = 0.001
+args['lrEnd'] = 1e-6
+
 args['milestones'] = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000] # number of epochs after which to drop the learning rate
 args['gamma'] = 0.7943 # factor by which to drop the learning rate at milestone 
+
+args['T_0'] = 500
+args['T_mult'] = 2
 
 
 args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 
@@ -51,7 +56,7 @@ args['T5_style_pos'] = True
 args['n_epochs'] = 1500
 
 args['AdamW'] = True
-args['learning_scheduler'] = 'cosine'
+args['learning_scheduler'] = 'warmcosine'
 
 args['load_pretrained_mae'] = ""
 

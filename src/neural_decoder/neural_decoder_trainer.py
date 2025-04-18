@@ -65,13 +65,23 @@ def trainModel(args, model):
             eta_min=args['lrEnd']    # Final learning rate
         )
             
+    elif args['learning_scheduler'] == 'warmcosine':
+        
+        print("Warm Cosine Scheduler")
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=args['T_0'],       # first cosine decay cycle
+            T_mult=args['T_mult'],      # next cycle is 1000 long (up to 1500)
+            eta_min=args['lrEnd']
+        )
+        
     else:
         
         print("Linear scheduler")
         scheduler = torch.optim.lr_scheduler.LinearLR(
             optimizer,
             start_factor=1.0,
-            end_factor=args["lrEnd"] / args["lrStart"],
+            end_factor=args["lrStart"] / args["lrStart"],
             total_iters=args["n_epochs"],
         )
     
