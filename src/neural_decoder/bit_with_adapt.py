@@ -9,12 +9,15 @@ from .augmentations import GaussianSmoothing
 from .dataset import pad_to_multiple
 from .bit import Transformer, create_temporal_mask, pair
 from torchmetrics.regression import R2Score
+import torch.nn.functional as F
 
-class BiT_with_adapt(nn.Module):
     
-    def __init__(self, *, patch_size, dim, depth_phoneme, depth_reconstruct, heads, mlp_dim_ratio,
-                 dim_head, dropout, dropout_reconstruct, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks):
+    
+class BiT_Phoneme(nn.Module):
+    
+    def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
+                 dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
+                 nClasses, T5_style_pos, max_mask_pct, num_masks, mae_mode):
    
         super().__init__()
 
@@ -28,8 +31,9 @@ class BiT_with_adapt(nn.Module):
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
         self.num_masks = num_masks
-
-            
+        self.mae_mode = mae_mode
+        
+        
         self.patch_dim = patch_height * patch_width
         
         self.to_patch_embedding = nn.Sequential(
@@ -51,24 +55,22 @@ class BiT_with_adapt(nn.Module):
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
         )
-                
-    
+
+            
+
         self.dropout = nn.Dropout(input_dropout)
         
-        self.calibration_layer = Transformer(dim, 1, heads, dim_head, mlp_dim_ratio, 
-                                             dropout_reconstruct, use_relative_bias=self.T5_style_pos)
         
-        self.phoneme_decoder = Transformer(dim, depth_phoneme, heads, dim_head, mlp_dim_ratio, 
+        self.full_transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, 
                                        dropout, use_relative_bias=self.T5_style_pos)
         
-        self.reconstruction_decoder = Transformer(dim, depth_reconstruct, heads, dim_head, mlp_dim_ratio, 
-                                       dropout_reconstruct, use_relative_bias=self.T5_style_pos)
-        
-        
-       
+        self.decoder_transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, 
+                                       dropout, use_relative_bias=self.T5_style_pos)
+
+
         self.projection = nn.Linear(dim, nClasses+1)
         
-        
+        self.to_neural = nn.Linear(dim, self.patch_dim)
 
     def forward(self, neuralInput, X_len, dayIdx):
         """
@@ -79,64 +81,80 @@ class BiT_with_adapt(nn.Module):
             Tensor: (B, num_patches, dim)
         """
         
+        
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
-        
+
+        # apply day layer
+        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+        transformedNeural = torch.einsum(
+            "btd,bdk->btk", neuralInput, dayWeights
+        ) + torch.index_select(self.dayBias, 0, dayIdx)
+        transformedNeural = self.inputLayerNonlinearity(transformedNeural)
+                
+        # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
-        
         if self.training and self.max_mask_pct > 0:
             patches = self.to_patch(neuralInput)
             x, mask = self.apply_specaugment_mask(patches, X_len)
             x = self.patch_to_emb(x)
         else:
             x = self.to_patch_embedding(neuralInput)
-            
-            
-        # if in mae mode, input has already been patched. 
+                
         b, seq_len, _ = x.shape
         
-        
-        temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
-        
-        # apply shared layer
-        x = self.calibration_layer(x, mask=temporal_mask)
-        
-        reconstruction_x = self.reconstruction_decoder(x, mask=temporal_mask)
-        
-        # Compute loss and R²
-        # only apply this this loss to patches that were masked
-        mask_expanded = mask.unsqueeze(-1).expand_as(patches)
-        recon_loss = F.mse_loss(reconstruction_x[mask_expanded], patches[mask_expanded])
-        metric = R2Score()
-        metric.update(reconstruction_x[mask_expanded].view(-1, reconstruction_x[mask_expanded].shape[-1]),
-                      patches[mask_expanded].view(-1, patches[mask_expanded].shape[-1]))
-        
-        acc = metric.compute()
-        
-        # apply day layer
-        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
-        x = torch.einsum(
-            "btd,bdk->btk", x, dayWeights
-        ) + torch.index_select(self.dayBias, 0, dayIdx)
-        x = self.inputLayerNonlinearity(x)
-    
         # apply input level dropout. 
         x = self.dropout(x)
 
-        # Apply transformer with temporal masking
-        x = self.phoneme_decoder(x, mask=temporal_mask)
+        # Create temporal mask
+        temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
+
+        attn, ffn = self.full_transformer.layers[0]
+        x = attn(x, temporal_mask=temporal_mask) + x
+        x = ffn(x) + x
         
-        # get phoneme logits
+        reconstructed_input = self.decoder_transformer(x, mask=temporal_mask)
+        
+        reconstructed_input = self.to_neural(reconstructed_input)
+        
+        # Expand mask to match shape (B, P, D)
+        mask_expanded = mask.unsqueeze(-1).expand_as(patches)
+        
+        recon_loss = F.mse_loss(
+            reconstructed_input[mask], 
+            patches[mask]
+        )
+        
+        metric = R2Score()
+        metric.update(reconstructed_input[mask], patches[mask])
+        acc = metric.compute()
+                
+        for attn, ffn in self.full_transformer.layers[1:]:
+            x = attn(x, temporal_mask=temporal_mask) + x
+            x = ffn(x) + x
+        
         out = self.projection(x)
 
-        return recon_loss, acc, out
+        return out
     
     def compute_length(self, X_len):
         
         return (X_len / self.patch_height).to(torch.int32)
+    
+    def simple_mask(self, B, num_patches, device):
+        # Mask a subset of tokens
+        num_masked = int(self.masking_ratio * num_patches)
+        rand_indices = torch.rand(B, num_patches, device=device).argsort(dim=-1)
+        masked_indices = rand_indices[:, :num_masked]
+        unmasked_indices = rand_indices[:, num_masked:]
+        # Sort only the selected indices to restore time order
+        masked_indices = torch.sort(masked_indices, dim=-1).values
+        unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+        
+        return masked_indices, unmasked_indices, num_masked
     
     def apply_specaugment_mask(self, X, X_len, constant_mask=False, mask_range=[]):
         """
@@ -227,5 +245,44 @@ class BiT_with_adapt(nn.Module):
         return X_masked, mask
     
     
+    def load_pretrained_transformer(self, ckpt_path):
+        
+        
+        """
+        Load pretrained transformer weights and mask token from a checkpoint.
+        Assumes 'encoder.transformer.*' and 'encoder.mask_token' exist in the checkpoint.
+        Handles device mismatch automatically.
+        """
+        
+        import torch
+        from collections import OrderedDict
+
+        # Load checkpoint
+        state_dict = torch.load(ckpt_path, map_location='cpu')['model_state_dict']
+
+        # Determine device of the current model
+        device = next(self.parameters()).device
+
+        # --- Load Transformer weights ---
+        transformer_weights = OrderedDict()
+        prefix = "encoder.transformer."
+
+        for k, v in state_dict.items():
+            if k.startswith(prefix):
+                new_key = k[len(prefix):]
+                transformer_weights[new_key] = v.to(device)
+
+        missing, unexpected = self.transformer.load_state_dict(transformer_weights, strict=False)
+        print(f"Transformer loaded with {len(missing)} missing and {len(unexpected)} unexpected keys.")
+
+        # --- Load mask token ---
+        mask_key = "encoder.mask_token"
+        if hasattr(self, "mask_token") and mask_key in state_dict:
+            with torch.no_grad():
+                self.mask_token.data.copy_(state_dict[mask_key].to(device))
+            print("Mask token loaded successfully.")
+        else:
+            print("Mask token not found in checkpoint or not defined in model.")
+
     
     
