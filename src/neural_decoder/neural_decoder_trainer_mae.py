@@ -52,18 +52,13 @@ def trainModel(args, model):
             weight_decay=args["l2_decay"],
         )
         
-    if args['cosineAnnealing']:
-        
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['n_epochs'])
-        
-    else:
-        
-        scheduler = torch.optim.lr_scheduler.LinearLR(
-            optimizer,
-            start_factor=1.0,
-            end_factor=args["lrEnd"] / args["lrStart"],
-            total_iters=args["n_epochs"],
-        )
+
+    scheduler = torch.optim.lr_scheduler.LinearLR(
+        optimizer,
+        start_factor=1.0,
+        end_factor=args["lrEnd"] / args["lrStart"],
+        total_iters=args["n_epochs"],
+    )
 
     # --train--
     testLoss = []
@@ -90,7 +85,7 @@ def trainModel(args, model):
             
             
             # Compute prediction error
-            mae_loss, mae_r2, pred = model.forward(X, X_len, dayIdx)
+            pred = model.forward(X, X_len, dayIdx)
             
             adjustedLens = model.compute_length(X_len)
 
@@ -101,7 +96,7 @@ def trainModel(args, model):
                 y_len,
             )
             
-            total_loss = args['phoneme_scalar_loss']*loss + args['mae_scalar_loss']*mae_loss
+            total_loss = loss
         
             # Backpropagation
             optimizer.zero_grad()
@@ -111,8 +106,8 @@ def trainModel(args, model):
             
             #train_loss.append(loss.cpu().detach().numpy())
             train_loss.append(loss.cpu().detach().numpy())
-            train_mae_loss.append(mae_loss.cpu().detach().numpy())
-            train_mae_r2.append(mae_r2.cpu().detach().numpy())
+            train_mae_loss.append(0)
+            train_mae_r2.append(0)
             # print(endTime - startTime)
             
         with torch.no_grad():
@@ -139,7 +134,7 @@ def trainModel(args, model):
                     testDayIdx.to(args["device"]),
                 )
 
-                mae_loss, mae_r2, pred = model.forward(X, X_len, testDayIdx)
+                pred = model.forward(X, X_len, testDayIdx)
                 
                 adjustedLens = model.compute_length(X_len)
                 
@@ -151,8 +146,8 @@ def trainModel(args, model):
                 )
                 
                 allLoss.append(loss.cpu().detach().numpy())
-                allMaeLoss.append(mae_loss.cpu().detach().numpy())
-                allR2.append(mae_r2.cpu().detach().numpy())
+                allMaeLoss.append(0)
+                allR2.append(0)
                 
 
                 for iterIdx in range(pred.shape[0]):
