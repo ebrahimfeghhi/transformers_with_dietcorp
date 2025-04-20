@@ -19,9 +19,9 @@ args['depth'] = 7 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0.4
+args['dropout'] = 0.35
 args['input_dropout'] = 0.2
-args['max_mask_pct'] = 0.05
+args['max_mask_pct'] = 0.075
 args['num_masks'] = 20
 
 args['whiteNoiseSD'] = 0.2
@@ -29,27 +29,27 @@ args['gaussianSmoothWidth'] = 2.0
 args['constantOffsetSD'] = 0.05
 args['nDays'] = 24
 args['nClasses'] = 40
-args['batchSize'] = 64
+args['batchSize'] = 48
 
 args['l2_decay'] = 1e-5
 
 args['lrStart'] = 0.001
-args['lrEnd'] = 1e-6
+args['lrEnd'] = 0.001
 
-args['milestones'] = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000] # number of epochs after which to drop the learning rate
-args['gamma'] = 0.7943 # factor by which to drop the learning rate at milestone 
+args['milestones'] = [400] # number of epochs after which to drop the learning rate
+args['gamma'] = 0.1 # factor by which to drop the learning rate at milestone 
 
 args['T_0'] = 500
 args['T_mult'] = 2
 
-args['beta_1'] = 0.90
-args['beta_2'] = 0.98
+args['beta1'] = 0.90
+args['beta2'] = 0.999
 
 args['look_ahead'] = 0 
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:0'
 
 args['seed'] = 0
 
@@ -58,9 +58,12 @@ args['T5_style_pos'] = True
 args['n_epochs'] = 2000
 
 args['AdamW'] = True
-args['learning_scheduler'] = ''
+args['learning_scheduler'] = 'multistep'
 
 args['load_pretrained_mae'] = ""
+
+args['consistency'] = True # apply consistency regularized CTC
+args['consistency_scalar'] = 0.2 # loss scaling factor
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
@@ -81,7 +84,7 @@ model = BiT_Phoneme(
     T5_style_pos=args['T5_style_pos'], 
     max_mask_pct=args['max_mask_pct'], 
     num_masks=args['num_masks'], 
-    mae_mode=False
+    consistency=args['consistency']
 ).to(args['device'])
 
 if len(args['load_pretrained_mae']) > 0:
