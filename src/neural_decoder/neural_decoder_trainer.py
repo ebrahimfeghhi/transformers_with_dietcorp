@@ -13,6 +13,8 @@ from tqdm import tqdm
 from .model import GRUDecoder
 from .dataset import getDatasetLoaders
 from .augmentations import mask_electrodes
+import torch.nn.functional as F
+
 
 import wandb
 
@@ -55,7 +57,6 @@ def trainModel(args, model):
         
          optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
                                        betas=(args['beta1'], args['beta2']))
-         
     else:
         
         optimizer = torch.optim.Adam(
@@ -135,18 +136,46 @@ def trainModel(args, model):
 
             # Compute prediction error
             pred = model.forward(X, X_len, dayIdx)
-            
+                        
             adjustedLens = model.compute_length(X_len)
-
-            loss = loss_ctc(
-                torch.permute(pred.log_softmax(2), [1, 0, 2]),
-                y,
-                adjustedLens,
-                y_len,
-            )
             
-            #loss = torch.sum(loss)
+            
+            if args['consistency']:
+                
+                y_repeated = y.repeat(2, 1)  
+                y_len_repeated = y_len.repeat(2)
+                
+                ctc_loss = loss_ctc(
+                    torch.permute(pred.log_softmax(2), [1, 0, 2]),
+                    y_repeated,
+                    adjustedLens,
+                    y_len_repeated,
+                )
+            
+                pred1, pred2 = torch.chunk(pred, 2, dim=0)
+            
+                log_probs1 = F.log_softmax(pred1, dim=-1)
+                log_probs2 = F.log_softmax(pred2, dim=-1)
 
+                # stop gradient on targets
+                kl_1 = F.kl_div(log_probs1, log_probs2.detach(), reduction='batchmean', log_target=True)
+                kl_2 = F.kl_div(log_probs2, log_probs1.detach(), reduction='batchmean', log_target=True)
+
+                kl_loss = 0.5 * (kl_1 + kl_2)
+
+                # apply to loss
+                loss = ctc_loss + args['consistency_scalar']*kl_loss
+                
+            else:
+                
+                loss = loss_ctc(
+                    torch.permute(pred.log_softmax(2), [1, 0, 2]),
+                    y,
+                    adjustedLens,
+                    y_len,
+                )
+
+            #loss = torch.sum(loss)
             # Backpropagation
             optimizer.zero_grad()
             loss.backward()
