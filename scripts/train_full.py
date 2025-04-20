@@ -29,7 +29,7 @@ args['gaussianSmoothWidth'] = 2.0
 args['constantOffsetSD'] = 0.05
 args['nDays'] = 24
 args['nClasses'] = 40
-args['batchSize'] = 48
+args['batchSize'] = 56
 
 args['l2_decay'] = 1e-5
 
@@ -63,7 +63,7 @@ args['learning_scheduler'] = 'multistep'
 args['load_pretrained_mae'] = ""
 
 args['consistency'] = True # apply consistency regularized CTC
-args['consistency_scalar'] = 0.2 # loss scaling factor
+args['consistency_scalar'] = 0.05 # loss scaling factor
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
