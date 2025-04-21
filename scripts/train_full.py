@@ -10,8 +10,8 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[1] + modelName
-args['datasetPath'] = possiblePaths_data[-1]
+args['outputDir'] = possiblePath_dir[0] + modelName
+args['datasetPath'] = possiblePaths_data[1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
@@ -49,7 +49,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 
@@ -63,7 +63,8 @@ args['learning_scheduler'] = 'multistep'
 args['load_pretrained_mae'] = ""
 
 args['consistency'] = True # apply consistency regularized CTC
-args['consistency_scalar'] = 0.025 # loss scaling factor
+args['consistency_scalar'] = 0.1 # loss scaling factor
+
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme

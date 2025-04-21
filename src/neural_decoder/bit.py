@@ -203,6 +203,7 @@ class BiT_Phoneme(nn.Module):
         neuralInput = neuralInput.unsqueeze(1)
         if self.training and self.max_mask_pct > 0:
             x = self.to_patch(neuralInput)
+            
             if self.consistency:
                 x1, mask1 = self.apply_specaugment_mask(x, X_len)
                 x2, mask2 = self.apply_specaugment_mask(x, X_len)
