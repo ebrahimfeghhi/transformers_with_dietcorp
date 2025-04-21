@@ -128,7 +128,8 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks, consistency):
+                 nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
+                 num_masks_channels, max_mask_channels, dist_dict_path):
    
         super().__init__()
 
@@ -141,10 +142,11 @@ class BiT_Phoneme(nn.Module):
         self.inputLayerNonlinearity = torch.nn.Softsign()
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
-        self.num_masks = num_masks
-        self.consistency = consistency
-    
+        self.num_masks = num_masks    
         self.patch_dim = patch_height * patch_width
+        self.num_masks_channels = num_masks_channels
+        self.max_channels_to_mask = max_mask_channels
+        self.dist_dict_path = dist_dict_path
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -160,7 +162,11 @@ class BiT_Phoneme(nn.Module):
         
         self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
         self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
-        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
+        
+        if mask_token_zeros:
+            self.mask_token = nn.Parameter(torch.zeros(self.patch_dim), requires_grad=False)
+        else:
+            self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
         
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
@@ -188,6 +194,9 @@ class BiT_Phoneme(nn.Module):
         
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
         
+        if self.training and self.max_channels_to_mask > 0: 
+            neuralInput, _ = self.channel_specaugment_masks(neuralInput)
+        
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
@@ -198,24 +207,12 @@ class BiT_Phoneme(nn.Module):
             "btd,bdk->btk", neuralInput, dayWeights
         ) + torch.index_select(self.dayBias, 0, dayIdx)
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
-                
+    
         # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
         if self.training and self.max_mask_pct > 0:
             x = self.to_patch(neuralInput)
-            
-            if self.consistency:
-                x1, mask1 = self.apply_specaugment_mask(x, X_len)
-                x2, mask2 = self.apply_specaugment_mask(x, X_len)
-                
-                if torch.equal(mask1, mask2):
-                    print("Warning: mask1 is equal to mask2 — possible issue with randomness in SpecAugment")
-                    
-                # x is of shape B x P x D, stack x and x2 along batch dimension
-                x = torch.cat([x1, x2], dim=0)
-            else:
-                x, _ = self.apply_specaugment_mask(x, X_len)
-            
+            x, _ = self.apply_specaugment_mask(x, X_len)
             x = self.patch_to_emb(x)
         else:
             x = self.to_patch_embedding(neuralInput)
@@ -299,6 +296,70 @@ class BiT_Phoneme(nn.Module):
         X_masked[mask] = self.mask_token
 
         return X_masked, mask
+    
+    def channel_specaugment_masks(self, 
+        x,            # tensor [B, T, D]
+        num_channels=64,
+        features_per_channel=2
+    ):
+        
+        dist_dict = torch.load(self.dist_dict_path)
+        
+        B, T, D = x.shape
+        device = x.device
+        masks = torch.zeros(B, D, dtype=torch.bool, device=device)
+
+        # build a [B, num_channels] of uniform weights
+        weights = torch.ones(B, num_channels, device=device)
+
+        # now sample *per-row*:
+        # starts1: [B, N], starts2: [B, M]
+        starts1 = torch.multinomial(weights, self.num_masks_channels, replacement=False)
+        starts2 = torch.multinomial(weights, self.num_masks_channels, replacement=False)
+        
+        # widths per mask, per sample
+        widths1 = torch.randint(0, self.max_channels_to_mask+1,
+                                (B, self.num_masks_channels), device=device)
+        
+        widths2 = torch.randint(0, self.max_channels_to_mask+1, 
+                                (B, self.num_masks_channels), device=device)
+        
+        # precompute feature-block offsets
+        off1 = [feat * num_channels for feat in range(features_per_channel)]
+        off2 = [features_per_channel * num_channels + feat * num_channels
+                for feat in range(features_per_channel)]
+        
+
+        for b in range(B):
+            
+            # electrode 1
+            for start_ch, w in zip(starts1[b], widths1[b]):
+                w = int(w)
+                
+                if w == 0: 
+                    continue
+                
+                nearest = dist_dict[int(start_ch.item())][:w]
+                idxs = torch.tensor(nearest, dtype=torch.long, device=device)
+                for base in off1:
+                    masks[b, base + idxs] = True
+
+            # electrode 2
+            for start_ch, w in zip(starts2[b], widths2[b]):
+                w = int(w)
+                if w == 0:
+                    continue
+                nearest = dist_dict[int(start_ch.item())][:w]
+                idxs = torch.tensor(nearest, dtype=torch.long, device=device)
+                for base in off2:
+                    masks[b, base + idxs] = True
+                    
+        masks = masks.unsqueeze(1).expand(-1, T, -1)
+        X_masked = x.clone()
+        X_masked[masks] = 0
+        # broadcast mask over time
+        return X_masked, masks
+
     
     
 
