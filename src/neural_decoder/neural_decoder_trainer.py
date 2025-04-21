@@ -142,24 +142,45 @@ def trainModel(args, model):
             
             if args['consistency']:
                 
-                y_repeated = y.repeat(2, 1)  
-                y_len_repeated = y_len.repeat(2)
                 
-                ctc_loss = loss_ctc(
-                    torch.permute(pred.log_softmax(2), [1, 0, 2]),
-                    y_repeated,
-                    adjustedLens,
-                    y_len_repeated,
-                )
             
                 pred1, pred2 = torch.chunk(pred, 2, dim=0)
+                
+                ctc_loss1 = loss_ctc(
+                    torch.permute(pred1.log_softmax(2), [1, 0, 2]),
+                    y,
+                    adjustedLens,
+                    y,
+                )
+                
+                ctc_loss2 = loss_ctc(
+                    torch.permute(pred2.log_softmax(2), [1, 0, 2]),
+                    y,
+                    adjustedLens,
+                    y,
+                )
+                
+                ctc_loss = 0.5 * (ctc_loss1 + ctc_loss2)
             
                 log_probs1 = F.log_softmax(pred1, dim=-1)
                 log_probs2 = F.log_softmax(pred2, dim=-1)
 
-                # stop gradient on targets
-                kl_1 = F.kl_div(log_probs1, log_probs2.detach(), reduction='batchmean', log_target=True)
-                kl_2 = F.kl_div(log_probs2, log_probs1.detach(), reduction='batchmean', log_target=True)
+                B, T, V = log_probs1.shape
+                device = log_probs1.device
+
+                # Mask shape: [B, T]
+                mask = torch.arange(T, device=device).unsqueeze(0) < adjustedLens.unsqueeze(1)
+
+                # Expand to [B, T, V]
+                mask = mask.unsqueeze(-1).expand(-1, -1, V)
+
+                # Apply mask
+                log_probs1_masked = log_probs1[mask]
+                log_probs2_masked = log_probs2[mask]
+
+                # Symmetric KL (with stop-grad on target)
+                kl_1 = F.kl_div(log_probs1_masked, log_probs2_masked.detach(), reduction='batchmean', log_target=True)
+                kl_2 = F.kl_div(log_probs2_masked, log_probs1_masked.detach(), reduction='batchmean', log_target=True)
 
                 kl_loss = 0.5 * (kl_1 + kl_2)
 
