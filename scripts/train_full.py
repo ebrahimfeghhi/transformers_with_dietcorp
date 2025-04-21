@@ -10,8 +10,8 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
-args['outputDir'] = possiblePath_dir[0] + modelName
-args['datasetPath'] = possiblePaths_data[1]
+args['outputDir'] = possiblePath_dir[1] + modelName
+args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
@@ -21,15 +21,14 @@ args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.35
 args['input_dropout'] = 0.2
-args['max_mask_pct'] = 0.075
-args['num_masks'] = 20
+
 
 args['whiteNoiseSD'] = 0.2
 args['gaussianSmoothWidth'] = 2.0
 args['constantOffsetSD'] = 0.05
 args['nDays'] = 24
 args['nClasses'] = 40
-args['batchSize'] = 56
+args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
 
@@ -49,7 +48,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:3'
 
 args['seed'] = 0
 
@@ -62,9 +61,13 @@ args['learning_scheduler'] = 'multistep'
 
 args['load_pretrained_mae'] = ""
 
-args['consistency'] = True # apply consistency regularized CTC
-args['consistency_scalar'] = 0.1 # loss scaling factor
+args['mask_token_zero'] = True
+args['num_masks_channels'] = 3 
+args['max_mask_channels'] = 8
+args['max_mask_pct'] = 0.075
+args['num_masks'] = 10
 
+args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
@@ -85,7 +88,10 @@ model = BiT_Phoneme(
     T5_style_pos=args['T5_style_pos'], 
     max_mask_pct=args['max_mask_pct'], 
     num_masks=args['num_masks'], 
-    consistency=args['consistency']
+    mask_token_zeros=args['mask_token_zero'], 
+    num_masks_channels=args['num_masks_channels'], 
+    max_mask_channels=args['max_mask_channels'], 
+    dist_dict_path=args['dist_dict_path']
 ).to(args['device'])
 
 if len(args['load_pretrained_mae']) > 0:

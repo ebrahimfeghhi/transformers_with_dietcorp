@@ -140,26 +140,11 @@ def trainModel(args, model):
             pred = model.forward(X, X_len, dayIdx)
                         
             adjustedLens = model.compute_length(X_len)
+
+                
+            loss = forward_ctc(pred, adjustedLens, y, y_len)
+            train_loss.append(loss.cpu().detach().numpy())
             
-            
-            if args['consistency']:
-                
-                
-                ctc_loss, kl_loss = forward_cr_ctc(pred, adjustedLens.repeat(2), 
-                                                   torch.cat([y, y], dim=0), y_len.repeat(2))
-                ctc_loss = ctc_loss*0.5
-                kl_loss = kl_loss*0.5
-                
-                train_loss.append(ctc_loss.cpu().detach().numpy())
-                train_kl_loss.append(kl_loss.cpu().detach().numpy())
-                
-                loss = ctc_loss + args['consistency_scalar']*kl_loss
-                
-            else:
-                
-                loss = forward_ctc(pred, adjustedLens, y, y_len)
-                train_loss.append(loss.cpu().detach().numpy())
-                
 
             #loss = torch.sum(loss)
             # Backpropagation
@@ -174,7 +159,6 @@ def trainModel(args, model):
         with torch.no_grad():
             
             avgTrainLoss = np.mean(train_loss)
-            avgTrainKLLoss = np.mean(train_kl_loss)
             
             model.eval()
             allLoss = []
@@ -234,7 +218,6 @@ def trainModel(args, model):
             # Log the metrics to wandb
             wandb.log({
                 "train_ctc_Loss": avgTrainLoss,
-                'train_kl_loss': avgTrainKLLoss,
                 "ctc_loss": avgDayLoss,
                 "cer": cer,
                 "time_per_epoch": (endTime - startTime) / 100, 

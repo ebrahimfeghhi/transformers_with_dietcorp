@@ -54,7 +54,7 @@ def forward_ctc(
             targets=targets.cpu(),
             input_lengths=encoder_out_lens.cpu(),
             target_lengths=target_lengths.cpu(),
-            reduction="sum",
+            reduction="mean",
         )
         return ctc_loss
     
