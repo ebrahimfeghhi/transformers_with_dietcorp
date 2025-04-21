@@ -63,7 +63,7 @@ args['learning_scheduler'] = 'multistep'
 args['load_pretrained_mae'] = ""
 
 args['consistency'] = True # apply consistency regularized CTC
-args['consistency_scalar'] = 0.05 # loss scaling factor
+args['consistency_scalar'] = 0.025 # loss scaling factor
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme

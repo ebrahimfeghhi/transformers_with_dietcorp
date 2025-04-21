@@ -235,8 +235,6 @@ class BiT_Phoneme(nn.Module):
         return out
     
     def compute_length(self, X_len):
-        if self.consistency and self.training:
-            return (X_len / self.patch_height).to(torch.int32).repeat(2)
         
         return (X_len / self.patch_height).to(torch.int32)
 
