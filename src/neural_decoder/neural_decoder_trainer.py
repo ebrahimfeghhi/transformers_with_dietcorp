@@ -14,6 +14,7 @@ from .model import GRUDecoder
 from .dataset import getDatasetLoaders
 from .augmentations import mask_electrodes
 import torch.nn.functional as F
+from .loss import forward_cr_ctc, forward_ctc
 
 
 import wandb
@@ -112,6 +113,7 @@ def trainModel(args, model):
     for epoch in range(args['n_epochs']):
         
         train_loss = []
+        train_kl_loss = []
         model.train()
         
         for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
@@ -143,65 +145,28 @@ def trainModel(args, model):
             if args['consistency']:
                 
                 
-            
-                pred1, pred2 = torch.chunk(pred, 2, dim=0)
+                ctc_loss, kl_loss = forward_cr_ctc(pred, adjustedLens.repeat(2), 
+                                                   torch.cat([y, y], dim=0), y_len.repeat(2))
+                ctc_loss = ctc_loss*0.5
+                kl_loss = kl_loss*0.5
                 
-                ctc_loss1 = loss_ctc(
-                    torch.permute(pred1.log_softmax(2), [1, 0, 2]),
-                    y,
-                    adjustedLens,
-                    y,
-                )
+                train_loss.append(ctc_loss.cpu().detach().numpy())
+                train_kl_loss.append(kl_loss.cpu().detach().numpy())
                 
-                ctc_loss2 = loss_ctc(
-                    torch.permute(pred2.log_softmax(2), [1, 0, 2]),
-                    y,
-                    adjustedLens,
-                    y,
-                )
-                
-                ctc_loss = 0.5 * (ctc_loss1 + ctc_loss2)
-            
-                log_probs1 = F.log_softmax(pred1, dim=-1)
-                log_probs2 = F.log_softmax(pred2, dim=-1)
-
-                B, T, V = log_probs1.shape
-                device = log_probs1.device
-
-                # Mask shape: [B, T]
-                mask = torch.arange(T, device=device).unsqueeze(0) < adjustedLens.unsqueeze(1)
-
-                # Expand to [B, T, V]
-                mask = mask.unsqueeze(-1).expand(-1, -1, V)
-
-                # Apply mask
-                log_probs1_masked = log_probs1[mask]
-                log_probs2_masked = log_probs2[mask]
-
-                # Symmetric KL (with stop-grad on target)
-                kl_1 = F.kl_div(log_probs1_masked, log_probs2_masked.detach(), reduction='batchmean', log_target=True)
-                kl_2 = F.kl_div(log_probs2_masked, log_probs1_masked.detach(), reduction='batchmean', log_target=True)
-
-                kl_loss = 0.5 * (kl_1 + kl_2)
-
-                # apply to loss
                 loss = ctc_loss + args['consistency_scalar']*kl_loss
                 
             else:
                 
-                loss = loss_ctc(
-                    torch.permute(pred.log_softmax(2), [1, 0, 2]),
-                    y,
-                    adjustedLens,
-                    y_len,
-                )
+                loss = forward_ctc(pred, adjustedLens, y, y_len)
+                train_loss.append(loss.cpu().detach().numpy())
+                
 
             #loss = torch.sum(loss)
             # Backpropagation
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()            
-            train_loss.append(loss.cpu().detach().numpy())
+            
         
             # print(endTime - startTime)
 
@@ -209,6 +174,7 @@ def trainModel(args, model):
         with torch.no_grad():
             
             avgTrainLoss = np.mean(train_loss)
+            avgTrainKLLoss = np.mean(train_kl_loss)
             
             model.eval()
             allLoss = []
@@ -268,9 +234,10 @@ def trainModel(args, model):
             # Log the metrics to wandb
             wandb.log({
                 "train_ctc_Loss": avgTrainLoss,
+                'train_kl_loss': avgTrainKLLoss,
                 "ctc_loss": avgDayLoss,
                 "cer": cer,
-                "time_per_epoch": (endTime - startTime) / 100
+                "time_per_epoch": (endTime - startTime) / 100, 
             })
             
             startTime = time.time()
