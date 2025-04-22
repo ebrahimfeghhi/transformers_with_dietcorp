@@ -357,6 +357,7 @@ class BiT_Phoneme(nn.Module):
         masks = masks.unsqueeze(1).expand(-1, T, -1)
         X_masked = x.clone()
         X_masked[masks] = 0
+        
         # broadcast mask over time
         return X_masked, masks
 

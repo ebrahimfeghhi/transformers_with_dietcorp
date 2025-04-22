@@ -62,8 +62,8 @@ args['learning_scheduler'] = 'multistep'
 args['load_pretrained_mae'] = ""
 
 args['mask_token_zero'] = True
-args['num_masks_channels'] = 3 
-args['max_mask_channels'] = 8
+args['num_masks_channels'] = 10
+args['max_mask_channels'] = 5
 args['max_mask_pct'] = 0.075
 args['num_masks'] = 10
 
