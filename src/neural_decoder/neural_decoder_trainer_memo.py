@@ -33,6 +33,7 @@ def trainModel(args, model):
     _, testLoader, loadedData = getDatasetLoaders(
         args["datasetPath"],
         args["batchSize"],
+        memo=True # ensure batch size is 1 
     )
         
     # Watch the model
@@ -40,19 +41,12 @@ def trainModel(args, model):
 
     loss_ctc = torch.nn.CTCLoss(blank=0, reduction="mean", zero_infinity=True)
     
-    if args['AdamW']:
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
+                                betas=(args['beta1'], args['beta2']))
         
-         optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
-                                       betas=(args['beta1'], args['beta2']))
-    else:
+    if args['load_optimizer_state']:
         
-        optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=args["lrStart"],
-            betas=(0.9, 0.999),
-            eps=0.1,
-            weight_decay=args["l2_decay"],
-        )
+        optimizer.load_state_dict(torch.load(args['optimizer_path']))
         
     # --train--
     testLoss = []
@@ -64,7 +58,7 @@ def trainModel(args, model):
     for X, y, X_len, y_len, testDayIdx in testLoader:
         
         if args['memo_augs'] > 0: 
-    
+            
             model.train()
             
             X, y, X_len, y_len, testDayIdx = (
@@ -75,31 +69,32 @@ def trainModel(args, model):
                 testDayIdx.to(args["device"]),
             )
             
-            X_augmented = []
-        
+            for i in range(args['memo_epochs']):
+                
+                X_augmented = []
             
-            for aug in range(args['memo_augs']):
-                X_aug, _ = model.apply_spec_augment_mask(X)
-                X_augmented.append(X_aug)
+                for aug in range(args['memo_augs']):
+                    X_aug, _ = model.apply_spec_augment_mask(X)
+                    X_augmented.append(X_aug)
+                
+                X_augmented = torch.stack(X_augmented)
             
-            X_augmented = torch.stack(X_augmented)
-            X_augmented = torch.stack(X_augmented)             
-        
-            # Expand metadata to match augmented batch size
-            X_len_aug = X_len.repeat(args['memo_augs'])         # [memo_augs]
-            testDayIdx_aug = testDayIdx.repeat(args['memo_augs'])        
-            
-            logits_aug = model.forward(X_augmented, X_len_aug, testDayIdx_aug)  # [memo_augs, T, D]
-            probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
-            marginal_probs = probs_aug.mean(dim=0)  # [T, D]
-            marginal_entropy = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean() # sum across classes, then take mean across time. 
-            
-            model.optimizer.zero_grad()
-            marginal_entropy.backward()
-            model.optimizer.step()
+                # Expand metadata to match augmented batch size
+                X_len_aug = X_len.repeat(args['memo_augs'])         # [memo_augs]
+                testDayIdx_aug = testDayIdx.repeat(args['memo_augs'])        
+                
+                logits_aug = model.forward(X_augmented, X_len_aug, testDayIdx_aug)  # [memo_augs, T, D]
+                probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
+                marginal_probs = probs_aug.mean(dim=0)  # [T, D]
+                loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean() # sum across classes, then take mean across time. 
+                
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
             
          # === STEP 6: Evaluate on unaugmented input ===
         model.eval()
+        
         with torch.no_grad():
             
             pred = model.forward(X, X_len, testDayIdx)  # [1, T, D]
@@ -151,27 +146,7 @@ def trainModel(args, model):
             
             startTime = time.time()
 
-def loadModel(modelDir, nInputLayers=24, device="cuda:1"):
-    
-    modelWeightPath = modelDir + "/modelWeights"
-    with open(modelDir + "/args", "rb") as handle:
-        args = pickle.load(handle)
 
-    model = GRUDecoder(
-        neural_dim=args["nInputFeatures"],
-        n_classes=args["nClasses"],
-        hidden_dim=args["nUnits"],
-        layer_dim=args["nLayers"],
-        nDays=nInputLayers,
-        dropout=args["dropout"],
-        device=device,
-        strideLen=args["strideLen"],
-        kernelLen=args["kernelLen"],
-        gaussianSmoothWidth=args["gaussianSmoothWidth"],
-        bidirectional=args["bidirectional"],
-    ).to(device)
-    model.load_state_dict(torch.load(modelWeightPath, map_location=device))
-    return model
 
 
 

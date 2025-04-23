@@ -253,7 +253,6 @@ class BiT_Phoneme(nn.Module):
         B, P, D = X.shape
         device = X.device
 
-     
         valid_lens = (X_len // self.patch_height).to(device)
             
         max_mask_lens = (self.max_mask_pct * valid_lens).long()  # (B,)
