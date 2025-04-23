@@ -1,7 +1,4 @@
 
-import os
-import sys
-
 modelName = 'spec_aug_time_best_4_22'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
@@ -14,12 +11,6 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
 
 args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
-
-if os.path.exists(args['outputDir']):
-    print(f"Output directory '{args['outputDir']}' already exists. Exiting to prevent overwrite.")
-    sys.exit(0)  # or sys.exit(1) if you want to indicate failure
-    
-    
 args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
@@ -40,7 +31,7 @@ args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
 
-args['AdamW'] = False
+args['AdamW'] = True
 args['learning_scheduler'] = 'multistep'
 
 args['lrStart'] = 0.001
@@ -59,7 +50,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:2'
 
 args['seed'] = 0
 
