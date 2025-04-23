@@ -227,7 +227,10 @@ def trainModel(args, model):
 
         if len(testCER) > 0 and cer < np.min(testCER):
             torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
+            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
+            torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
             
+        
         testLoss.append(avgDayLoss)
         testCER.append(cer)
 

@@ -1,5 +1,5 @@
 
-modelName = 'phoneme_run_1'
+modelName = 'spec_aug_time_best_4_22'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -21,7 +21,6 @@ args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.35
 args['input_dropout'] = 0.2
-
 
 args['whiteNoiseSD'] = 0.2
 args['gaussianSmoothWidth'] = 2.0
@@ -48,7 +47,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:2'
 
 args['seed'] = 0
 
@@ -61,11 +60,11 @@ args['learning_scheduler'] = 'multistep'
 
 args['load_pretrained_mae'] = ""
 
-args['mask_token_zero'] = True
-args['num_masks_channels'] = 10
-args['max_mask_channels'] = 5
+args['mask_token_zero'] = False
+args['num_masks_channels'] = 0
+args['max_mask_channels'] = 0
 args['max_mask_pct'] = 0.075
-args['num_masks'] = 10
+args['num_masks'] = 20
 
 args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
