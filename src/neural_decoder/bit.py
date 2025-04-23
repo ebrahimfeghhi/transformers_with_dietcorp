@@ -183,7 +183,7 @@ class BiT_Phoneme(nn.Module):
         
         
 
-    def forward(self, neuralInput, X_len, dayIdx):
+    def forward(self, neuralInput, X_len, dayIdx, n_masks=1):
         """
         Args:
             neuralInout: Tensor of shape (B, 1, T, F)
@@ -212,7 +212,16 @@ class BiT_Phoneme(nn.Module):
         neuralInput = neuralInput.unsqueeze(1)
         if self.training and self.max_mask_pct > 0:
             x = self.to_patch(neuralInput)
-            x, _ = self.apply_specaugment_mask(x, X_len)
+            # for memo TTA
+            if n_masks > 1:
+                x_masked = []
+                for _ in range(n_masks):
+                    xtemp, _ = self.apply_specaugment_mask(x, X_len)
+                    x_masked.append(xtemp)
+                x = torch.stack(x_masked).squeeze()
+            else:
+                x, _ = self.apply_specaugment_mask(x, X_len)
+                
             x = self.patch_to_emb(x)
         else:
             x = self.to_patch_embedding(neuralInput)

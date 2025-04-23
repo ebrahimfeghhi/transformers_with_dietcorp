@@ -209,8 +209,7 @@ def getDatasetLoaders_MAE(
 
 def getDatasetLoaders(
     datasetName,
-    batchSize,
-    memo=False
+    batchSize
 ):
     with open(datasetName, "rb") as handle:
         loadedData = pickle.load(handle)
@@ -239,14 +238,10 @@ def getDatasetLoaders(
         pin_memory=True,
         collate_fn=_padding,
     )
-    if memo:
-        test_bs = 1
-    else:
-        test_bs = batchSize
         
     test_loader = DataLoader(
         test_ds,
-        batch_size=test_bs,
+        batch_size=batchSize,
         shuffle=False,
         num_workers=0,
         pin_memory=True,

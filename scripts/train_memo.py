@@ -13,35 +13,29 @@ args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
+
+args['memo_augs'] = 16
+args['memo_epochs'] = 16
+
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
 args['depth'] = 7 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0.35
-args['input_dropout'] = 0.2
+args['dropout'] = 0
+args['input_dropout'] = 0
 
-args['whiteNoiseSD'] = 0.2
+args['load_optimizer_state'] = False
+
 args['gaussianSmoothWidth'] = 2.0
-args['constantOffsetSD'] = 0.05
 args['nDays'] = 24
 args['nClasses'] = 40
-args['batchSize'] = 64
 
-args['l2_decay'] = 1e-5
+args['l2_decay'] = 0
 
-args['AdamW'] = True
-args['learning_scheduler'] = 'multistep'
-
-args['lrStart'] = 0.001
-args['lrEnd'] = 0.001
-
-args['milestones'] = [400] # number of epochs after which to drop the learning rate
-args['gamma'] = 0.1 # factor by which to drop the learning rate at milestone 
-
-args['T_0'] = 500
-args['T_mult'] = 2
+args['lrStart'] = 0.0001
+args['lrEnd'] = 0.0001
 
 args['beta1'] = 0.90
 args['beta2'] = 0.999
@@ -50,16 +44,14 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:2'
+args['device'] = 'cuda:3'
 
 args['seed'] = 0
 
 args['T5_style_pos'] = True
 
-args['n_epochs'] = 2000
 
-
-args['load_pretrained_mae'] = ""
+args['modelWeightPath'] = "/home3/skaasyap/willett/outputs/spec_aug_time_best_4_22/modelWeights"
 
 args['mask_token_zero'] = False
 args['num_masks_channels'] = 0
@@ -67,9 +59,14 @@ args['max_mask_channels'] = 0
 args['max_mask_pct'] = 0.075
 args['num_masks'] = 20
 
+args['freeze_params'] = False
+args['num_layers_to_unfreeze'] = 2
+args['restore_model'] = True
+
+
 args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
-from neural_decoder.neural_decoder_trainer import trainModel
+from neural_decoder.neural_decoder_trainer_memo import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
 model = BiT_Phoneme(
@@ -94,9 +91,28 @@ model = BiT_Phoneme(
     dist_dict_path=args['dist_dict_path']
 ).to(args['device'])
 
-if len(args['load_pretrained_mae']) > 0:
-    print("LOADING PRETRAINED MAE WEIGHTS")
-    model.load_pretrained_transformer(args['load_pretrained_mae'])
-    
+import torch
+
+
+model.load_state_dict(torch.load(args['modelWeightPath'],
+                    map_location=args['device']), strict=True)
+
+def freeze_all_transformer_layers_except_first(model):
+    print("Freezing all Transformer layers except the first one...\n")
+    for i, (attn, ffn) in enumerate(model.transformer.layers):
+        requires_grad = (i < args['num_layers_to_unfreeze'])
+        for name, param in attn.named_parameters():
+            param.requires_grad = requires_grad
+            if not requires_grad:
+                print(f"[Frozen] Layer {i} - Attention - {name}")
+        for name, param in ffn.named_parameters():
+            param.requires_grad = requires_grad
+            if not requires_grad:
+                print(f"[Frozen] Layer {i} - FFN - {name}")
+    print("\nDone freezing.")
+
+if args['freeze_params']:
+    freeze_all_transformer_layers_except_first(model)
+
 
 trainModel(args, model)
