@@ -2,7 +2,7 @@
 import os
 import sys
 
-modelName = 'spec_aug_time_best_4_22'
+modelName = 'bigmodel_more_mask_AdamW'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -24,7 +24,7 @@ args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
-args['depth'] = 7 #TODO
+args['depth'] = 9 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
@@ -40,7 +40,7 @@ args['batchSize'] = 64
 
 args['l2_decay'] = 1e-5
 
-args['AdamW'] = False
+args['AdamW'] = True
 args['learning_scheduler'] = 'multistep'
 
 args['lrStart'] = 0.001
@@ -49,9 +49,6 @@ args['lrEnd'] = 0.001
 args['milestones'] = [400] # number of epochs after which to drop the learning rate
 args['gamma'] = 0.1 # factor by which to drop the learning rate at milestone 
 
-args['T_0'] = 500
-args['T_mult'] = 2
-
 args['beta1'] = 0.90
 args['beta2'] = 0.999
 
@@ -59,7 +56,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:0'
 
 args['seed'] = 0
 
@@ -74,7 +71,7 @@ args['mask_token_zero'] = False
 args['num_masks_channels'] = 0
 args['max_mask_channels'] = 0
 args['max_mask_pct'] = 0.075
-args['num_masks'] = 20
+args['num_masks'] = 25
 
 args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
