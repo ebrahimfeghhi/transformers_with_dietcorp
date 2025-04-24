@@ -138,6 +138,9 @@ def trainModel(args, model):
 
             # Compute prediction error
             pred = model.forward(X, X_len, dayIdx)
+            
+            if args['day_token']:
+                pred = pred[:, 1:]
                         
             adjustedLens = model.compute_length(X_len)
 

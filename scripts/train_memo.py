@@ -1,5 +1,16 @@
+import argparse
+import torch
 
-modelName = 'spec_aug_time_best_4_22'
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--cuda', type=int, default=0,
+                    help='CUDA device number to use (default: 0)')
+
+args_device = parser.parse_args()
+
+device = f'cuda:{args_device.cuda}'
+
+modelName = 'None'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -13,9 +24,9 @@ args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
-
-args['memo_augs'] = 16
+args['memo_augs'] = 32
 args['memo_epochs'] = 16
+args['evenDaysOnly'] = True
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
@@ -26,11 +37,13 @@ args['dim_head'] = 64
 args['dropout'] = 0
 args['input_dropout'] = 0
 
-args['load_optimizer_state'] = False
-
 args['gaussianSmoothWidth'] = 2.0
 args['nDays'] = 24
 args['nClasses'] = 40
+
+args['optimizer'] = 'AdamW'
+args['load_optimizer_state'] = False
+args['optimizer_path'] = "/home3/skaasyap/willett/outputs/spec_aug_time_best_4_22/optimizer"
 
 args['l2_decay'] = 0
 
@@ -44,23 +57,21 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = device
 
 args['seed'] = 0
 
 args['T5_style_pos'] = True
-
 
 args['modelWeightPath'] = "/home3/skaasyap/willett/outputs/spec_aug_time_best_4_22/modelWeights"
 
 args['mask_token_zero'] = False
 args['num_masks_channels'] = 0
 args['max_mask_channels'] = 0
-args['max_mask_pct'] = 0.075
+args['max_mask_pct'] = 0.05
 args['num_masks'] = 20
 
-args['freeze_params'] = False
-args['num_layers_to_unfreeze'] = 2
+args['freeze_params_except_day'] = True
 args['restore_model'] = True
 
 
@@ -97,22 +108,23 @@ import torch
 model.load_state_dict(torch.load(args['modelWeightPath'],
                     map_location=args['device']), strict=True)
 
-def freeze_all_transformer_layers_except_first(model):
-    print("Freezing all Transformer layers except the first one...\n")
-    for i, (attn, ffn) in enumerate(model.transformer.layers):
-        requires_grad = (i < args['num_layers_to_unfreeze'])
-        for name, param in attn.named_parameters():
-            param.requires_grad = requires_grad
-            if not requires_grad:
-                print(f"[Frozen] Layer {i} - Attention - {name}")
-        for name, param in ffn.named_parameters():
-            param.requires_grad = requires_grad
-            if not requires_grad:
-                print(f"[Frozen] Layer {i} - FFN - {name}")
+def freeze_except_day_specific(model):
+    print("Freezing all parameters except day-specific weights and biases...\n")
+    for name, param in model.named_parameters():
+        if 'dayWeights' in name or 'dayBias' in name:
+            param.requires_grad = True
+            print(f"[Unfrozen] {name}")
+        else:
+            param.requires_grad = False
+            print(f"[Frozen] {name}")
     print("\nDone freezing.")
+    
+    print("\nTrainable parameters:")
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name, param.shape)
 
-if args['freeze_params']:
-    freeze_all_transformer_layers_except_first(model)
-
+if args['freeze_params_except_day']:
+    freeze_except_day_specific(model)
 
 trainModel(args, model)

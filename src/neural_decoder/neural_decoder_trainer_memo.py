@@ -59,8 +59,12 @@ def trainModel(args, model):
     # Watch the model
     wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
     
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
-                                betas=(args['beta1'], args['beta2']))
+    if args['optimizer'] == 'AdamW':
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
+                                    betas=(args['beta1'], args['beta2']))
+    if args['optimizer'] == 'SGD':
+        optimizer = torch.optim.SGD(model.parameters(), lr=args['lrStart'], 
+                    weight_decay=args['l2_decay'])
         
     if args['load_optimizer_state']:
         optimizer.load_state_dict(torch.load(args['optimizer_path']))
@@ -74,15 +78,16 @@ def trainModel(args, model):
     cer_after_memo = []
     
     
-    total_edit_distance_before = 0
-    total_seq_length_before = 0
+    total_edit_distance = 0
+    total_seq_length = 0
     
-    total_edit_distance_after = 0
-    total_seq_length_after = 0
     
     for X, y, X_len, y_len, testDayIdx in testLoader:
         
-  
+        if args['evenDaysOnly']:
+            if testDayIdx[0] % 2 != 0: 
+                continue
+        
         X, y, X_len, y_len, testDayIdx = (
             X.to(args["device"]),
             y.to(args["device"]),
@@ -95,11 +100,19 @@ def trainModel(args, model):
             model.eval()
             pred = model.forward(X, X_len, testDayIdx)
             adjustedLens = model.compute_length(X_len)
-            cer_before, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
-            total_edit_distance_before += ed
-            total_seq_length_before += seq_len
+            cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+            total_edit_distance += ed
+            total_seq_length += seq_len
+            wandb.log({'cer': cer})
+            print(cer)
+            
+     
         
         if args['memo_augs'] > 0: 
+            
+            # restore model before next MEMO update
+            if args['restore_model']:
+                model.load_state_dict(original_state_dict)
     
             model.train()
     
@@ -113,30 +126,25 @@ def trainModel(args, model):
                 loss.backward()
                 optimizer.step()
                 
-        with torch.no_grad():
-            model.eval()
-            pred = model.forward(X, X_len, testDayIdx)
-            adjustedLens = model.compute_length(X_len)
-            cer_after, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
-            total_edit_distance_after += ed
-            total_seq_length_after += seq_len
-            if np.abs(cer_after - cer_before) > 0:
-                print(cer_before, cer_after)
-                
-            wandb.log({'cer_before': cer_before, 
-                       'cer_after': cer_after})
-         
-         
-        if args['restore_model']:
-            model.load_state_dict(original_state_dict)
-            
 
-    cer_before_memo = total_edit_distance_before / total_seq_length_before
-    cer_after_memo = total_edit_distance_after / total_seq_length_after
-    print("FINAL VERDICT", np.mean(cer_after_memo), np.mean(cer_before_memo))
+                
+        #with torch.no_grad():
+        #    model.eval()
+        #    pred = model.forward(X, X_len, testDayIdx)
+        #    adjustedLens = model.compute_length(X_len)
+        #    cer_after, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+        #    total_edit_distance_after += ed
+        #    total_seq_length_after += seq_len
+        #    if np.abs(cer_after - cer_before) > 0:
+        #        print(cer_before, cer_after)
+        #        
+        #    wandb.log({'cer_before': cer_before, 
+        #               'cer_after': cer_after})
+         
+    cer_memo = total_edit_distance / total_seq_length
+    print("FINAL VERDICT", np.mean(cer_memo))
     
-    wandb.log({'final_cer_before': cer_before_memo, 
-               'final_cer_after': cer_after_memo})
+    wandb.log({'final_cer_before': cer_memo})
     
     
             
