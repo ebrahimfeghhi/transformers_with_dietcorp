@@ -35,7 +35,7 @@ def lr_lambda(epoch):
 
 def trainModel(args, model):
     
-    wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args))
+    wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
@@ -138,9 +138,6 @@ def trainModel(args, model):
 
             # Compute prediction error
             pred = model.forward(X, X_len, dayIdx)
-            
-            if args['day_token']:
-                pred = pred[:, 1:]
                         
             adjustedLens = model.compute_length(X_len)
 
