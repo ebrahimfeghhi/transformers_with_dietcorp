@@ -99,7 +99,11 @@ model = BiT_Phoneme(
     mask_token_zeros=args['mask_token_zero'], 
     num_masks_channels=args['num_masks_channels'], 
     max_mask_channels=args['max_mask_channels'], 
-    dist_dict_path=args['dist_dict_path']
+    dist_dict_path=args['dist_dict_path'], 
+    day_weights=args['day_weights'], 
+    input_nonlin=args['input_nonlin'], 
+    use_day_token=args['day_token'], 
+    use_film=args['use_film']
 ).to(args['device'])
 
 import torch

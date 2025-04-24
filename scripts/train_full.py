@@ -2,7 +2,8 @@
 import os
 import sys
 
-modelName = 'bestMODEL_4_23'
+modelName = 'FILM'
+
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -14,10 +15,11 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
 
 args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
+args['modelName'] = modelName
 
-#if os.path.exists(args['outputDir']):
-#    print(f"Output directory '{args['outputDir']}' already exists. Exiting to prevent overwrite.")
-#    sys.exit(0)  # or sys.exit(1) if you want to indicate failure
+if os.path.exists(args['outputDir']):
+    print(f"Output directory '{args['outputDir']}' already exists. Press c to continue.")
+    breakpoint()
     
 args['datasetPath'] = possiblePaths_data[-1]
 
@@ -55,7 +57,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:1'
+args['device'] = 'cuda:2'
 
 args['seed'] = 0
 
@@ -65,8 +67,8 @@ args['n_epochs'] = 2000
 
 args['day_weights'] = False
 args['input_nonlin'] = False
-args['day_weights_before_patch'] = False
 args['day_token'] = False
+args['use_film'] = True
 
 args['load_pretrained_mae'] = ""
 
@@ -104,7 +106,7 @@ model = BiT_Phoneme(
     day_weights=args['day_weights'], 
     input_nonlin=args['input_nonlin'], 
     use_day_token=args['day_token'], 
-    day_weights_before_patch=args['day_weights_before_patch']
+    use_film=args['use_film']
 ).to(args['device'])
 
 if len(args['load_pretrained_mae']) > 0:

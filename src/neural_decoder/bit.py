@@ -23,6 +23,31 @@ class FFN(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+    
+class FiLM_FFN(nn.Module):
+    def __init__(self, dim, hidden_dim, dropout=0., n_days=24):
+        super().__init__()
+        self.ffn = nn.Sequential(
+            nn.LayerNorm(dim),
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        )
+
+        self.gamma_embed = nn.Embedding(n_days, dim)
+        self.beta_embed = nn.Embedding(n_days, dim)
+
+        nn.init.ones_(self.gamma_embed.weight)
+        nn.init.zeros_(self.beta_embed.weight)
+
+    def forward(self, x, day_idx):
+        out = self.ffn(x)
+        gamma = self.gamma_embed(day_idx).unsqueeze(1)  # (B, 1, D)
+        beta = self.beta_embed(day_idx).unsqueeze(1)    # (B, 1, D)
+        return gamma * out + beta
+
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
@@ -42,7 +67,7 @@ def create_temporal_mask(seq_len, look_ahead=0, device=None):
     return mask.unsqueeze(0).unsqueeze(0)
 
 class Attention(nn.Module):
-    def __init__(self, dim, heads=8, dim_head=64, dropout=0., max_rel_dist=200, use_relative_bias=True):
+    def __init__(self, dim, heads, dim_head, dropout, max_rel_dist=200, use_relative_bias=True):
         super().__init__()
         inner_dim = dim_head * heads
         project_out = not (heads == 1 and dim_head == dim)
@@ -66,8 +91,8 @@ class Attention(nn.Module):
         self.use_relative_bias = use_relative_bias
         if self.use_relative_bias:
             self.rel_pos_bias = nn.Embedding(2 * max_rel_dist - 1, 1)
-
-    def forward(self, x, temporal_mask=None, original_indices=None):
+      
+    def forward(self, x, temporal_mask=None):
         x = self.norm(x)
         qkv = self.to_qkv(x).chunk(3, dim=-1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.heads), qkv)
@@ -76,27 +101,17 @@ class Attention(nn.Module):
 
         # Add relative positional bias if enabled
         if self.use_relative_bias:
-            if original_indices is not None:
-                rel_bias = []
-                for b in range(x.size(0)):
-                    orig = original_indices[b]  # shape: (num_unmasked,)
-                    rel_pos = orig[:, None] - orig[None, :]  # (T, T)
-                    rel_pos = rel_pos.clamp(-self.max_rel_dist + 1, self.max_rel_dist - 1) + self.max_rel_dist - 1
-                    bias = self.rel_pos_bias(rel_pos).squeeze(-1)  # (T, T)
-                    rel_bias.append(bias)
-                rel_bias = torch.stack(rel_bias, dim=0).unsqueeze(1)  # (B, 1, T, T)
-            else:
-                seq_len = x.size(1)
-                i = torch.arange(seq_len, device=x.device).unsqueeze(1)
-                j = torch.arange(seq_len, device=x.device).unsqueeze(0)
-                rel_pos = (i - j).clamp(-self.max_rel_dist + 1, self.max_rel_dist - 1) + self.max_rel_dist - 1
-                rel_bias = self.rel_pos_bias(rel_pos).squeeze(-1).unsqueeze(0).unsqueeze(0)
-    
+            seq_len = x.size(1)
+            i = torch.arange(seq_len, device=x.device).unsqueeze(1)
+            j = torch.arange(seq_len, device=x.device).unsqueeze(0)
+            rel_pos = (i - j).clamp(-self.max_rel_dist + 1, self.max_rel_dist - 1) + self.max_rel_dist - 1
+            rel_bias = self.rel_pos_bias(rel_pos).squeeze(-1).unsqueeze(0).unsqueeze(0) # shap seq_len x seq_len
+
         dots = dots + rel_bias
 
         if temporal_mask is not None:
             dots = dots.masked_fill(temporal_mask == 0, float('-inf'))
-
+            
         attn = self.attend(dots)
         attn = self.dropout(attn)
 
@@ -106,21 +121,46 @@ class Attention(nn.Module):
         return self.to_out(out)
 
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, dropout=0., use_relative_bias=True):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, 
+                 dropout=0., use_relative_bias=True):
+        
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         mlp_dim = mlp_dim_ratio * dim
         for _ in range(depth):
             self.layers.append(nn.ModuleList([
-                Attention(dim=dim, heads=heads, dim_head=dim_head, dropout=dropout, use_relative_bias=use_relative_bias),
+                Attention(dim=dim, heads=heads, dim_head=dim_head, 
+                          dropout=dropout, use_relative_bias=use_relative_bias),
                 FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout)
             ]))
 
-    def forward(self, x, mask=None, original_indices=None):
+    def forward(self, x, mask=None):
         for attn, ffn in self.layers:
-            x = attn(x, temporal_mask=mask, original_indices=original_indices) + x
+            x = attn(x, temporal_mask=mask) + x
             x = ffn(x) + x
+        return self.norm(x)
+    
+    
+class FiLMTransformer(nn.Module):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, 
+                 dropout=0., use_relative_bias=True, n_days=24):
+
+        super().__init__()
+        self.norm = nn.LayerNorm(dim)
+        self.layers = nn.ModuleList([])
+        mlp_dim = mlp_dim_ratio * dim
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                Attention(dim=dim, heads=heads, dim_head=dim_head, 
+                          dropout=dropout, use_relative_bias=use_relative_bias),
+                FiLM_FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout, n_days=n_days)
+            ]))
+
+    def forward(self, x, mask=None, day_idx=None):
+        for attn, ffn in self.layers:
+            x = attn(x, temporal_mask=mask) + x
+            x = ffn(x, day_idx) + x
         return self.norm(x)
     
     
@@ -128,9 +168,7 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path, day_weights, input_nonlin, 
-                 use_day_token, day_weights_before_patch):
+                 nClasses, T5_style_pos, max_mask_pct, num_masks):
    
         super().__init__()
 
@@ -145,13 +183,6 @@ class BiT_Phoneme(nn.Module):
         self.max_mask_pct = max_mask_pct
         self.num_masks = num_masks    
         self.patch_dim = patch_height * patch_width
-        self.num_masks_channels = num_masks_channels
-        self.max_channels_to_mask = max_mask_channels
-        self.dist_dict_path = dist_dict_path
-        self.day_weights = day_weights
-        self.input_nonlin = input_nonlin
-        self.use_day_token = use_day_token
-        self.day_weights_before_patch = day_weights_before_patch
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -164,34 +195,18 @@ class BiT_Phoneme(nn.Module):
         # Patch embedding split from encoder
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
-        
-        if self.day_weights:
-            if self.day_weights_before_patch:
-                self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
-                self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
-            else:
-                self.dayWeights = torch.nn.Parameter(torch.randn(nDays, dim, dim))
-                self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, dim))
-            
-        if self.use_day_token:
-            self.dayTokens = nn.Parameter(torch.randn(nDays, 1, dim))  # (nDays, 1, dim)
-        
-        
-        if mask_token_zeros:
-            self.mask_token = nn.Parameter(torch.zeros(self.patch_dim), requires_grad=False)
-        else:
-            self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
+
+        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
         
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
         )
                 
         self.dropout = nn.Dropout(input_dropout)
-        
+  
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, 
-                                       dropout, use_relative_bias=self.T5_style_pos)
-        
-       
+                                    dropout, use_relative_bias=self.T5_style_pos)
+    
         self.projection = nn.Linear(dim, nClasses+1)
         
     def forward(self, neuralInput, X_len, dayIdx, n_masks=1):
@@ -211,17 +226,6 @@ class BiT_Phoneme(nn.Module):
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
-
-        # apply day layedr
-        if self.day_weights and self.day_weights_before_patch:
-            
-            dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
-            neuralInput = torch.einsum(
-                "btd,bdk->btk", neuralInput, dayWeights
-            ) + torch.index_select(self.dayBias, 0, dayIdx)
-            
-            if self.input_nonlin:
-                neuralInput = self.inputLayerNonlinearity(neuralInput)
         
         # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
@@ -238,45 +242,25 @@ class BiT_Phoneme(nn.Module):
                     x_masked.append(xtemp)
                     
                 x = torch.stack(x_masked).squeeze()
+                
             else:
                 x, mask = self.apply_specaugment_mask(x, X_len)
                 
             x = self.patch_to_emb(x)
+            
         else:
+            
             x = self.to_patch_embedding(neuralInput)
-            
-         # apply day layedr
-        if self.day_weights and self.day_weights_before_patch == False:
-            
-            dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
-            x_t = torch.einsum(
-                "btd,bdk->btk", x, dayWeights
-            ) + torch.index_select(self.dayBias, 0, dayIdx)
-            
-            if self.input_nonlin:
-                x_t = self.inputLayerNonlinearity(x_t)
-                
-            # only apply to non_masked patches
-            if self.training:
-                mask_expanded = mask.unsqueeze(-1)  # True = masked
-                x = torch.where(~mask_expanded, x_t, x)
-            else:
-                x = x_t
-            
+                      
         # apply input level dropout. 
         x = self.dropout(x)
         
-        if self.use_day_token:
-            
-            day_token = torch.index_select(self.dayTokens, 0, dayIdx)  # (B, 1, D)
-            x = torch.cat([day_token, x], dim=1)  # (B, 1+P, D)
-            
         b, seq_len, _ = x.shape
         
         # Create temporal mask
         temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
 
-        # Apply transformer with temporal masking
+       
         x = self.transformer(x, mask=temporal_mask)
         
         out = self.projection(x)
@@ -347,7 +331,11 @@ class BiT_Phoneme(nn.Module):
         X_masked[mask] = self.mask_token
 
         return X_masked, mask
+   
+
+'''
     
+ 
     def channel_specaugment_masks(self, 
         x,            # tensor [B, T, D]
         num_channels=64,
@@ -411,12 +399,7 @@ class BiT_Phoneme(nn.Module):
         
         # broadcast mask over time
         return X_masked, masks
-
-    
-    
-
-'''
-    
+        
 def simple_mask(self, B, num_patches, device):
     # Mask a subset of tokens
     num_masked = int(self.masking_ratio * num_patches)
