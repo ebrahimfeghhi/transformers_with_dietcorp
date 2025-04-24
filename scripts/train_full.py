@@ -2,7 +2,7 @@
 import os
 import sys
 
-modelName = 'bigmodel_more_mask_AdamW'
+modelName = 'bestMODEL_4_23'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -15,16 +15,15 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
 args = {}
 args['outputDir'] = possiblePath_dir[1] + modelName
 
-if os.path.exists(args['outputDir']):
-    print(f"Output directory '{args['outputDir']}' already exists. Exiting to prevent overwrite.")
-    sys.exit(0)  # or sys.exit(1) if you want to indicate failure
-    
+#if os.path.exists(args['outputDir']):
+#    print(f"Output directory '{args['outputDir']}' already exists. Exiting to prevent overwrite.")
+#    sys.exit(0)  # or sys.exit(1) if you want to indicate failure
     
 args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
-args['depth'] = 9 #TODO
+args['depth'] = 7 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
@@ -56,7 +55,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:0'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 
@@ -64,6 +63,10 @@ args['T5_style_pos'] = True
 
 args['n_epochs'] = 2000
 
+args['day_weights'] = False
+args['input_nonlin'] = False
+args['day_weights_before_patch'] = False
+args['day_token'] = False
 
 args['load_pretrained_mae'] = ""
 
@@ -71,7 +74,7 @@ args['mask_token_zero'] = False
 args['num_masks_channels'] = 0
 args['max_mask_channels'] = 0
 args['max_mask_pct'] = 0.075
-args['num_masks'] = 25
+args['num_masks'] = 20
 
 args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
@@ -97,7 +100,11 @@ model = BiT_Phoneme(
     mask_token_zeros=args['mask_token_zero'], 
     num_masks_channels=args['num_masks_channels'], 
     max_mask_channels=args['max_mask_channels'], 
-    dist_dict_path=args['dist_dict_path']
+    dist_dict_path=args['dist_dict_path'], 
+    day_weights=args['day_weights'], 
+    input_nonlin=args['input_nonlin'], 
+    use_day_token=args['day_token'], 
+    day_weights_before_patch=args['day_weights_before_patch']
 ).to(args['device'])
 
 if len(args['load_pretrained_mae']) > 0:

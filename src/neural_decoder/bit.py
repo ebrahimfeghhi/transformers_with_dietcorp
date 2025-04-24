@@ -129,7 +129,8 @@ class BiT_Phoneme(nn.Module):
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
                  nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path):
+                 num_masks_channels, max_mask_channels, dist_dict_path, day_weights, input_nonlin, 
+                 use_day_token, day_weights_before_patch):
    
         super().__init__()
 
@@ -147,6 +148,10 @@ class BiT_Phoneme(nn.Module):
         self.num_masks_channels = num_masks_channels
         self.max_channels_to_mask = max_mask_channels
         self.dist_dict_path = dist_dict_path
+        self.day_weights = day_weights
+        self.input_nonlin = input_nonlin
+        self.use_day_token = use_day_token
+        self.day_weights_before_patch = day_weights_before_patch
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -160,8 +165,17 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
         
-        self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
-        self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
+        if self.day_weights:
+            if self.day_weights_before_patch:
+                self.dayWeights = torch.nn.Parameter(torch.randn(nDays, patch_width, patch_width))
+                self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, patch_width))
+            else:
+                self.dayWeights = torch.nn.Parameter(torch.randn(nDays, dim, dim))
+                self.dayBias = torch.nn.Parameter(torch.zeros(nDays, 1, dim))
+            
+        if self.use_day_token:
+            self.dayTokens = nn.Parameter(torch.randn(nDays, 1, dim))  # (nDays, 1, dim)
+        
         
         if mask_token_zeros:
             self.mask_token = nn.Parameter(torch.zeros(self.patch_dim), requires_grad=False)
@@ -172,7 +186,6 @@ class BiT_Phoneme(nn.Module):
             patch_width, 20, self.gaussianSmoothWidth, dim=1
         )
                 
-
         self.dropout = nn.Dropout(input_dropout)
         
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim_ratio, 
@@ -181,8 +194,6 @@ class BiT_Phoneme(nn.Module):
        
         self.projection = nn.Linear(dim, nClasses+1)
         
-        
-
     def forward(self, neuralInput, X_len, dayIdx, n_masks=1):
         """
         Args:
@@ -201,36 +212,67 @@ class BiT_Phoneme(nn.Module):
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
 
-        # apply day layer
-        dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
-        transformedNeural = torch.einsum(
-            "btd,bdk->btk", neuralInput, dayWeights
-        ) + torch.index_select(self.dayBias, 0, dayIdx)
-        transformedNeural = self.inputLayerNonlinearity(transformedNeural)
-    
+        # apply day layedr
+        if self.day_weights and self.day_weights_before_patch:
+            
+            dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+            neuralInput = torch.einsum(
+                "btd,bdk->btk", neuralInput, dayWeights
+            ) + torch.index_select(self.dayBias, 0, dayIdx)
+            
+            if self.input_nonlin:
+                neuralInput = self.inputLayerNonlinearity(neuralInput)
+        
         # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
+        
         if self.training and self.max_mask_pct > 0:
+            
             x = self.to_patch(neuralInput)
+            
             # for memo TTA
             if n_masks > 1:
                 x_masked = []
                 for _ in range(n_masks):
                     xtemp, _ = self.apply_specaugment_mask(x, X_len)
                     x_masked.append(xtemp)
+                    
                 x = torch.stack(x_masked).squeeze()
             else:
-                x, _ = self.apply_specaugment_mask(x, X_len)
+                x, mask = self.apply_specaugment_mask(x, X_len)
                 
             x = self.patch_to_emb(x)
         else:
             x = self.to_patch_embedding(neuralInput)
+            
+         # apply day layedr
+        if self.day_weights and self.day_weights_before_patch == False:
+            
+            dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
+            x_t = torch.einsum(
+                "btd,bdk->btk", x, dayWeights
+            ) + torch.index_select(self.dayBias, 0, dayIdx)
+            
+            if self.input_nonlin:
+                x_t = self.inputLayerNonlinearity(x_t)
                 
-        b, seq_len, _ = x.shape
-        
+            # only apply to non_masked patches
+            if self.training:
+                mask_expanded = mask.unsqueeze(-1)  # True = masked
+                x = torch.where(~mask_expanded, x_t, x)
+            else:
+                x = x_t
+            
         # apply input level dropout. 
         x = self.dropout(x)
-
+        
+        if self.use_day_token:
+            
+            day_token = torch.index_select(self.dayTokens, 0, dayIdx)  # (B, 1, D)
+            x = torch.cat([day_token, x], dim=1)  # (B, 1+P, D)
+            
+        b, seq_len, _ = x.shape
+        
         # Create temporal mask
         temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
 
@@ -243,7 +285,8 @@ class BiT_Phoneme(nn.Module):
     
     def compute_length(self, X_len):
         
-        return (X_len / self.patch_height).to(torch.int32)
+        # computing ceiling because I pad X to be divisible by path_height
+        return torch.ceil(X_len / self.patch_height).to(dtype=torch.int32)
 
     def apply_specaugment_mask(self, X, X_len):
         """
