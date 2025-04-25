@@ -10,7 +10,6 @@ args_device = parser.parse_args()
 
 device = f'cuda:{args_device.cuda}'
 
-modelName = 'None'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -21,12 +20,21 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both']
 
 args = {}
+modelName = 'dropout'
+args['modelName'] = modelName
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
-args['memo_augs'] = 32
-args['memo_epochs'] = 16
+args['memo_augs'] = 16
+args['memo_epochs'] = 8
 args['evenDaysOnly'] = True
+args['model_to_restore'] = 'lr_gamma_07'
+
+args['freeze_all_except_patch_linear'] = True
+args['unfreeze_layer_1'] = False
+args['restore_model_each_update'] = True # restore original model after every update.
+args['restore_model_each_day'] = False
+args['modelWeightPath'] = f"/home3/skaasyap/willett/outputs/{args['model_to_restore']}/modelWeights"
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
@@ -36,14 +44,15 @@ args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0
 args['input_dropout'] = 0
+args['num_masks'] = 20
+args['max_mask_pct'] = 0.075
 
 args['gaussianSmoothWidth'] = 2.0
-args['nDays'] = 24
 args['nClasses'] = 40
 
 args['optimizer'] = 'AdamW'
 args['load_optimizer_state'] = False
-args['optimizer_path'] = "/home3/skaasyap/willett/outputs/spec_aug_time_best_4_22/optimizer"
+args['optimizer_path'] = f"/home3/skaasyap/willett/outputs/{args['model_to_restore']}/optimizer"
 
 args['l2_decay'] = 0
 
@@ -63,20 +72,6 @@ args['seed'] = 0
 
 args['T5_style_pos'] = True
 
-args['modelWeightPath'] = "/home3/skaasyap/willett/outputs/spec_aug_time_best_4_22/modelWeights"
-
-args['mask_token_zero'] = False
-args['num_masks_channels'] = 0
-args['max_mask_channels'] = 0
-args['max_mask_pct'] = 0.05
-args['num_masks'] = 20
-
-args['freeze_params_except_day'] = True
-args['restore_model'] = True
-
-
-args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
-
 from neural_decoder.neural_decoder_trainer_memo import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
@@ -91,44 +86,37 @@ model = BiT_Phoneme(
     dropout=args['dropout'],
     input_dropout=args['input_dropout'],
     look_ahead=0,
-    nDays=args['nDays'],
     gaussianSmoothWidth=args['gaussianSmoothWidth'],
     T5_style_pos=args['T5_style_pos'], 
     max_mask_pct=args['max_mask_pct'], 
     num_masks=args['num_masks'], 
-    mask_token_zeros=args['mask_token_zero'], 
-    num_masks_channels=args['num_masks_channels'], 
-    max_mask_channels=args['max_mask_channels'], 
-    dist_dict_path=args['dist_dict_path'], 
-    day_weights=args['day_weights'], 
-    input_nonlin=args['input_nonlin'], 
-    use_day_token=args['day_token'], 
-    use_film=args['use_film']
 ).to(args['device'])
 
 import torch
 
-
 model.load_state_dict(torch.load(args['modelWeightPath'],
                     map_location=args['device']), strict=True)
 
-def freeze_except_day_specific(model):
-    print("Freezing all parameters except day-specific weights and biases...\n")
-    for name, param in model.named_parameters():
-        if 'dayWeights' in name or 'dayBias' in name:
+if args['freeze_all_except_patch_linear']:
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Unfreeze just the Linear layer
+    linear_layer = model.to_patch_embedding[2]  # assumes Linear is the third module in Sequential
+    for param in linear_layer.parameters():
+        param.requires_grad = True
+        
+    if args['unfreeze_layer_1']:
+        first_transformer_layer = model.transformer.layers[0]  # assumes standard transformer format
+        for param in first_transformer_layer.parameters():
             param.requires_grad = True
-            print(f"[Unfrozen] {name}")
-        else:
-            param.requires_grad = False
-            print(f"[Frozen] {name}")
-    print("\nDone freezing.")
-    
-    print("\nTrainable parameters:")
+        
     for name, param in model.named_parameters():
         if param.requires_grad:
-            print(name, param.shape)
+            print(f"[Trainable] {name}")
+        
 
-if args['freeze_params_except_day']:
-    freeze_except_day_specific(model)
+#if args['freeze_params_except_day']:
+#    freeze_except_day_specific(model)
 
 trainModel(args, model)

@@ -24,31 +24,6 @@ class FFN(nn.Module):
     def forward(self, x):
         return self.net(x)
     
-class FiLM_FFN(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout=0., n_days=24):
-        super().__init__()
-        self.ffn = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, dim),
-            nn.Dropout(dropout)
-        )
-
-        self.gamma_embed = nn.Embedding(n_days, dim)
-        self.beta_embed = nn.Embedding(n_days, dim)
-
-        nn.init.ones_(self.gamma_embed.weight)
-        nn.init.zeros_(self.beta_embed.weight)
-
-    def forward(self, x, day_idx):
-        out = self.ffn(x)
-        gamma = self.gamma_embed(day_idx).unsqueeze(1)  # (B, 1, D)
-        beta = self.beta_embed(day_idx).unsqueeze(1)    # (B, 1, D)
-        return gamma * out + beta
-
-
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
@@ -141,33 +116,10 @@ class Transformer(nn.Module):
             x = ffn(x) + x
         return self.norm(x)
     
-    
-class FiLMTransformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim_ratio, 
-                 dropout=0., use_relative_bias=True, n_days=24):
-
-        super().__init__()
-        self.norm = nn.LayerNorm(dim)
-        self.layers = nn.ModuleList([])
-        mlp_dim = mlp_dim_ratio * dim
-        for _ in range(depth):
-            self.layers.append(nn.ModuleList([
-                Attention(dim=dim, heads=heads, dim_head=dim_head, 
-                          dropout=dropout, use_relative_bias=use_relative_bias),
-                FiLM_FFN(dim=dim, hidden_dim=mlp_dim, dropout=dropout, n_days=n_days)
-            ]))
-
-    def forward(self, x, mask=None, day_idx=None):
-        for attn, ffn in self.layers:
-            x = attn(x, temporal_mask=mask) + x
-            x = ffn(x, day_idx) + x
-        return self.norm(x)
-    
-    
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
-                 dim_head, dropout, input_dropout, look_ahead, nDays, gaussianSmoothWidth, 
+                 dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
                  nClasses, T5_style_pos, max_mask_pct, num_masks):
    
         super().__init__()
@@ -209,7 +161,7 @@ class BiT_Phoneme(nn.Module):
     
         self.projection = nn.Linear(dim, nClasses+1)
         
-    def forward(self, neuralInput, X_len, dayIdx, n_masks=1):
+    def forward(self, neuralInput, X_len, n_masks=1):
         """
         Args:
             neuralInout: Tensor of shape (B, 1, T, F)
@@ -219,10 +171,7 @@ class BiT_Phoneme(nn.Module):
         """
         
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
-        
-        if self.training and self.max_channels_to_mask > 0: 
-            neuralInput, _ = self.channel_specaugment_masks(neuralInput)
-        
+         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
@@ -260,7 +209,6 @@ class BiT_Phoneme(nn.Module):
         # Create temporal mask
         temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
 
-       
         x = self.transformer(x, mask=temporal_mask)
         
         out = self.projection(x)

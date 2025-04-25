@@ -42,7 +42,7 @@ def compute_batch_cer(pred, y, adjustedLens, y_len):
 
 def trainModel(args, model):
     
-    wandb.init(project="MEMO", entity="skaasyap-ucla", config=dict(args))
+    wandb.init(project="MEMO", entity="skaasyap-ucla", config=dict(args),  name=args['modelName'])
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
@@ -81,7 +81,7 @@ def trainModel(args, model):
     total_edit_distance = 0
     total_seq_length = 0
     
-    
+    prev_day = 0
     for X, y, X_len, y_len, testDayIdx in testLoader:
         
         if args['evenDaysOnly']:
@@ -98,26 +98,33 @@ def trainModel(args, model):
         
         with torch.no_grad():
             model.eval()
-            pred = model.forward(X, X_len, testDayIdx)
+            pred = model.forward(X, X_len)
             adjustedLens = model.compute_length(X_len)
             cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
             total_edit_distance += ed
             total_seq_length += seq_len
             wandb.log({'cer': cer})
-            print(cer)
             
-     
-        
+        if prev_day != testDayIdx[0]:
+            cer_day = total_edit_distance / total_seq_length
+            print(prev_day, cer_day)
+            wandb.log({'day_cer': cer_day})
+            
+    
         if args['memo_augs'] > 0: 
             
             # restore model before next MEMO update
-            if args['restore_model']:
+            if args['restore_model_each_update']:
                 model.load_state_dict(original_state_dict)
-    
+                
+            if prev_day != testDayIdx[0]:
+                if args['restore_model_each_day']:
+                    model.load_state_dict(original_state_dict)
+                
             model.train()
     
             for i in range(args['memo_epochs']):
-                logits_aug = model.forward(X, X_len, testDayIdx, args['memo_augs'])  # [memo_augs, T, D]
+                logits_aug = model.forward(X, X_len, args['memo_augs'])  # [memo_augs, T, D]
                 probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
                 marginal_probs = probs_aug.mean(dim=0)  # [T, D]
                 loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean() # sum across classes, then take mean across time. 
@@ -127,22 +134,11 @@ def trainModel(args, model):
                 optimizer.step()
                 
 
-                
-        #with torch.no_grad():
-        #    model.eval()
-        #    pred = model.forward(X, X_len, testDayIdx)
-        #    adjustedLens = model.compute_length(X_len)
-        #    cer_after, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
-        #    total_edit_distance_after += ed
-        #    total_seq_length_after += seq_len
-        #    if np.abs(cer_after - cer_before) > 0:
-        #        print(cer_before, cer_after)
-        #        
-        #    wandb.log({'cer_before': cer_before, 
-        #               'cer_after': cer_after})
-         
+        prev_day = testDayIdx[0]
+        
+        
     cer_memo = total_edit_distance / total_seq_length
-    print("FINAL VERDICT", np.mean(cer_memo))
+    print("FINAL VERDICT", cer_memo)
     
     wandb.log({'final_cer_before': cer_memo})
     
