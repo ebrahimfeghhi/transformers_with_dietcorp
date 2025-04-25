@@ -17,7 +17,9 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/data/willett_data/ptDecoder_ctc_both', 
                       '/home3/skaasyap/willett/data', 
                       '/home3/skaasyap/willett/data_log', 
-                      '/home3/skaasyap/willett/data_log_both']
+                      '/home3/skaasyap/willett/data_log_both',
+                      '/home3/skaasyap/willett/data_log_both_held_out_days']
+
 
 args = {}
 modelName = 'dropout'

@@ -161,10 +161,11 @@ class BiT_Phoneme(nn.Module):
     
         self.projection = nn.Linear(dim, nClasses+1)
         
-    def forward(self, neuralInput, X_len, n_masks=1):
+    def forward(self, neuralInput, X_len, day_idx, n_masks=1):
         """
         Args:
-            neuralInout: Tensor of shape (B, 1, T, F)
+            neuralInput: Tensor of shape (B, T, F)
+            X_len:Tensor of shape 
             dayIdx: tensor of shape (B)
         Returns:
             Tensor: (B, num_patches, dim)

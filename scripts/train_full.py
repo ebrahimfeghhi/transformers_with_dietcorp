@@ -2,7 +2,7 @@
 import os
 import sys
 
-modelName = 'neurips_model_seed_3'
+modelName = 'held_out_days_seed_3'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -10,9 +10,11 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/data/willett_data/ptDecoder_ctc_both', 
                       '/home3/skaasyap/willett/data', 
                       '/home3/skaasyap/willett/data_log', 
-                      '/home3/skaasyap/willett/data_log_both']
+                      '/home3/skaasyap/willett/data_log_both',
+                      '/home3/skaasyap/willett/data_log_both_held_out_days']
 
 args = {}
+args['datasetPath'] = possiblePaths_data[-1] # -1 is now held out days 
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['modelName'] = modelName
 
@@ -20,7 +22,6 @@ if os.path.exists(args['outputDir']):
     print(f"Output directory '{args['outputDir']}' already exists. Press c to continue.")
     breakpoint()
     
-args['datasetPath'] = possiblePaths_data[-1]
 
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
