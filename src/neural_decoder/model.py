@@ -84,7 +84,7 @@ class GRUDecoder(nn.Module):
         else:
             self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1)  # +1 for CTC blank
 
-    def forward(self, neuralInput, dayIdx):
+    def forward(self, neuralInput, X_len, dayIdx):
         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)

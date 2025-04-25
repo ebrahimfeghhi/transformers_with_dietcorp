@@ -30,7 +30,7 @@ def lr_lambda(epoch):
     elif epoch < 500:
         return 0.05   # 5e-5
     else:
-        return 0.01   # 1e-5
+        return 0.01   # 1ef-5
 
 
 def trainModel(args, model):
@@ -48,6 +48,8 @@ def trainModel(args, model):
         args["datasetPath"],
         args["batchSize"],
     )
+    
+    
         
     # Watch the model
     wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
@@ -113,7 +115,6 @@ def trainModel(args, model):
     for epoch in range(args['n_epochs']):
         
         train_loss = []
-        train_kl_loss = []
         model.train()
         
         for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
@@ -137,7 +138,7 @@ def trainModel(args, model):
                 )
 
             # Compute prediction error
-            pred = model.forward(X, X_len)
+            pred = model.forward(X, X_len, dayIdx)
                         
             adjustedLens = model.compute_length(X_len)
 
@@ -152,7 +153,6 @@ def trainModel(args, model):
             loss.backward()
             optimizer.step()            
             
-        
             # print(endTime - startTime)
 
 
@@ -167,6 +167,9 @@ def trainModel(args, model):
             
             for X, y, X_len, y_len, testDayIdx in testLoader:
                 
+                if args['testing_on_held_out']:
+                    testDayIdx.fill_(args['maxDay'])
+
                 X, y, X_len, y_len, testDayIdx = (
                     X.to(args["device"]),
                     y.to(args["device"]),
@@ -175,7 +178,7 @@ def trainModel(args, model):
                     testDayIdx.to(args["device"]),
                 )
 
-                pred = model.forward(X, X_len)
+                pred = model.forward(X, X_len, testDayIdx)
                 
                 adjustedLens = model.compute_length(X_len)
                 

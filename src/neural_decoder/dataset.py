@@ -30,6 +30,7 @@ class SpeechDataset(Dataset):
                 self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
                 self.phone_seq_lens.append(data[day]["phoneLens"][trial])
                 self.days.append(day)
+                
 
     def __len__(self):
         
