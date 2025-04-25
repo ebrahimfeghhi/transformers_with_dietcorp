@@ -137,7 +137,7 @@ def trainModel(args, model):
                 )
 
             # Compute prediction error
-            pred = model.forward(X, X_len, dayIdx)
+            pred = model.forward(X, X_len)
                         
             adjustedLens = model.compute_length(X_len)
 
@@ -175,7 +175,7 @@ def trainModel(args, model):
                     testDayIdx.to(args["device"]),
                 )
 
-                pred = model.forward(X, X_len, testDayIdx)
+                pred = model.forward(X, X_len)
                 
                 adjustedLens = model.compute_length(X_len)
                 
