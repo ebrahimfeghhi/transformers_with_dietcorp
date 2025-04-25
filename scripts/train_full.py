@@ -2,8 +2,7 @@
 import os
 import sys
 
-modelName = 'FILM'
-
+modelName = 'neurips_model_seed_3'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -57,24 +56,16 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:2'
+args['device'] = 'cuda:3'
 
-args['seed'] = 0
+args['seed'] = 3
 
 args['T5_style_pos'] = True
 
 args['n_epochs'] = 2000
 
-args['day_weights'] = False
-args['input_nonlin'] = False
-args['day_token'] = False
-args['use_film'] = True
-
 args['load_pretrained_mae'] = ""
 
-args['mask_token_zero'] = False
-args['num_masks_channels'] = 0
-args['max_mask_channels'] = 0
 args['max_mask_pct'] = 0.075
 args['num_masks'] = 20
 
@@ -94,19 +85,10 @@ model = BiT_Phoneme(
     dropout=args['dropout'],
     input_dropout=args['input_dropout'],
     look_ahead=0,
-    nDays=args['nDays'],
     gaussianSmoothWidth=args['gaussianSmoothWidth'],
     T5_style_pos=args['T5_style_pos'], 
     max_mask_pct=args['max_mask_pct'], 
     num_masks=args['num_masks'], 
-    mask_token_zeros=args['mask_token_zero'], 
-    num_masks_channels=args['num_masks_channels'], 
-    max_mask_channels=args['max_mask_channels'], 
-    dist_dict_path=args['dist_dict_path'], 
-    day_weights=args['day_weights'], 
-    input_nonlin=args['input_nonlin'], 
-    use_day_token=args['day_token'], 
-    use_film=args['use_film']
 ).to(args['device'])
 
 if len(args['load_pretrained_mae']) > 0:
