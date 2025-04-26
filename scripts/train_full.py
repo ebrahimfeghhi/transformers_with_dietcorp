@@ -2,7 +2,7 @@
 import os
 import sys
 
-modelName = 'held_out_days_seed_3'
+modelName = 'five_days_data'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -14,9 +14,12 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both_held_out_days']
 
 args = {}
-args['datasetPath'] = possiblePaths_data[-1] # -1 is now held out days 
+args['datasetPath'] = possiblePaths_data[-2] # -1 is now held out days 
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['modelName'] = modelName
+
+args['testing_on_held_out'] = False # set to true if using held_out_days split
+args['restricted_days'] = [15, 16, 18, 19, 20] # only uses restricted_days 
 
 if os.path.exists(args['outputDir']):
     print(f"Output directory '{args['outputDir']}' already exists. Press c to continue.")
@@ -26,7 +29,7 @@ if os.path.exists(args['outputDir']):
 args['patch_size']= (5, 256) #TODO
 args['dim'] = 384 #TODO
 args['depth'] = 7 #TODO
-args['heads'] = 6
+args['heads'] = 5
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
 args['dropout'] = 0.35
@@ -57,20 +60,18 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:0'
 
-args['seed'] = 3
+args['seed'] = 0
 
 args['T5_style_pos'] = True
 
 args['n_epochs'] = 2000
 
-args['load_pretrained_mae'] = ""
+args['load_pretrained_model'] = '/home3/skaasyap/willett/outputs/'
 
 args['max_mask_pct'] = 0.075
 args['num_masks'] = 20
-
-args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
@@ -92,9 +93,9 @@ model = BiT_Phoneme(
     num_masks=args['num_masks'], 
 ).to(args['device'])
 
-if len(args['load_pretrained_mae']) > 0:
-    print("LOADING PRETRAINED MAE WEIGHTS")
-    model.load_pretrained_transformer(args['load_pretrained_mae'])
+#if len(args['load_pretrained_mae']) > 0:
+#    print("LOADING PRETRAINED MAE WEIGHTS")
+#    model.load_pretrained_transformer(args['load_pretrained_mae'])
     
 
 trainModel(args, model)

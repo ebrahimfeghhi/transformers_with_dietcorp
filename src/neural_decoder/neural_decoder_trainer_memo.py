@@ -98,7 +98,7 @@ def trainModel(args, model):
         
         with torch.no_grad():
             model.eval()
-            pred = model.forward(X, X_len)
+            pred = model.forward(X, X_len, testDayIdx)
             adjustedLens = model.compute_length(X_len)
             cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
             total_edit_distance += ed
@@ -124,9 +124,13 @@ def trainModel(args, model):
             model.train()
     
             for i in range(args['memo_epochs']):
-                logits_aug = model.forward(X, X_len, args['memo_augs'])  # [memo_augs, T, D]
+                logits_aug = model.forward(X, X_len, testDayIdx, args['memo_augs'])  # [memo_augs, T, D]
                 probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
                 marginal_probs = probs_aug.mean(dim=0)  # [T, D]
+                
+                adjustedLens = model.compute_length(X_len)
+                marginal_probs = marginal_probs[:adjustedLens]
+                
                 loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean() # sum across classes, then take mean across time. 
 
                 optimizer.zero_grad()

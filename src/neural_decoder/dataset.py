@@ -8,20 +8,27 @@ import pickle
 
 class SpeechDataset(Dataset):
     
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform=None, restricted_days=[]):
         
         self.data = data
         self.transform = transform
+    
         self.n_days = len(data)
-        self.n_trials = sum([len(d["sentenceDat"]) for d in data])
-
+            
         self.neural_feats = []
         self.phone_seqs = []
         self.neural_time_bins = []
         self.phone_seq_lens = []
         self.days = []
         
+        
         for day in range(self.n_days):
+            
+            if restricted_days:
+                
+                # only train/test on restricted days
+                if day not in restricted_days:
+                    continue
             
             for trial in range(len(data[day]["sentenceDat"])):
                 
@@ -31,7 +38,10 @@ class SpeechDataset(Dataset):
                 self.phone_seq_lens.append(data[day]["phoneLens"][trial])
                 self.days.append(day)
                 
+                
+        self.n_trials = len(self.days)
 
+                                
     def __len__(self):
         
         return self.n_trials
@@ -210,7 +220,8 @@ def getDatasetLoaders_MAE(
 
 def getDatasetLoaders(
     datasetName,
-    batchSize
+    batchSize, 
+    restricted_days=[]
 ):
     with open(datasetName, "rb") as handle:
         loadedData = pickle.load(handle)
@@ -227,9 +238,10 @@ def getDatasetLoaders(
             torch.stack(y_lens),
             torch.stack(days),
         )
-
-    train_ds = SpeechDataset(loadedData["train"], transform=None)
-    test_ds = SpeechDataset(loadedData["test"])
+        
+  
+    train_ds = SpeechDataset(loadedData["train"], transform=None, restricted_days=restricted_days)
+    test_ds = SpeechDataset(loadedData["test"], restricted_days=restricted_days)
 
     train_loader = DataLoader(
         train_ds,
