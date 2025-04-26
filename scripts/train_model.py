@@ -3,7 +3,7 @@ import os
 import sys
 
 
-modelName = 'held_out_day_gru_seed_0'
+modelName = 'five_days_data_gru'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -15,7 +15,7 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
                       '/home3/skaasyap/willett/data_log_both_held_out_days']
 
 args = {}
-args['datasetPath'] = possiblePaths_data[-1] # -1 is now held out days 
+args['datasetPath'] = possiblePaths_data[-2] # -1 is now held out days 
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['modelName'] = modelName
 
@@ -42,9 +42,10 @@ args['strideLen'] = 4
 args['kernelLen'] = 32
 args['bidirectional'] = False
 args['l2_decay'] = 1e-5
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:2'
 args['nDays'] = 24
-args['testing_on_held_out'] = True
+args['testing_on_held_out'] = False
+args['restricted_days'] = [15, 16, 18, 19, 20] 
 args['maxDay'] = 15
 args['AdamW'] = False
 args['learning_scheduler'] = 'None'

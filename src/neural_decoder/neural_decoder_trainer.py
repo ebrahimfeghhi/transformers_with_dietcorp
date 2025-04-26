@@ -47,10 +47,10 @@ def trainModel(args, model):
     trainLoader, testLoader, loadedData = getDatasetLoaders(
         args["datasetPath"],
         args["batchSize"],
+        args['restricted_days']
     )
     
     
-        
     # Watch the model
     wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
 
@@ -119,6 +119,7 @@ def trainModel(args, model):
         
         for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
                             
+                            
             X, y, X_len, y_len, dayIdx = (
                 X.to(args["device"]),
                 y.to(args["device"]),
@@ -126,7 +127,8 @@ def trainModel(args, model):
                 y_len.to(args["device"]),
                 dayIdx.to(args["device"]),
             )
-
+            
+            
             # Noise augmentation is faster on GPU
             if args["whiteNoiseSD"] > 0:
                 X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]

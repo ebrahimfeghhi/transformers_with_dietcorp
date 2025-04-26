@@ -8,6 +8,8 @@ parser.add_argument('--cuda', type=int, default=0,
 
 args_device = parser.parse_args()
 
+
+
 device = f'cuda:{args_device.cuda}'
 
 
@@ -22,15 +24,15 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
 
 
 args = {}
-modelName = 'dropout'
+modelName = 'held_out_baseline'
 args['modelName'] = modelName
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
 args['memo_augs'] = 16
 args['memo_epochs'] = 8
-args['evenDaysOnly'] = True
-args['model_to_restore'] = 'lr_gamma_07'
+args['evenDaysOnly'] = False
+args['model_to_restore'] = 'held_out_days_seed_1'
 
 args['freeze_all_except_patch_linear'] = True
 args['unfreeze_layer_1'] = False
@@ -47,7 +49,7 @@ args['dim_head'] = 64
 args['dropout'] = 0
 args['input_dropout'] = 0
 args['num_masks'] = 20
-args['max_mask_pct'] = 0.075
+args['max_mask_pct'] = 0.05
 
 args['gaussianSmoothWidth'] = 2.0
 args['nClasses'] = 40

@@ -78,13 +78,13 @@ def forward_cr_ctc(
         """
         # Compute CTC loss
         ctc_output = encoder_out.log_softmax(2)  # (2 * N, T, C)
-        ctc_loss = torch.nn.functional.ctc_loss(
-            log_probs=ctc_output.permute(1, 0, 2),  # (T, 2 * N, C)
-            targets=targets.cpu(),
-            input_lengths=encoder_out_lens.cpu(),
-            target_lengths=target_lengths.cpu(),
-            reduction="sum",
-        )
+        #ctc_loss = torch.nn.functional.ctc_loss(
+        #    log_probs=ctc_output.permute(1, 0, 2),  # (T, 2 * N, C)
+        #    targets=targets.cpu(),
+        #    input_lengths=encoder_out_lens.cpu(),
+        #    target_lengths=target_lengths.cpu(),
+        #    reduction="sum",
+        #)
 
         # Compute consistency regularization loss
         exchanged_targets = ctc_output.detach().chunk(2, dim=0)
@@ -101,6 +101,5 @@ def forward_cr_ctc(
         length_mask = make_pad_mask(encoder_out_lens, max_len=cr_loss.shape[1]).unsqueeze(-1)
         
         cr_loss = cr_loss.masked_fill(length_mask, 0.0).sum()
-        
-
-        return ctc_loss, cr_loss
+      
+        return cr_loss
