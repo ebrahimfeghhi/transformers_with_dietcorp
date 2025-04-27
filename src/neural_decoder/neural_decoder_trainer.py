@@ -115,6 +115,7 @@ def trainModel(args, model):
     for epoch in range(args['n_epochs']):
         
         train_loss = []
+        train_kl_loss = []
         model.train()
         
         for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
@@ -143,10 +144,24 @@ def trainModel(args, model):
             pred = model.forward(X, X_len, dayIdx)
                         
             adjustedLens = model.compute_length(X_len)
+            
+            if args['consistency']:
 
+
+                ctc_loss, kl_loss = forward_cr_ctc(pred, adjustedLens.repeat(2), 
+                                                   torch.cat([y, y], dim=0), y_len.repeat(2))
+                ctc_loss = ctc_loss*0.5
+                kl_loss = kl_loss*0.5
+
+                train_loss.append(ctc_loss.cpu().detach().numpy())
+                train_kl_loss.append(kl_loss.cpu().detach().numpy())
+
+                loss = ctc_loss + args['consistency_scalar']*kl_loss
                 
-            loss = forward_ctc(pred, adjustedLens, y, y_len)
-            train_loss.append(loss.cpu().detach().numpy())
+            else:
+                
+                loss = forward_ctc(pred, adjustedLens, y, y_len)
+                train_loss.append(loss.cpu().detach().numpy())
             
 
             #loss = torch.sum(loss)
@@ -161,6 +176,9 @@ def trainModel(args, model):
         with torch.no_grad():
             
             avgTrainLoss = np.mean(train_loss)
+            
+            if args['consistency']:
+                avgTrainKLLoss = np.mean(train_kl_loss)
             
             model.eval()
             allLoss = []
@@ -220,14 +238,19 @@ def trainModel(args, model):
                 f"Epoch {epoch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
             )
                 
-            # Log the metrics to wandb
-            wandb.log({
+            log_dict = {
                 "train_ctc_Loss": avgTrainLoss,
                 "ctc_loss": avgDayLoss,
                 "cer": cer,
                 "time_per_epoch": (endTime - startTime) / 100, 
-            })
-            
+            }
+
+            if args['consistency']:
+                log_dict['train_kl_loss'] = avgTrainKLLoss
+                
+
+            wandb.log(log_dict)
+                        
             startTime = time.time()
 
         if len(testCER) > 0 and cer < np.min(testCER):

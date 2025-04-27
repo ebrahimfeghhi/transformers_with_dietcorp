@@ -120,7 +120,8 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks):
+                 nClasses, T5_style_pos, max_mask_pct, num_masks, consistency, mask_token_zeros,
+                 num_masks_channels, max_mask_channels, dist_dict_path):
    
         super().__init__()
 
@@ -135,6 +136,10 @@ class BiT_Phoneme(nn.Module):
         self.max_mask_pct = max_mask_pct
         self.num_masks = num_masks    
         self.patch_dim = patch_height * patch_width
+        self.consistency = consistency
+        self.num_masks_channels = num_masks_channels
+        self.max_channels_to_mask  = max_mask_channels
+        self.dist_dict_path = dist_dict_path
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -148,7 +153,10 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
-        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
+        if mask_token_zeros:
+            self.mask_token = nn.Parameter(torch.zeros(self.patch_dim), requires_grad=False)
+        else:
+            self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
         
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
@@ -161,7 +169,7 @@ class BiT_Phoneme(nn.Module):
     
         self.projection = nn.Linear(dim, nClasses+1)
         
-    def forward(self, neuralInput, X_len, day_idx, n_masks=1):
+    def forward(self, neuralInput, X_len, day_idx):
         """
         Args:
             neuralInput: Tensor of shape (B, T, F)
@@ -177,32 +185,39 @@ class BiT_Phoneme(nn.Module):
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         
+        if self.training and self.max_channels_to_mask > 0: 
+            neuralInput, _ = self.channel_specaugment_masks(neuralInput)
+        
         # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
         
         if self.training and self.max_mask_pct > 0:
             
             x = self.to_patch(neuralInput)
-            
-            # for memo TTA
-            if n_masks > 1:
-                x_masked = []
-                for _ in range(n_masks):
-                    xtemp, _ = self.apply_specaugment_mask(x, X_len)
-                    x_masked.append(xtemp)
-                    
-                x = torch.stack(x_masked).squeeze()
+
+            if self.consistency:
+                x1, mask1 = self.apply_specaugment_mask(x, X_len)
+                x2, mask2 = self.apply_specaugment_mask(x, X_len)
+
+                if torch.equal(mask1, mask2):
+                    print("Warning: mask1 is equal to mask2 — possible issue with randomness in SpecAugment")
+
+                # x is of shape B x P x D, stack x and x2 along batch dimension
+                x = torch.cat([x1, x2], dim=0)
                 
             else:
-                x, mask = self.apply_specaugment_mask(x, X_len)
+                x, _ = self.apply_specaugment_mask(x, X_len)
                 
-            x = self.patch_to_emb(x)
             
+            x = self.patch_to_emb(x)
+                
         else:
             
             x = self.to_patch_embedding(neuralInput)
+        
                       
         # apply input level dropout. 
+        
         x = self.dropout(x)
         
         b, seq_len, _ = x.shape
@@ -280,11 +295,8 @@ class BiT_Phoneme(nn.Module):
         X_masked[mask] = self.mask_token
 
         return X_masked, mask
-   
 
-'''
     
- 
     def channel_specaugment_masks(self, 
         x,            # tensor [B, T, D]
         num_channels=64,
@@ -349,6 +361,7 @@ class BiT_Phoneme(nn.Module):
         # broadcast mask over time
         return X_masked, masks
         
+'''
 def simple_mask(self, B, num_patches, device):
     # Mask a subset of tokens
     num_masked = int(self.masking_ratio * num_patches)

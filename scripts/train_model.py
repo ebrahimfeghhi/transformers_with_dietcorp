@@ -3,7 +3,7 @@ import os
 import sys
 
 
-modelName = 'five_days_data_gru'
+modelName = 'gru_held_out_days_seed_0'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -29,7 +29,7 @@ args['batchSize'] = 64
 args['lrStart'] = 0.02
 args['lrEnd'] = 0.02
 args['nUnits'] = 512
-args['n_epochs'] = 30000 #3000
+args['n_epochs'] = 3000 #3000
 args['nLayers'] = 5
 args['seed'] = 0
 args['nClasses'] = 40
@@ -42,10 +42,10 @@ args['strideLen'] = 4
 args['kernelLen'] = 32
 args['bidirectional'] = False
 args['l2_decay'] = 1e-5
-args['device'] = 'cuda:2'
+args['device'] = 'cuda:3'
 args['nDays'] = 24
-args['testing_on_held_out'] = False
-args['restricted_days'] = [15, 16, 18, 19, 20] 
+args['testing_on_held_out'] = True
+args['restricted_days'] = []
 args['maxDay'] = 15
 args['AdamW'] = False
 args['learning_scheduler'] = 'None'
