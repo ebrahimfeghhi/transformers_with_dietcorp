@@ -295,8 +295,31 @@ class BiT_Phoneme(nn.Module):
         X_masked[mask] = self.mask_token
 
         return X_masked, mask
+   
+    def load_model(args, path):
+        model = BiT_Phoneme(
+            patch_size=args['patch_size'],
+            dim=args['dim'],
+            dim_head=args['dim_head'], 
+            nClasses=args['nClasses'],
+            depth=args['depth'],
+            heads=args['heads'],
+            mlp_dim_ratio=args['mlp_dim_ratio'],
+            dropout=args['dropout'],
+            input_dropout=args['input_dropout'],
+            look_ahead=0,
+            gaussianSmoothWidth=args['gaussianSmoothWidth'],
+            T5_style_pos=args['T5_style_pos'], 
+            max_mask_pct=args['max_mask_pct'], 
+            num_masks=args['num_masks'], 
+        ).to(args['device'])
 
+        
+
+
+'''
     
+ 
     def channel_specaugment_masks(self, 
         x,            # tensor [B, T, D]
         num_channels=64,
@@ -374,133 +397,132 @@ def simple_mask(self, B, num_patches, device):
     
     return masked_indices, unmasked_indices, num_masked
 
- def apply_specaugment_mask(self, X, X_len, constant_mask=False, mask_range=[]):
-        """
-        Fully vectorized SpecAugment-style time masking (no loops at all).
+def apply_specaugment_mask(self, X, X_len, constant_mask=False, mask_range=[]):
+    """
+    Fully vectorized SpecAugment-style time masking (no loops at all).
+    
+    Args:
+        X: (B, P, D) input tensor
+        X_len: (B,) valid lengths in timepoints
+        constant_mask_lengths: if True, make the mask lengths the same across all batches
+
+    Returns:
+        X_masked: (B, P, D) with masked patches
+        mask: (B, P) boolean mask of where values were masked
+        masked_indices: list of 1D LongTensors, each with indices of masked patches per batch
+        unmasked_indices: list of 1D LongTensors, each with indices of unmasked patches per batch
+    """
+    B, P, D = X.shape
+    device = X.device
+
+    if constant_mask:
+        # get valid len of smallest trial in batch and repeat for all batches. 
+        valid_lens = torch.min((X_len // self.patch_height).to(device)).repeat(B)
+    else:
+        valid_lens = (X_len // self.patch_height).to(device)
         
-        Args:
-            X: (B, P, D) input tensor
-            X_len: (B,) valid lengths in timepoints
-            constant_mask_lengths: if True, make the mask lengths the same across all batches
+    max_mask_lens = (self.max_mask_pct * valid_lens).long()  # (B,)
 
-        Returns:
-            X_masked: (B, P, D) with masked patches
-            mask: (B, P) boolean mask of where values were masked
-            masked_indices: list of 1D LongTensors, each with indices of masked patches per batch
-            unmasked_indices: list of 1D LongTensors, each with indices of unmasked patches per batch
-        """
-        B, P, D = X.shape
-        device = X.device
+    # Repeat B num_masks times to simulate multiple masks per sample
+    B_rep = B * self.num_masks
 
-        if constant_mask:
-            # get valid len of smallest trial in batch and repeat for all batches. 
-            valid_lens = torch.min((X_len // self.patch_height).to(device)).repeat(B)
-        else:
-            valid_lens = (X_len // self.patch_height).to(device)
-            
-        max_mask_lens = (self.max_mask_pct * valid_lens).long()  # (B,)
+    # Expand inputs for vectorized masking
+    # repeat_interleave works like tile, so values corresponding to the same batch are next to each other
+    valid_lens_rep = valid_lens.repeat_interleave(self.num_masks)            # (B * num_masks,)
+    max_mask_lens_rep = max_mask_lens.repeat_interleave(self.num_masks)      # (B * num_masks,)
 
-        # Repeat B num_masks times to simulate multiple masks per sample
-        B_rep = B * self.num_masks
-
-        # Expand inputs for vectorized masking
-        # repeat_interleave works like tile, so values corresponding to the same batch are next to each other
-        valid_lens_rep = valid_lens.repeat_interleave(self.num_masks)            # (B * num_masks,)
-        max_mask_lens_rep = max_mask_lens.repeat_interleave(self.num_masks)      # (B * num_masks,)
-
-        if constant_mask:
-            # select the same t for every batch. 
-            t = (torch.rand(self.num_masks, device=device).repeat(B) * (max_mask_lens_rep + 1).float()).floor().long().clamp(min=1)  # (B * num_masks,)
-        else:
-            t = (torch.rand(B_rep, device=device) * (max_mask_lens_rep + 1).float()).floor().long()  # (B * num_masks,)
-            
-        max_start = (valid_lens_rep - t + 1).clamp(min=1)
+    if constant_mask:
+        # select the same t for every batch. 
+        t = (torch.rand(self.num_masks, device=device).repeat(B) * (max_mask_lens_rep + 1).float()).floor().long().clamp(min=1)  # (B * num_masks,)
+    else:
+        t = (torch.rand(B_rep, device=device) * (max_mask_lens_rep + 1).float()).floor().long()  # (B * num_masks,)
         
-        if constant_mask:
-            t0 = (torch.rand(self.num_masks, device=device).repeat(B) * max_start.float()).floor().long()               # (B * num_masks,)
-        else:
-            t0 = (torch.rand(B_rep, device=device) * max_start.float()).floor().long()               # (B * num_masks,)
+    max_start = (valid_lens_rep - t + 1).clamp(min=1)
+    
+    if constant_mask:
+        t0 = (torch.rand(self.num_masks, device=device).repeat(B) * max_start.float()).floor().long()               # (B * num_masks,)
+    else:
+        t0 = (torch.rand(B_rep, device=device) * max_start.float()).floor().long()               # (B * num_masks,)
 
-        # Build the global mask (B, P)
-        arange = torch.arange(P, device=device).unsqueeze(0)       # (1, P)
-        t0_exp = t0.unsqueeze(1)                                   # (B_rep, 1)
-        t1_exp = (t0 + t).unsqueeze(1)                             # (B_rep, 1)
-        mask_chunks = (arange >= t0_exp) & (arange < t1_exp)       # (B_rep, P)
-        
-        # Get index of sample in batch for each mask chunk
-        batch_idx = torch.arange(B, device=device).repeat_interleave(self.num_masks)  # (B * num_masks,)
+    # Build the global mask (B, P)
+    arange = torch.arange(P, device=device).unsqueeze(0)       # (1, P)
+    t0_exp = t0.unsqueeze(1)                                   # (B_rep, 1)
+    t1_exp = (t0 + t).unsqueeze(1)                             # (B_rep, 1)
+    mask_chunks = (arange >= t0_exp) & (arange < t1_exp)       # (B_rep, P)
+    
+    # Get index of sample in batch for each mask chunk
+    batch_idx = torch.arange(B, device=device).repeat_interleave(self.num_masks)  # (B * num_masks,)
 
-        # Now scatter all the masks into the full mask (B, P)
-        patch_idx = mask_chunks.nonzero(as_tuple=False)  # (N_masked, 2)
-        b_indices = batch_idx[patch_idx[:, 0]]           # (N_masked,)
-        p_indices = patch_idx[:, 1]                      # (N_masked,)
+    # Now scatter all the masks into the full mask (B, P)
+    patch_idx = mask_chunks.nonzero(as_tuple=False)  # (N_masked, 2)
+    b_indices = batch_idx[patch_idx[:, 0]]           # (N_masked,)
+    p_indices = patch_idx[:, 1]                      # (N_masked,)
 
-        mask = torch.zeros(B, P, dtype=torch.bool, device=device)
-        mask[b_indices, p_indices] = True
-        
-        # mask: (B, P) boolean, True for masked
-        #B, P = mask.shape
+    mask = torch.zeros(B, P, dtype=torch.bool, device=device)
+    mask[b_indices, p_indices] = True
+    
+    # mask: (B, P) boolean, True for masked
+    #B, P = mask.shape
 
-        # Number of masked patches per batch (assumed same for all batches)
-        if constant_mask:
-            N = mask.sum(dim=1)[0].item()
-            U = P - N  # Number of unmasked per batch
-                            
-            masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
-            masked_indices = masked_indices[:, 1].reshape(B, N)
-            masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
-        
-            unmasked = ~mask  # invert the mask
-            unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
-            unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
-        
-            return masked_indices, unmasked_indices
-        
-        # Apply the mask
-        X_masked = X.clone()
-        X_masked[mask] = self.mask_token
+    # Number of masked patches per batch (assumed same for all batches)
+    if constant_mask:
+        N = mask.sum(dim=1)[0].item()
+        U = P - N  # Number of unmasked per batch
+                        
+        masked_indices = mask.nonzero(as_tuple=False)  # (B * N, 2) — rows: [batch_idx, patch_idx]
+        masked_indices = masked_indices[:, 1].reshape(B, N)
+        masked_indices = torch.sort(masked_indices, dim=-1).values  # sort within batch
+    
+        unmasked = ~mask  # invert the mask
+        unmasked_indices = unmasked.nonzero(as_tuple=False)[:, 1].reshape(B, U)
+        unmasked_indices = torch.sort(unmasked_indices, dim=-1).values
+    
+        return masked_indices, unmasked_indices
+    
+    # Apply the mask
+    X_masked = X.clone()
+    X_masked[mask] = self.mask_token
 
-        return X_masked, mask
+    return X_masked, mask
         
 
-    def load_pretrained_transformer(self, ckpt_path):
-        
-        
-        """
-        Load pretrained transformer weights and mask token from a checkpoint.
-        Assumes 'encoder.transformer.*' and 'encoder.mask_token' exist in the checkpoint.
-        Handles device mismatch automatically.
-        """
-        
-        import torch
-        from collections import OrderedDict
+def load_pretrained_transformer(self, ckpt_path):
+    
+    
+    """
+    Load pretrained transformer weights and mask token from a checkpoint.
+    Assumes 'encoder.transformer.*' and 'encoder.mask_token' exist in the checkpoint.
+    Handles device mismatch automatically.
+    """
+    
+    import torch
+    from collections import OrderedDict
 
-        # Load checkpoint
-        state_dict = torch.load(ckpt_path, map_location='cpu')['model_state_dict']
+    # Load checkpoint
+    state_dict = torch.load(ckpt_path, map_location='cpu')['model_state_dict']
 
-        # Determine device of the current model
-        device = next(self.parameters()).device
+    # Determine device of the current model
+    device = next(self.parameters()).device
 
-        # --- Load Transformer weights ---
-        transformer_weights = OrderedDict()
-        prefix = "encoder.transformer."
+    # --- Load Transformer weights ---
+    transformer_weights = OrderedDict()
+    prefix = "encoder.transformer."
 
-        for k, v in state_dict.items():
-            if k.startswith(prefix):
-                new_key = k[len(prefix):]
-                transformer_weights[new_key] = v.to(device)
+    for k, v in state_dict.items():
+        if k.startswith(prefix):
+            new_key = k[len(prefix):]
+            transformer_weights[new_key] = v.to(device)
 
-        missing, unexpected = self.transformer.load_state_dict(transformer_weights, strict=False)
-        print(f"Transformer loaded with {len(missing)} missing and {len(unexpected)} unexpected keys.")
+    missing, unexpected = self.transformer.load_state_dict(transformer_weights, strict=False)
+    print(f"Transformer loaded with {len(missing)} missing and {len(unexpected)} unexpected keys.")
 
-        # --- Load mask token ---
-        mask_key = "encoder.mask_token"
-        if hasattr(self, "mask_token") and mask_key in state_dict:
-            with torch.no_grad():
-                self.mask_token.data.copy_(state_dict[mask_key].to(device))
-            print("Mask token loaded successfully.")
-        else:
-            print("Mask token not found in checkpoint or not defined in model.")
+    # --- Load mask token ---
+    mask_key = "encoder.mask_token"
+    if hasattr(self, "mask_token") and mask_key in state_dict:
+        with torch.no_grad():
+            self.mask_token.data.copy_(state_dict[mask_key].to(device))
+        print("Mask token loaded successfully.")
+    else:
+        print("Mask token not found in checkpoint or not defined in model.")
 
 
-'''
