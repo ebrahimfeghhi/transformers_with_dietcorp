@@ -1,8 +1,9 @@
 
 import os
 import sys
+import torch
 
-modelName = 'neurips_dropout_0.4'
+modelName = 'channel_mask_4_4_input_dropout_0.1'
 
 possiblePath_dir = ['/data/willett_data/outputs/', 
                     '/home3/skaasyap/willett/outputs/']
@@ -34,8 +35,8 @@ args['depth'] = 7 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0.4
-args['input_dropout'] = 0.2
+args['dropout'] = 0.35
+args['input_dropout'] = 0.1
 
 args['whiteNoiseSD'] = 0.2
 args['gaussianSmoothWidth'] = 2.0
@@ -62,7 +63,7 @@ args['look_ahead'] = 0
 
 args['extra_notes'] = ("")
 
-args['device'] = 'cuda:3'
+args['device'] = 'cuda:1'
 
 args['seed'] = 0
 
@@ -74,14 +75,18 @@ args['load_pretrained_model'] = '/home3/skaasyap/willett/outputs/'
 
 args['max_mask_pct'] = 0.075
 args['num_masks'] = 20
-args['mask_token_zero'] = False
-args['num_masks_channels'] = 0
-args['max_mask_channels'] = 0
+args['mask_token_zero'] = True
+args['num_masks_channels'] = 4
+args['max_mask_channels'] = 4
 
 args['dist_dict_path'] = '/home3/skaasyap/willett/outputs/dist_dict.pt'
 
 args['consistency'] = False # apply consistency regularized CTC
 args['consistency_scalar'] = 0.2 # loss scaling factor
+
+
+args['load_pretrained_model'] = '' # specifiy folder (not model file)
+
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
@@ -108,9 +113,9 @@ model = BiT_Phoneme(
     dist_dict_path=args['dist_dict_path']
 ).to(args['device'])
 
-#if len(args['load_pretrained_mae']) > 0:
-#    print("LOADING PRETRAINED MAE WEIGHTS")
-#    model.load_pretrained_transformer(args['load_pretrained_mae'])
-    
+if len(args['load_pretrained_model']) > 0:
+    checkpoint = torch.load(f"{args['load_pretrained_model']}/modelWeights", map_location=args['device'])
+    model.load_state_dict(checkpoint, strict=True)
+    print(f"Loaded pretrained model from {args['load_pretrained_model']}")
 
 trainModel(args, model)

@@ -70,6 +70,7 @@ def trainModel(args, model):
             weight_decay=args["l2_decay"],
         )
         
+        
     if args['learning_scheduler'] == 'multistep': 
 
         print("Multistep scheduler")
@@ -108,6 +109,15 @@ def trainModel(args, model):
             total_iters=args["n_epochs"],
         )
     
+    if args['load_pretrained_model'] > 0:
+        optimizer_path = os.path.join(args['load_pretrained_model'], 'optimizer')
+        optimizer.load_state_dict(torch.load(optimizer_path, map_location=args['device']))
+        
+        schedular_path = os.path.join(args['load_pretrained_model'], 'scheduler')
+        scheduler.load_state_dict(torch.load(optimizer_path, map_location=args['device']))
+        print(f"Loaded optimizer and scheduler state from {args['load_pretrained_model']}")
+        
+        
     # --train--
     testLoss = []
     testCER = []
