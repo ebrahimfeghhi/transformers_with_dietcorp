@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .model import GRUDecoder
-from .dataset import getDatasetLoaders
+from .dataset import getDatasetLoaders, training_batch_generator
 from .augmentations import mask_electrodes
 import torch.nn.functional as F
 from .loss import forward_cr_ctc, forward_ctc
@@ -19,18 +19,6 @@ from .loss import forward_cr_ctc, forward_ctc
 
 import wandb
 
-
-def lr_lambda(epoch):
-    if epoch < 200:
-        return 1.0    # 1e-3
-    elif epoch < 300:
-        return 0.5    # 5e-4
-    elif epoch < 400:
-        return 0.1    # 1e-4
-    elif epoch < 500:
-        return 0.05   # 5e-5
-    else:
-        return 0.01   # 1ef-5
 
 
 def trainModel(args, model):
@@ -95,10 +83,6 @@ def trainModel(args, model):
             eta_min=args['lrEnd']
         )
         
-    elif args['learning_scheduler'] == 'custom':
-        print("Custom scheduler")
-        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
-        
     else:
         
         print("Linear scheduler")
@@ -122,153 +106,117 @@ def trainModel(args, model):
     testLoss = []
     testCER = []
     startTime = time.time()
-    for epoch in range(args['n_epochs']):
-        
-        train_loss = []
-        train_kl_loss = []
+    train_loss = []
+    
+    for X, y, X_len, y_len, dayIdx, compute_val in training_batch_generator(trainLoader, args):
         model.train()
         
-        for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
-                            
-                            
-            X, y, X_len, y_len, dayIdx = (
-                X.to(args["device"]),
-                y.to(args["device"]),
-                X_len.to(args["device"]),
-                y_len.to(args["device"]),
-                dayIdx.to(args["device"]),
+        # Noise augmentation is faster on GPU
+        if args["whiteNoiseSD"] > 0:
+            X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
+
+        if args["constantOffsetSD"] > 0:
+            X += (
+                torch.randn([X.shape[0], 1, X.shape[2]], device=args["device"])
+                * args["constantOffsetSD"]
             )
             
-            
-            # Noise augmentation is faster on GPU
-            if args["whiteNoiseSD"] > 0:
-                X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
-
-            if args["constantOffsetSD"] > 0:
-                X += (
-                    torch.randn([X.shape[0], 1, X.shape[2]], device=args["device"])
-                    * args["constantOffsetSD"]
-                )
-
-            # Compute prediction error
-            pred = model.forward(X, X_len, dayIdx)
-                        
-            adjustedLens = model.compute_length(X_len)
-            
-            if args['consistency']:
-
-
-                ctc_loss, kl_loss = forward_cr_ctc(pred, adjustedLens.repeat(2), 
-                                                   torch.cat([y, y], dim=0), y_len.repeat(2))
-                ctc_loss = ctc_loss*0.5
-                kl_loss = kl_loss*0.5
-
-                train_loss.append(ctc_loss.cpu().detach().numpy())
-                train_kl_loss.append(kl_loss.cpu().detach().numpy())
-
-                loss = ctc_loss + args['consistency_scalar']*kl_loss
-                
-            else:
-                
-                loss = forward_ctc(pred, adjustedLens, y, y_len)
-                train_loss.append(loss.cpu().detach().numpy())
-            
-
-            #loss = torch.sum(loss)
-            # Backpropagation
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()            
-            
-            # print(endTime - startTime)
-
-
-        with torch.no_grad():
-            
-            avgTrainLoss = np.mean(train_loss)
-            
-            if args['consistency']:
-                avgTrainKLLoss = np.mean(train_kl_loss)
-            
-            model.eval()
-            allLoss = []
-            total_edit_distance = 0
-            total_seq_length = 0
-            
-            for X, y, X_len, y_len, testDayIdx in testLoader:
-                
-                if args['testing_on_held_out']:
-                    testDayIdx.fill_(args['maxDay'])
-
-                X, y, X_len, y_len, testDayIdx = (
-                    X.to(args["device"]),
-                    y.to(args["device"]),
-                    X_len.to(args["device"]),
-                    y_len.to(args["device"]),
-                    testDayIdx.to(args["device"]),
-                )
-
-                pred = model.forward(X, X_len, testDayIdx)
-                
-                adjustedLens = model.compute_length(X_len)
-                
-                loss = loss_ctc(
-                    torch.permute(pred.log_softmax(2), [1, 0, 2]),
-                    y,
-                    adjustedLens,
-                    y_len,
-                )
-                
-                allLoss.append(loss.cpu().detach().numpy())
-
-                for iterIdx in range(pred.shape[0]):
-                    decodedSeq = torch.argmax(
-                        torch.tensor(pred[iterIdx, 0 : adjustedLens[iterIdx], :]),
-                        dim=-1,
-                    )  # [num_seq,]
-                    decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
-                    decodedSeq = decodedSeq.cpu().detach().numpy()
-                    decodedSeq = np.array([i for i in decodedSeq if i != 0])
-
-                    trueSeq = np.array(
-                        y[iterIdx][0 : y_len[iterIdx]].cpu().detach()
-                    )
-
-                    matcher = SequenceMatcher(
-                        a=trueSeq.tolist(), b=decodedSeq.tolist()
-                    )
-                    total_edit_distance += matcher.distance()
-                    total_seq_length += len(trueSeq)
-
-            avgDayLoss = np.mean(allLoss)
-            cer = total_edit_distance / total_seq_length
-
-            endTime = time.time()
-            print(
-                f"Epoch {epoch}, ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
-            )
-                
-            log_dict = {
-                "train_ctc_Loss": avgTrainLoss,
-                "ctc_loss": avgDayLoss,
-                "cer": cer,
-                "time_per_epoch": (endTime - startTime) / 100, 
-            }
-
-            if args['consistency']:
-                log_dict['train_kl_loss'] = avgTrainKLLoss
-                
-
-            wandb.log(log_dict)
-                        
-            startTime = time.time()
-
-        if len(testCER) > 0 and cer < np.min(testCER):
-            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
-            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
-            torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
-            
+        # Compute prediction error
+        pred = model.forward(X, X_len, dayIdx)
+                    
+        adjustedLens = model.compute_length(X_len)
         
+        loss = forward_ctc(pred, adjustedLens, y, y_len)
+        train_loss.append(loss.cpu().detach().numpy())
+            
+        # Backpropagation
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()            
+        
+        # print(endTime - startTime)
+
+        if compute_val:
+
+            with torch.no_grad():
+                
+                avgTrainLoss = np.mean(train_loss)
+                
+                model.eval()
+                allLoss = []
+                total_edit_distance = 0
+                total_seq_length = 0
+                
+                for X, y, X_len, y_len, testDayIdx in testLoader:
+                    
+                    if args['testing_on_held_out']:
+                        testDayIdx.fill_(args['maxDay'])
+
+                    X, y, X_len, y_len, testDayIdx = (
+                        X.to(args["device"]),
+                        y.to(args["device"]),
+                        X_len.to(args["device"]),
+                        y_len.to(args["device"]),
+                        testDayIdx.to(args["device"]),
+                    )
+
+                    pred = model.forward(X, X_len, testDayIdx)
+                    
+                    adjustedLens = model.compute_length(X_len)
+                    
+                    loss = loss_ctc(
+                        torch.permute(pred.log_softmax(2), [1, 0, 2]),
+                        y,
+                        adjustedLens,
+                        y_len,
+                    )
+                    
+                    allLoss.append(loss.cpu().detach().numpy())
+
+                    for iterIdx in range(pred.shape[0]):
+                        decodedSeq = torch.argmax(
+                            torch.tensor(pred[iterIdx, 0 : adjustedLens[iterIdx], :]),
+                            dim=-1,
+                        )  # [num_seq,]
+                        decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
+                        decodedSeq = decodedSeq.cpu().detach().numpy()
+                        decodedSeq = np.array([i for i in decodedSeq if i != 0])
+
+                        trueSeq = np.array(
+                            y[iterIdx][0 : y_len[iterIdx]].cpu().detach()
+                        )
+
+                        matcher = SequenceMatcher(
+                            a=trueSeq.tolist(), b=decodedSeq.tolist()
+                        )
+                        total_edit_distance += matcher.distance()
+                        total_seq_length += len(trueSeq)
+
+                avgDayLoss = np.mean(allLoss)
+                cer = total_edit_distance / total_seq_length
+
+                endTime = time.time()
+                print(
+                    f"ctc loss: {avgDayLoss:>7f}, cer: {cer:>7f}, time/batch: {(endTime - startTime)/100:>7.3f}"
+                )
+                    
+                log_dict = {
+                    "train_ctc_Loss": avgTrainLoss,
+                    "ctc_loss": avgDayLoss,
+                    "cer": cer,
+                    "time_per_val_step": (endTime - startTime) / 100, 
+                }
+
+                wandb.log(log_dict)
+                            
+                startTime = time.time()
+
+            if len(testCER) > 0 and cer < np.min(testCER):
+                torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
+                torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
+                torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
+                
+            
         testLoss.append(avgDayLoss)
         testCER.append(cer)
 
