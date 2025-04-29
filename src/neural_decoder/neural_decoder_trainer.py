@@ -20,7 +20,6 @@ from .loss import forward_cr_ctc, forward_ctc
 import wandb
 
 
-
 def trainModel(args, model):
     
     wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
@@ -37,7 +36,6 @@ def trainModel(args, model):
         args["batchSize"],
         args['restricted_days']
     )
-    
     
     # Watch the model
     wandb.watch(model, log="all")  # Logs gradients, parameters, and gradients histograms
@@ -107,6 +105,7 @@ def trainModel(args, model):
     testCER = []
     startTime = time.time()
     train_loss = []
+    
     
     for X, y, X_len, y_len, dayIdx, compute_val in training_batch_generator(trainLoader, args):
         model.train()
@@ -211,22 +210,24 @@ def trainModel(args, model):
                             
                 startTime = time.time()
 
-            if len(testCER) > 0 and cer < np.min(testCER):
-                torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
-                torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
-                torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
+                if len(testCER) > 0 and cer < np.min(testCER):
+                    torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
+                    torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
+                    torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
+                    
+                    
+                testLoss.append(avgDayLoss)
+                testCER.append(cer)
+
+            tStats = {}
+            tStats["testLoss"] = np.array(testLoss)
+            tStats["testCER"] = np.array(testCER)
+
+            with open(args["outputDir"] + "/trainingStats", "wb") as file:
+                pickle.dump(tStats, file)
                 
+            scheduler.step()
             
-        testLoss.append(avgDayLoss)
-        testCER.append(cer)
-
-        tStats = {}
-        tStats["testLoss"] = np.array(testLoss)
-        tStats["testCER"] = np.array(testCER)
-
-        with open(args["outputDir"] + "/trainingStats", "wb") as file:
-            pickle.dump(tStats, file)
-            
-        scheduler.step()
+       
 
 

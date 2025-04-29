@@ -120,8 +120,7 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks, consistency, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path):
+                 nClasses, T5_style_pos, max_mask_pct, num_masks):
    
         super().__init__()
 
@@ -136,10 +135,6 @@ class BiT_Phoneme(nn.Module):
         self.max_mask_pct = max_mask_pct
         self.num_masks = num_masks    
         self.patch_dim = patch_height * patch_width
-        self.consistency = consistency
-        self.num_masks_channels = num_masks_channels
-        self.max_channels_to_mask  = max_mask_channels
-        self.dist_dict_path = dist_dict_path
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -153,10 +148,7 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
-        if mask_token_zeros:
-            self.mask_token = nn.Parameter(torch.zeros(self.patch_dim), requires_grad=False)
-        else:
-            self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
+        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
         
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
@@ -185,8 +177,6 @@ class BiT_Phoneme(nn.Module):
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         
-        if self.training and self.max_channels_to_mask > 0: 
-            neuralInput, _ = self.channel_specaugment_masks(neuralInput)
         
         # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
@@ -194,21 +184,7 @@ class BiT_Phoneme(nn.Module):
         if self.training and self.max_mask_pct > 0:
             
             x = self.to_patch(neuralInput)
-
-            if self.consistency:
-                x1, mask1 = self.apply_specaugment_mask(x, X_len)
-                x2, mask2 = self.apply_specaugment_mask(x, X_len)
-
-                if torch.equal(mask1, mask2):
-                    print("Warning: mask1 is equal to mask2 — possible issue with randomness in SpecAugment")
-
-                # x is of shape B x P x D, stack x and x2 along batch dimension
-                x = torch.cat([x1, x2], dim=0)
-                
-            else:
-                x, _ = self.apply_specaugment_mask(x, X_len)
-                
-            
+            x, _ = self.apply_specaugment_mask(x, X_len)            
             x = self.patch_to_emb(x)
                 
         else:
@@ -217,7 +193,6 @@ class BiT_Phoneme(nn.Module):
         
                       
         # apply input level dropout. 
-        
         x = self.dropout(x)
         
         b, seq_len, _ = x.shape
