@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import pickle 
+from tqdm import tqdm
 
 
 class SpeechDataset(Dataset):
@@ -354,18 +355,10 @@ def training_batch_generator(trainLoader, args):
             )
             
     else:
-        
-        prev_epoch = 0
-        
+        num_batches = len(trainLoader)
         for epoch in range(args["n_epochs"]):
-            
-            if prev_epoch != epoch:
-                compute_val = True
-            else:
-                compute_val = False
-            
-            for X, y, X_len, y_len, dayIdx in tqdm(trainLoader, desc=f"Training Epoch {epoch}"):
-                
+            for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc=f"Training Epoch {epoch}")):
+                compute_val = (batch_idx == num_batches - 1)
                 yield (
                     X.to(args["device"]),
                     y.to(args["device"]),
@@ -374,5 +367,3 @@ def training_batch_generator(trainLoader, args):
                     dayIdx.to(args["device"]),
                     compute_val
                 )
-                
-            prev_epoch = epoch
