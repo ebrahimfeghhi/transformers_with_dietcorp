@@ -330,3 +330,49 @@ def sliding_chunks(x, chunk_size=32, stride=4):
     # Unfold the time dimension (dim=1) using torch.nn.functional.unfold logic
     x = x.unfold(dimension=1, size=chunk_size, step=stride).permute(0, 1, 3, 2)  # (B, M, chunk_size, C)
     return x
+
+def training_batch_generator(trainLoader, args):
+    
+    if args['batchStyle']:
+        
+        for i in range(args["nBatch"]):
+            
+            X, y, X_len, y_len, dayIdx = next(iter(trainLoader))
+            
+            if i % 100 == 0:
+                compute_val = True
+            else:
+                compute_val = False
+                
+            yield (
+                X.to(args["device"]),
+                y.to(args["device"]),
+                X_len.to(args["device"]),
+                y_len.to(args["device"]),
+                dayIdx.to(args["device"]),
+                compute_val
+            )
+            
+    else:
+        
+        prev_epoch = 0
+        
+        for epoch in range(args["n_epochs"]):
+            
+            if prev_epoch != epoch:
+                compute_val = True
+            else:
+                compute_val = False
+            
+            for X, y, X_len, y_len, dayIdx in tqdm(trainLoader, desc=f"Training Epoch {epoch}"):
+                
+                yield (
+                    X.to(args["device"]),
+                    y.to(args["device"]),
+                    X_len.to(args["device"]),
+                    y_len.to(args["device"]),
+                    dayIdx.to(args["device"]),
+                    compute_val
+                )
+                
+            prev_epoch = epoch
