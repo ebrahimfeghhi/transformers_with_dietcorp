@@ -109,7 +109,7 @@ def trainModel(args, model):
             total_iters=args["n_epochs"],
         )
     
-    if args['load_pretrained_model'] > 0:
+    if len(args['load_pretrained_model']) > 0:
         optimizer_path = os.path.join(args['load_pretrained_model'], 'optimizer')
         optimizer.load_state_dict(torch.load(optimizer_path, map_location=args['device']))
         

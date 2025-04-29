@@ -11,14 +11,14 @@ class GRUDecoder(nn.Module):
         n_classes,
         hidden_dim,
         layer_dim,
-        nDays=24,
-        dropout=0,
-        input_dropout=0.2, 
-        device="cuda",
-        strideLen=4,
-        kernelLen=14,
-        gaussianSmoothWidth=0,
-        bidirectional=False,
+        nDays,
+        dropout,
+        input_dropout, 
+        device,
+        strideLen,
+        kernelLen,
+        gaussianSmoothWidth,
+        bidirectional,
     ):
         super(GRUDecoder, self).__init__()
 
@@ -84,7 +84,7 @@ class GRUDecoder(nn.Module):
         else:
             self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1)  # +1 for CTC blank
 
-    def forward(self, neuralInput, dayIdx):
+    def forward(self, neuralInput, X_len, dayIdx):
         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
