@@ -77,7 +77,7 @@ args['nBatch'] = 138000
 
 # number of epochs/batches after which to drop the learning rate
 if args['batchStyle']:
-    args['milestones'] = [276] 
+    args['milestones'] = [552] 
 else:
     args['milestones'] = [400] 
     
