@@ -7,11 +7,12 @@ num_seeds = 5
 
 for i in range(num_seeds):
     
-    modelName = f'gru_baseline_with_early_stop_seed_{i}'
+    modelName = f'gru_held_out_days_with_early_stop_seed_{i}'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
     possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
+                          '/data/willett_data/ptDecoder_ctc_held_out_days', 
                         '/data/willett_data/ptDecoder_ctc_both', 
                         '/home3/skaasyap/willett/data', 
                         '/home3/skaasyap/willett/data_log', 
@@ -19,8 +20,9 @@ for i in range(num_seeds):
                         '/home3/skaasyap/willett/data_log_both_held_out_days']
 
     args = {}
-    args['datasetPath'] = possiblePaths_data[0] # -1 is now held out days 
+    args['datasetPath'] = possiblePaths_data[1] 
     args['outputDir'] = possiblePath_dir[0] + modelName
+    print(args['datasetPath'])
     args['modelName'] = modelName
 
     if os.path.exists(args['outputDir']):
@@ -49,16 +51,16 @@ for i in range(num_seeds):
     args['l2_decay'] = 1e-5
     args['device'] = 'cuda:0'
     args['nDays'] = 24
-    args['testing_on_held_out'] = False
+    args['testing_on_held_out'] = True
     args['restricted_days'] = []
-    args['maxDay'] = None
+    args['maxDay'] = 14
     args['AdamW'] = False
     args['beta1'] = 0.90
     args['beta2'] = 0.999
     args['learning_scheduler'] = 'None'
     args['load_pretrained_model'] = ''
     args['batchStyle'] = True
-    args['nBatch'] = 300000
+    args['nBatch'] = 200000
     args['early_stop'] = 20 # how many validations steps to wait if CER doesn't improve before ending run. 
 
     from neural_decoder.neural_decoder_trainer import trainModel

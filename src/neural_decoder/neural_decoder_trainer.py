@@ -110,8 +110,9 @@ def trainModel(args, model):
     
     
     for X, y, X_len, y_len, dayIdx, compute_val in training_batch_generator(trainLoader, args):
-        model.train()
         
+        model.train()
+
         # Noise augmentation is faster on GPU
         if args["whiteNoiseSD"] > 0:
             X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
