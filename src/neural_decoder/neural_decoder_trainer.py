@@ -22,6 +22,8 @@ import wandb
 
 def trainModel(args, model):
     
+    val_checks_since_improvement = 0
+    
     wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
     
     os.makedirs(args["outputDir"], exist_ok=True)
@@ -214,8 +216,15 @@ def trainModel(args, model):
                     torch.save(model.state_dict(), args["outputDir"] + "/modelWeights")
                     torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
                     torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
-                    
-                    
+                    val_checks_since_improvement = 0 # reset to 0 
+                else:
+                    val_checks_since_improvement += 1
+                    print(f"No improvement in CER. Patience: {val_checks_since_improvement}/{args['early_stop']}")
+                    if val_checks_since_improvement >= args['early_stop']:
+                        print("Early stopping: CER hasn't improved in specified number of validation checks.")
+                        wandb.finish()
+                        return
+                                    
                 testLoss.append(avgDayLoss)
                 testCER.append(cer)
 
