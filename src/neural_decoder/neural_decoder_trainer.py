@@ -230,13 +230,14 @@ def trainModel(args, model):
                     
                 # check if cer is within 1% of the lowest CER.
                 if len(testCER) > 0 and cer < min(testCER) + 0.01: 
-
-                    # best_cer_ctc_model is the cer of the previously saved low ctc loss model
-                    # Check if previous saved_ctc model was also within 1% of best CER
+                    
+                    lowest_cer_idx = np.argmin(testCER)
+                    
+                    # did a previously saved model also lie within the margin?
                     if best_cer_ctc_model < min(testCER) + 0.01:
                         
-                        # Check if current model got a better ctc loss 
-                        if avgDayLoss < best_ctc_model_loss:
+                        # does this model achieve a lower ctc loss saved model and the current best saved model?
+                        if avgDayLoss < best_ctc_model_loss and avgDayLoss < testLoss[lowest_cer_idx]:
                             torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
                             torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
                             torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
@@ -245,11 +246,10 @@ def trainModel(args, model):
                             best_ctc_model_loss = avgDayLoss 
                             best_cer_ctc_model = cer
                         
-                    # No previous model saved within CER margin — initialize new one        
+                    # No previous model saved within CER margin       
                     else:
                         
-                        lowest_cer_idx = np.argmin(testCER)
-                        
+                        # does this model achieve a lower ctc loss than the best cer model?
                         if avgDayLoss < testLoss[lowest_cer_idx]:
                             
                             torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
