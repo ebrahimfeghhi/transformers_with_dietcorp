@@ -23,6 +23,8 @@ import wandb
 def trainModel(args, model):
     
     val_checks_since_improvement = 0
+    best_ctc_model_loss = float("inf") # some big number
+    best_cer_ctc_model = float("inf")
     
     wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
     
@@ -225,7 +227,28 @@ def trainModel(args, model):
                         print("Early stopping: CER hasn't improved in specified number of validation checks.")
                         wandb.finish()
                         return
-                                    
+                    
+                if len(testCER) > 0 and abs(min(testCER) - cer) < 0.01:
+
+                    # Check if previous saved_ctc model was also within 1% of best CER
+                    if abs(min(testCER) - best_cer_ctc_model) < 0.01:
+                        # Only overwrite if current model improves CTC loss
+                        if avgDayLoss < best_ctc_model_loss:
+                            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
+                            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
+                            torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
+                            best_ctc_model_loss = avgDayLoss
+                    else:
+                        # No previous model saved within CER margin — initialize new one
+                        lowest_cer_idx = np.argmin(testCER)
+                        if avgDayLoss < testLoss[lowest_cer_idx]:
+                            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
+                            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
+                            torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
+                            best_ctc_model_loss = avgDayLoss
+                            best_cer_ctc_model = min(testCER)
+                                            
+                        
                 testLoss.append(avgDayLoss)
                 testCER.append(cer)
 
