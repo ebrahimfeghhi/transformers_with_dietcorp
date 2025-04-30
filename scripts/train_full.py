@@ -68,10 +68,10 @@ for seed in range(num_seeds):
     # number of epochs/batches after which to drop the learning rate
     if args['batchStyle']:
         args['milestones'] = [552] 
-        args['early_stop'] = 50 # 5000 batches
+        args['early_stop'] = 207
     else:
         args['milestones'] = [400] 
-        args['early_stop'] = 36 # 5000 batches
+        args['early_stop'] = 150 
         
     args['look_ahead'] = 0 
     args['extra_notes'] = ("")
