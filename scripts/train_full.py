@@ -3,11 +3,12 @@ import os
 import sys
 import torch
 
-num_seeds = 5
+num_seeds = 2
+start = 2
 
-for seed in range(num_seeds):
+for seed in range(start, num_seeds+start):
 
-    modelName = f'transformer_early_stop_batch_style_seed_{seed}'
+    modelName = f'masked_transformer_{seed}'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
@@ -62,20 +63,20 @@ for seed in range(num_seeds):
     args['beta2'] = 0.999
     
     # whether to do actual epochs or just sample batches 
-    args['batchStyle'] = True
+    args['batchStyle'] = False
     args['nBatch'] = 276000
-    args['n_epochs'] = 2000
+    args['n_epochs'] = 600
     # number of epochs/batches after which to drop the learning rate
     if args['batchStyle']:
         args['milestones'] = [552] 
-        args['early_stop'] = 207
+        args['early_stop'] = float('inf')
     else:
         args['milestones'] = [400] 
-        args['early_stop'] = 150 
+        args['early_stop'] = float('inf')
         
     args['look_ahead'] = 0 
     args['extra_notes'] = ("")
-    args['device'] = 'cuda:0'
+    args['device'] = 'cuda:3'
     args['seed'] = seed
 
     args['load_pretrained_model'] = '' # empty string to not load any previous models. 
