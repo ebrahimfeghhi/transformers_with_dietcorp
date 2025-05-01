@@ -76,7 +76,7 @@ args['seed'] = 0
 
 args['T5_style_pos'] = True
 
-from neural_decoder.neural_decoder_trainer_memo import trainModel
+from neural_decoder.old_ideas.neural_decoder_trainer_memo import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
 model = BiT_Phoneme(
