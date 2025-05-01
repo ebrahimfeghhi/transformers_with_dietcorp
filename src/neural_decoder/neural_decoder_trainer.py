@@ -227,39 +227,7 @@ def trainModel(args, model):
                         print("Early stopping: CER hasn't improved in specified number of validation checks.")
                         wandb.finish()
                         return
-                    
-                # check if cer is within 1% of the lowest CER.
-                if len(testCER) > 0 and cer < min(testCER) + 0.01: 
-                    
-                    lowest_cer_idx = np.argmin(testCER)
-                    
-                    # did a previously saved model also lie within the margin?
-                    if best_cer_ctc_model < min(testCER) + 0.01:
-                        
-                        # does this model achieve a lower ctc loss saved model and the current best saved model?
-                        if avgDayLoss < best_ctc_model_loss and avgDayLoss < testLoss[lowest_cer_idx]:
-                            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
-                            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
-                            torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
-                            
-                            # update metrics
-                            best_ctc_model_loss = avgDayLoss 
-                            best_cer_ctc_model = cer
-                        
-                    # No previous model saved within CER margin       
-                    else:
-                        
-                        # does this model achieve a lower ctc loss than the best cer model?
-                        if avgDayLoss < testLoss[lowest_cer_idx]:
-                            
-                            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
-                            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
-                            torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
-                            
-                            best_ctc_model_loss = avgDayLoss
-                            best_cer_ctc_model = cer
-                                            
-                        
+                                                      
                 testLoss.append(avgDayLoss)
                 testCER.append(cer)
 
@@ -275,3 +243,35 @@ def trainModel(args, model):
        
 
 
+'''
+# check if cer is within 1% of the lowest CER.
+if len(testCER) > 0 and cer < min(testCER) + 0.01: 
+    
+    lowest_cer_idx = np.argmin(testCER)
+    
+    # did a previously saved model also lie within the margin?
+    if best_cer_ctc_model < min(testCER) + 0.01:
+        
+        # does this model achieve a lower ctc loss saved model and the current best saved model?
+        if avgDayLoss < best_ctc_model_loss and avgDayLoss < testLoss[lowest_cer_idx]:
+            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
+            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
+            torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
+            
+            # update metrics
+            best_ctc_model_loss = avgDayLoss 
+            best_cer_ctc_model = cer
+        
+    # No previous model saved within CER margin       
+    else:
+        
+        # does this model achieve a lower ctc loss than the best cer model?
+        if avgDayLoss < testLoss[lowest_cer_idx]:
+            
+            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
+            torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer_ctc")
+            torch.save(scheduler.state_dict(), args["outputDir"] + "/scheduler_ctc")
+            
+            best_ctc_model_loss = avgDayLoss
+            best_cer_ctc_model = cer
+'''

@@ -130,7 +130,6 @@ class BiT_Phoneme(nn.Module):
         self.dim = dim
         self.look_ahead = look_ahead  
         self.gaussianSmoothWidth = gaussianSmoothWidth
-        self.inputLayerNonlinearity = torch.nn.Softsign()
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
         self.num_masks = num_masks    
@@ -176,8 +175,7 @@ class BiT_Phoneme(nn.Module):
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
-        
-        
+    
         # if in mae mode, input has already been patched. 
         neuralInput = neuralInput.unsqueeze(1)
         
@@ -190,8 +188,7 @@ class BiT_Phoneme(nn.Module):
         else:
             
             x = self.to_patch_embedding(neuralInput)
-        
-                      
+              
         # apply input level dropout. 
         x = self.dropout(x)
         
