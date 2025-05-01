@@ -8,7 +8,7 @@ start = 0
 
 for seed in range(start, start+num_seeds):
     
-    modelName = f'gru_fully_held_out_days_seed_{seed}'
+    modelName = f'gru_epoch_baseline_XXX'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
@@ -22,7 +22,7 @@ for seed in range(start, start+num_seeds):
 
     args = {}
     args['outputDir'] = possiblePath_dir[0] + modelName
-    args['datasetPath'] = possiblePaths_data[1]
+    args['datasetPath'] = possiblePaths_data[0]
     print(args['datasetPath'])
     args['modelName'] = modelName
 
@@ -59,10 +59,7 @@ for seed in range(start, start+num_seeds):
     args['beta2'] = 0.999
     args['learning_scheduler'] = 'None'
     args['load_pretrained_model'] = ''
-    args['batchStyle'] = False
-    args['nBatch'] = 278000
     args['n_epochs'] = 73 
-    args['early_stop'] = float('inf') # how many validations steps to wait if CER doesn't improve before ending run. 
 
     from neural_decoder.neural_decoder_trainer import trainModel
     from neural_decoder.model import GRUDecoder
