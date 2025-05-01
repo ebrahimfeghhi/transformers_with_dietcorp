@@ -82,7 +82,7 @@ for seed in range(start, num_seeds+start):
     args['load_pretrained_model'] = '' # empty string to not load any previous models. 
     
         
-    from neural_decoder.measure_memory import trainModel
+    from neural_decoder.neural_decoder_trainer import trainModel
     from neural_decoder.bit import BiT_Phoneme
 
     model = BiT_Phoneme(

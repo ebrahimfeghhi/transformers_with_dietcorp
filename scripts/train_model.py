@@ -3,11 +3,12 @@ import os
 import sys
 
 
-num_seeds = 1
+num_seeds = 4
+start = 0
 
-for seed in range(1, num_seeds+1):
+for seed in range(start, start+num_seeds):
     
-    modelName = f'scratch'
+    modelName = f'gru_fully_held_out_days_seed_{seed}'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
@@ -20,8 +21,8 @@ for seed in range(1, num_seeds+1):
                         '/home3/skaasyap/willett/data_log_both_held_out_days']
 
     args = {}
-    args['datasetPath'] = possiblePaths_data[0] 
     args['outputDir'] = possiblePath_dir[0] + modelName
+    args['datasetPath'] = possiblePaths_data[1]
     print(args['datasetPath'])
     args['modelName'] = modelName
 
@@ -48,9 +49,9 @@ for seed in range(1, num_seeds+1):
     args['kernelLen'] = 32
     args['bidirectional'] = False
     args['l2_decay'] = 1e-5
-    args['device'] = 'cuda:2'
+    args['device'] = 'cuda:0'
     args['nDays'] = 24
-    args['testing_on_held_out'] = False
+    args['testing_on_held_out'] = True
     args['restricted_days'] = []
     args['maxDay'] = 14
     args['AdamW'] = False
@@ -63,7 +64,7 @@ for seed in range(1, num_seeds+1):
     args['n_epochs'] = 73 
     args['early_stop'] = float('inf') # how many validations steps to wait if CER doesn't improve before ending run. 
 
-    from neural_decoder.measure_memory import trainModel
+    from neural_decoder.neural_decoder_trainer import trainModel
     from neural_decoder.model import GRUDecoder
 
     model = GRUDecoder(

@@ -255,7 +255,7 @@ def getDatasetLoaders(
         
     test_loader = DataLoader(
         test_ds,
-        batch_size=1,
+        batch_size=batchSize,
         shuffle=False,
         num_workers=0,
         pin_memory=True,
