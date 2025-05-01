@@ -3,12 +3,12 @@ import os
 import sys
 import torch
 
-num_seeds = 2
-start = 2
+num_seeds = 4
+start = 0
 
 for seed in range(start, num_seeds+start):
 
-    modelName = f'masked_transformer_{seed}'
+    modelName = f'neurips_transformer_time_masked_seed_{seed}'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
@@ -62,17 +62,8 @@ for seed in range(start, num_seeds+start):
     args['beta1'] = 0.90
     args['beta2'] = 0.999
     
-    # whether to do actual epochs or just sample batches 
-    args['batchStyle'] = False
-    args['nBatch'] = 276000
     args['n_epochs'] = 600
-    # number of epochs/batches after which to drop the learning rate
-    if args['batchStyle']:
-        args['milestones'] = [552] 
-        args['early_stop'] = float('inf')
-    else:
-        args['milestones'] = [400] 
-        args['early_stop'] = float('inf')
+    args['milestones'] = [400] 
         
     args['look_ahead'] = 0 
     args['extra_notes'] = ("")
