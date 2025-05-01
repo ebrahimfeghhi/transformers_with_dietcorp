@@ -3,12 +3,12 @@ import os
 import sys
 import torch
 
-num_seeds = 4
-start = 0
+num_seeds = 2
+start = 2
 
 for seed in range(start, num_seeds+start):
 
-    modelName = f'neurips_transformer_time_masked_seed_{seed}'
+    modelName = f'neurips_transformer_time_masked_held_out_days_seed_{seed}'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
@@ -20,12 +20,12 @@ for seed in range(start, num_seeds+start):
                         '/home3/skaasyap/willett/data_log_both_held_out_days']
 
     args = {}
-    args['outputDir'] = possiblePath_dir[0] + modelName
-    args['datasetPath'] = possiblePaths_data[1] # -1 is now held out days 
+    args['outputDir'] = possiblePath_dir[1] + modelName
+    args['datasetPath'] = possiblePaths_data[-1] # -1 is now held out days 
     args['modelName'] = modelName
 
-    args['testing_on_held_out'] = False # set to true if using held_out_days split
-    args['maxDay'] = 15 # only applies if testing_on_held_out is true
+    args['testing_on_held_out'] = True # set to true if using held_out_days split
+    args['maxDay'] = 14 # only applies if testing_on_held_out is true
     args['restricted_days'] = [] # only uses restricted_days 
 
     if os.path.exists(args['outputDir']):
@@ -55,19 +55,19 @@ for seed in range(start, num_seeds+start):
     # learning stuff 
     args['AdamW'] = True
     args['learning_scheduler'] = 'multistep'
-    args['gamma'] = 0.1 # factor by which to drop the learning rate at milestone 
     args['lrStart'] = 0.001
     args['lrEnd'] = 0.001
     args['batchSize'] = 64
     args['beta1'] = 0.90
     args['beta2'] = 0.999
-    
     args['n_epochs'] = 600
     args['milestones'] = [400] 
+    args['gamma'] = 0.1 # factor by which to drop the learning rate at milestone 
+    
         
     args['look_ahead'] = 0 
     args['extra_notes'] = ("")
-    args['device'] = 'cuda:0'
+    args['device'] = 'cuda:3'
     args['seed'] = seed
 
     args['load_pretrained_model'] = '' # empty string to not load any previous models. 
