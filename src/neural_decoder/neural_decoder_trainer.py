@@ -23,8 +23,6 @@ import wandb
 def trainModel(args, model):
     
     val_checks_since_improvement = 0
-    best_ctc_model_loss = float("inf") # some big number
-    best_cer_ctc_model = float("inf")
     
     wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
     
@@ -240,7 +238,9 @@ def trainModel(args, model):
                 
             scheduler.step()
             
-       
+            
+    wandb.finish()
+    return 
 
 
 '''
