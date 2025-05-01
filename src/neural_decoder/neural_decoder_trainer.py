@@ -135,9 +135,7 @@ def trainModel(args, model):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()            
-        
-        print(endTime - startTime)
-
+    
         if compute_val:
 
             with torch.no_grad():
