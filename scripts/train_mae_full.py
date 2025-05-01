@@ -63,7 +63,7 @@ args['learning_scheduler'] = ''
 args['load_pretrained_mae'] = ""
 
 from neural_decoder.neural_decoder_trainer_mae import trainModel
-from neural_decoder.bit_with_adapt import BiT_Phoneme
+from neural_decoder.old_ideas.bit_with_adapt import BiT_Phoneme
 
 model = BiT_Phoneme(
     patch_size=args['patch_size'],

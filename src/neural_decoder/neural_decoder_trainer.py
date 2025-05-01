@@ -136,7 +136,7 @@ def trainModel(args, model):
         loss.backward()
         optimizer.step()            
         
-        # print(endTime - startTime)
+        print(endTime - startTime)
 
         if compute_val:
 

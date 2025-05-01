@@ -20,8 +20,8 @@ for seed in range(start, num_seeds+start):
                         '/home3/skaasyap/willett/data_log_both_held_out_days']
 
     args = {}
-    args['datasetPath'] = possiblePaths_data[3] # -1 is now held out days 
-    args['outputDir'] = possiblePath_dir[1] + modelName
+    args['outputDir'] = possiblePath_dir[0] + modelName
+    args['datasetPath'] = possiblePaths_data[1] # -1 is now held out days 
     args['modelName'] = modelName
 
     args['testing_on_held_out'] = False # set to true if using held_out_days split
@@ -76,13 +76,13 @@ for seed in range(start, num_seeds+start):
         
     args['look_ahead'] = 0 
     args['extra_notes'] = ("")
-    args['device'] = 'cuda:3'
+    args['device'] = 'cuda:0'
     args['seed'] = seed
 
     args['load_pretrained_model'] = '' # empty string to not load any previous models. 
     
         
-    from neural_decoder.neural_decoder_trainer import trainModel
+    from neural_decoder.measure_memory import trainModel
     from neural_decoder.bit import BiT_Phoneme
 
     model = BiT_Phoneme(

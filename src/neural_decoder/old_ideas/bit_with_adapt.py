@@ -5,9 +5,9 @@ import math
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
-from .augmentations import GaussianSmoothing
-from .dataset import pad_to_multiple
-from .bit import Transformer, create_temporal_mask, pair
+from ..augmentations import GaussianSmoothing
+from ..dataset import pad_to_multiple
+from ..bit import Transformer, create_temporal_mask, pair
 from torchmetrics.regression import R2Score
 import torch.nn.functional as F
 

@@ -3,11 +3,11 @@ import os
 import sys
 
 
-num_seeds = 3
+num_seeds = 1
 
 for seed in range(1, num_seeds+1):
     
-    modelName = f'gru_epoch_baseline_seed_{seed}'
+    modelName = f'scratch'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
@@ -48,7 +48,7 @@ for seed in range(1, num_seeds+1):
     args['kernelLen'] = 32
     args['bidirectional'] = False
     args['l2_decay'] = 1e-5
-    args['device'] = 'cuda:0'
+    args['device'] = 'cuda:2'
     args['nDays'] = 24
     args['testing_on_held_out'] = False
     args['restricted_days'] = []
@@ -63,7 +63,7 @@ for seed in range(1, num_seeds+1):
     args['n_epochs'] = 73 
     args['early_stop'] = float('inf') # how many validations steps to wait if CER doesn't improve before ending run. 
 
-    from neural_decoder.neural_decoder_trainer import trainModel
+    from neural_decoder.measure_memory import trainModel
     from neural_decoder.model import GRUDecoder
 
     model = GRUDecoder(
