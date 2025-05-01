@@ -8,10 +8,11 @@ start = 0
 
 for seed in range(start, start+num_seeds):
     
-    modelName = f'gru_epoch_baseline_XXX'
+    modelName = f'neurips_gru_baseline_seed_{seed}'
 
     possiblePath_dir = ['/data/willett_data/outputs/', 
                         '/home3/skaasyap/willett/outputs/']
+    
     possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
                           '/data/willett_data/ptDecoder_ctc_held_out_days', 
                         '/data/willett_data/ptDecoder_ctc_both', 
@@ -51,7 +52,7 @@ for seed in range(start, start+num_seeds):
     args['l2_decay'] = 1e-5
     args['device'] = 'cuda:0'
     args['nDays'] = 24
-    args['testing_on_held_out'] = True
+    args['testing_on_held_out'] = False
     args['restricted_days'] = []
     args['maxDay'] = 14
     args['AdamW'] = False
