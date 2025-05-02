@@ -50,7 +50,7 @@ for seed in range(START_SEED, START_SEED + NUM_SEEDS):
         'device': 'cuda:0',
 
         # Model hyperparameters
-        'nInputFeatures': 256,
+        'nInputFeatures': 128,
         'nClasses': 40,
         'nUnits': 1024,
         'nLayers': 5,
