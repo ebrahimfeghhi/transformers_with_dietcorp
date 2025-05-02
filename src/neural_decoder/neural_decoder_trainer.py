@@ -37,7 +37,8 @@ def trainModel(args, model):
     trainLoader, testLoader, loadedData = getDatasetLoaders(
         args["datasetPath"],
         args["batchSize"],
-        args['restricted_days']
+        args['restricted_days'], 
+        args['ventral_6v_only']
     )
     
     # Watch the model
