@@ -19,20 +19,18 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "neurips_gru_baseline"
 
-NUM_SEEDS = 4
-START_SEED = 0
+seed_list = [6, 7, 8, 9]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 model_name_base = "neurips_transformer_time_masked"
 
 
 # === MAIN LOOP ===
-for seed in range(START_SEED, START_SEED + NUM_SEEDS):
+for seed in seed_list:
     
-    model_name = f"{MODEL_NAME_BASE}_seed_{seed}"
+    model_name = f"{model_name_base}_seed_{seed}"
     output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
     dataset_path = DATA_PATHS[DATA_PATH_KEY]
 
@@ -73,7 +71,7 @@ for seed in range(START_SEED, START_SEED + NUM_SEEDS):
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:0',
+        'device': 'cuda:3',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
