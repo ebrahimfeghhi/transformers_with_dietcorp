@@ -20,7 +20,7 @@ DATA_PATHS = {
 }
 
 
-seed_list = [0,1]
+seed_list = [2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
@@ -70,7 +70,7 @@ for seed in seed_list:
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:3',
+        'device': 'cuda:0',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,

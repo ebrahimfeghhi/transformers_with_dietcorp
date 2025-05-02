@@ -24,8 +24,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "neurips_gru_baseline"
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "neurips_gru_ventral_6v_only"
+DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in range(START_SEED, START_SEED + NUM_SEEDS):
@@ -82,7 +82,9 @@ for seed in range(START_SEED, START_SEED + NUM_SEEDS):
         # Optional loading
         'load_pretrained_model': '', 
         'wandb_id': '', 
-        'start_epoch': 0
+        'start_epoch': 0,
+        
+        'ventral_6v_only': True 
     }
 
     # === Instantiate Model ===
