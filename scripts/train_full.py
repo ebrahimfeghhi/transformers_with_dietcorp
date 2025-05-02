@@ -24,8 +24,8 @@ seed_list = [6, 7, 8, 9]
 
 SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_time_masked"
-
+model_name_base = "neurips_transformer_time_masked_restricted_days"
+print(DATA_PATH_KEY)
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -42,7 +42,7 @@ for seed in seed_list:
         'modelName': model_name,
         'testing_on_held_out': False,
         'maxDay': 14,
-        'restricted_days': [],
+        'restricted_days': [15, 16, 17, 18, 19, 20],
         'patch_size': (5, 256),
         'dim': 384,
         'depth': 7,
