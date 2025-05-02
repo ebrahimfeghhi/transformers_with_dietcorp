@@ -103,13 +103,11 @@ def trainModel(args, model):
         scheduler.load_state_dict(torch.load(scheduler_path, map_location=args['device']))
         print(f"Loaded optimizer and scheduler state from {args['load_pretrained_model']}")
         
-        
     # --train--
     testLoss = []
     testCER = []
     startTime = time.time()
     train_loss = []
-    
     
     for epoch in range(args["start_epoch"], args['n_epochs']):
         
