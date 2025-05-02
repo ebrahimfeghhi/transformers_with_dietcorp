@@ -24,7 +24,7 @@ seed_list = [0,1]
 
 SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_time_masked_channel_drop_50"
+model_name_base = "neurips_transformer_time_masked_ventral_6v_only"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -42,7 +42,7 @@ for seed in seed_list:
         'testing_on_held_out': False,
         'maxDay': 14,
         'restricted_days': [],
-        'patch_size': (5, 100),
+        'patch_size': (5, 128),
         'dim': 384,
         'depth': 7,
         'heads': 6,
@@ -74,6 +74,7 @@ for seed in seed_list:
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
+        'ventral_6v_only': True
     }
 
     print(f"Using dataset: {args['datasetPath']}")

@@ -10,7 +10,7 @@ import numpy as np
 
 class SpeechDataset(Dataset):
     
-    def __init__(self, data, transform=None, restricted_days=[], channel_drop=None):
+    def __init__(self, data, transform=None, restricted_days=[], ventral_6v_only=False):
         
         self.data = data
         self.transform = transform
@@ -23,19 +23,19 @@ class SpeechDataset(Dataset):
         self.phone_seq_lens = []
         self.days = []
         
-        if channel_drop is not None:
-            
-             # select channel_drop integers from 0 - 64
-            channel_indices_array_1 = np.random.choice(np.arange(0, 65), size=channel_drop, replace=False)
+        #if channel_drop is not None:
+        #    
+        #     # select channel_drop integers from 0 - 64.
+        #    channel_indices_array_1 = np.random.choice(np.arange(0, 65), size=channel_drop, replace=False)
     
-            # select channel_drop integers from 128 - 192
-            channel_indices_array_2 = np.random.choice(np.arange(128, 193), size=channel_drop, replace=False)
+            # select channel_drop integers from 128 - 192.
+        #    channel_indices_array_2 = np.random.choice(np.arange(128, 193), size=channel_drop, replace=False)
 
-            # add 64 to each of the indices
-            channel_indices_array_1 = np.concatenate([channel_indices_array_1, channel_indices_array_1+64])
-            channel_indices_array_2 = np.concatenate([channel_indices_array_2, channel_indices_array_2+64])
-            
-            channel_indices = np.concatenate([channel_indices_array_1, channel_indices_array_2])
+            # add 64 to each of the indices because there are two features per channel.
+        #    channel_indices_array_1 = np.concatenate([channel_indices_array_1, channel_indices_array_1+64])
+        #    channel_indices_array_2 = np.concatenate([channel_indices_array_2, channel_indices_array_2+64])
+        #    
+        #    channel_indices = np.concatenate([channel_indices_array_1, channel_indices_array_2])
 
         for day in range(self.n_days):
             
@@ -47,8 +47,8 @@ class SpeechDataset(Dataset):
             
             for trial in range(len(data[day]["sentenceDat"])):
                 
-                if channel_drop is not None:
-                    self.neural_feats.append(data[day]["sentenceDat"][trial][:, channel_indices])
+                if ventral_6v_only:
+                    self.neural_feats.append(data[day]["sentenceDat"][trial][:, 0:128])
                 else:
                     self.neural_feats.append(data[day]["sentenceDat"][trial])
                     
@@ -241,7 +241,7 @@ def getDatasetLoaders(
     datasetName,
     batchSize, 
     restricted_days=[],
-    channel_drop=None
+    ventral_6v_only=False
 ):
     with open(datasetName, "rb") as handle:
         loadedData = pickle.load(handle)
@@ -261,10 +261,10 @@ def getDatasetLoaders(
         
   
     train_ds = SpeechDataset(loadedData["train"], transform=None, 
-                             restricted_days=restricted_days, channel_drop=channel_drop)
+                             restricted_days=restricted_days, ventral_6v_only=ventral_6v_only)
     
     test_ds = SpeechDataset(loadedData["test"], 
-                            restricted_days=restricted_days, channel_drop=channel_drop)
+                            restricted_days=restricted_days, ventral_6v_only=ventral_6v_only)
 
     train_loader = DataLoader(
         train_ds,
