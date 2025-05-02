@@ -1,85 +1,96 @@
-
 import os
-import sys
 import torch
 
-num_seeds = 2
-start = 2
+from neural_decoder.neural_decoder_trainer import trainModel
+from neural_decoder.bit import BiT_Phoneme
 
-for seed in range(start, num_seeds+start):
+# === CONFIGURATION ===
+BASE_PATHS = {
+    'obi': '/data/willett_data',
+    'leia': '/home3/skaasyap/willett'
+}
 
-    modelName = f'neurips_transformer_time_masked_held_out_days_seed_{seed}'
+DATA_PATHS = {
+    'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
+    'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
+    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'leia': os.path.join(BASE_PATHS['leia'], 'data'),
+    'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
+    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
+}
 
-    possiblePath_dir = ['/data/willett_data/outputs/', 
-                        '/home3/skaasyap/willett/outputs/']
+MODEL_NAME_BASE = "neurips_gru_baseline"
+
+NUM_SEEDS = 4
+START_SEED = 0
+
+SERVER = 'obi'  # Change to 'leia' if needed
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "neurips_transformer_time_masked"
+
+
+# === MAIN LOOP ===
+for seed in range(START_SEED, START_SEED + NUM_SEEDS):
     
-    possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
-                        '/data/willett_data/ptDecoder_ctc_both', 
-                        '/home3/skaasyap/willett/data', 
-                        '/home3/skaasyap/willett/data_log_both',
-                        '/home3/skaasyap/willett/data_log_both_held_out_days']
+    model_name = f"{MODEL_NAME_BASE}_seed_{seed}"
+    output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
+    dataset_path = DATA_PATHS[DATA_PATH_KEY]
 
-    args = {}
-    args['outputDir'] = possiblePath_dir[1] + modelName
-    args['datasetPath'] = possiblePaths_data[-1] # -1 is now held out days 
-    args['modelName'] = modelName
+    # Create config dictionary
+    args = {
+        'seed': seed,
+        'outputDir': output_dir,
+        'datasetPath': dataset_path,
+        'modelName': model_name,
+        'testing_on_held_out': False,
+        'maxDay': 14,
+        'restricted_days': [],
+        'patch_size': (5, 256),
+        'dim': 384,
+        'depth': 7,
+        'heads': 6,
+        'mlp_dim_ratio': 4,
+        'dim_head': 64,
+        'T5_style_pos': True,
+        'nClasses': 40,
+        'whiteNoiseSD': 0.2,
+        'gaussianSmoothWidth': 2.0,
+        'constantOffsetSD': 0.05,
+        'num_masks': 20,
+        'max_mask_pct': 0.075,
+        'l2_decay': 1e-5,
+        'input_dropout': 0.2,
+        'dropout': 0.35,
+        'AdamW': True,
+        'learning_scheduler': 'multistep',
+        'lrStart': 0.001,
+        'lrEnd': 0.001,
+        'batchSize': 64,
+        'beta1': 0.90,
+        'beta2': 0.999,
+        'n_epochs': 600,
+        'milestones': [400],
+        'gamma': 0.1,
+        'look_ahead': 0,
+        'extra_notes': "",
+        'device': 'cuda:0',
+        'load_pretrained_model': "",
+        'wandb_id': "",
+        'start_epoch': 0,
+    }
 
-    args['testing_on_held_out'] = True # set to true if using held_out_days split
-    args['maxDay'] = 14 # only applies if testing_on_held_out is true
-    args['restricted_days'] = [] # only uses restricted_days 
+    print(f"Using dataset: {args['datasetPath']}")
 
+    # Warn if output directory exists
     if os.path.exists(args['outputDir']):
-        print(f"Output directory '{args['outputDir']}' already exists. Press c to continue.")
+        print(f"Output directory '{args['outputDir']}' already exists. Press 'c' to continue.")
         breakpoint()
-        
-    # model related parameters
-    args['patch_size']= (5, 256) #TODO
-    args['dim'] = 384 #TODO
-    args['depth'] = 7 #TODO
-    args['heads'] = 6
-    args['mlp_dim_ratio'] = 4 #TODO
-    args['dim_head'] = 64
-    args['T5_style_pos'] = True
-    args['nClasses'] = 40
 
-    # other overfitting stuff
-    args['whiteNoiseSD'] = 0.2
-    args['gaussianSmoothWidth'] = 2.0
-    args['constantOffsetSD'] = 0.05
-    args['num_masks'] = 20
-    args['max_mask_pct'] = 0.075
-    args['l2_decay'] = 1e-5
-    args['input_dropout'] = 0.2
-    args['dropout'] = 0.35
-    
-    # learning stuff 
-    args['AdamW'] = True
-    args['learning_scheduler'] = 'multistep'
-    args['lrStart'] = 0.001
-    args['lrEnd'] = 0.001
-    args['batchSize'] = 64
-    args['beta1'] = 0.90
-    args['beta2'] = 0.999
-    args['n_epochs'] = 600
-    args['milestones'] = [400] 
-    args['gamma'] = 0.1 # factor by which to drop the learning rate at milestone 
-    
-        
-    args['look_ahead'] = 0 
-    args['extra_notes'] = ("")
-    args['device'] = 'cuda:3'
-    args['seed'] = seed
-
-    args['load_pretrained_model'] = '' # empty string to not load any previous models. 
-    
-        
-    from neural_decoder.neural_decoder_trainer import trainModel
-    from neural_decoder.bit import BiT_Phoneme
-
+    # Instantiate model
     model = BiT_Phoneme(
         patch_size=args['patch_size'],
         dim=args['dim'],
-        dim_head=args['dim_head'], 
+        dim_head=args['dim_head'],
         nClasses=args['nClasses'],
         depth=args['depth'],
         heads=args['heads'],
@@ -88,14 +99,16 @@ for seed in range(start, num_seeds+start):
         input_dropout=args['input_dropout'],
         look_ahead=args['look_ahead'],
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
-        T5_style_pos=args['T5_style_pos'], 
-        max_mask_pct=args['max_mask_pct'], 
+        T5_style_pos=args['T5_style_pos'],
+        max_mask_pct=args['max_mask_pct'],
         num_masks=args['num_masks']
     ).to(args['device'])
 
-    if len(args['load_pretrained_model']) > 0:
-        checkpoint = torch.load(f"{args['load_pretrained_model']}/modelWeights", map_location=args['device'])
-        model.load_state_dict(checkpoint, strict=True)
-        print(f"Loaded pretrained model from {args['load_pretrained_model']}")
+    # Load pretrained model if specified
+    if args['load_pretrained_model']:
+        ckpt_path = os.path.join(args['load_pretrained_model'], 'modelWeights')
+        model.load_state_dict(torch.load(ckpt_path, map_location=args['device']), strict=True)
+        print(f"Loaded pretrained model from {ckpt_path}")
 
+    # Train
     trainModel(args, model)
