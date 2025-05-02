@@ -3,18 +3,13 @@ import pickle
 import time
 
 from edit_distance import SequenceMatcher
-import hydra
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .model import GRUDecoder
-from .dataset import getDatasetLoaders, training_batch_generator
-from .augmentations import mask_electrodes
+from .dataset import getDatasetLoaders
 import torch.nn.functional as F
-from .loss import forward_cr_ctc, forward_ctc
+from .loss import forward_ctc
 
 
 import wandb
@@ -23,9 +18,13 @@ import wandb
 def trainModel(args, model):
     
     if len(args['wandb_id']) > 0:
-        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'], resume="must", id=args["wandb_id"])
+        
+        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", 
+                   config=dict(args), name=args['modelName'], 
+                   resume="must", id=args["wandb_id"])
     else:
-        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
+        wandb.init(project="Neural Decoder", 
+                   entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
         
     
     os.makedirs(args["outputDir"], exist_ok=True)
