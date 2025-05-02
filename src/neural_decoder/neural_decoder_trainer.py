@@ -21,8 +21,12 @@ import wandb
 
 
 def trainModel(args, model):
+    
+    if len(args['wandb_id']) > 0:
+        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'], resume="must", id=args["wandb_id"])
+    else:
+        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
         
-    wandb.init(project="Neural Decoder", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
@@ -95,8 +99,8 @@ def trainModel(args, model):
         optimizer_path = os.path.join(args['load_pretrained_model'], 'optimizer')
         optimizer.load_state_dict(torch.load(optimizer_path, map_location=args['device']))
         
-        schedular_path = os.path.join(args['load_pretrained_model'], 'scheduler')
-        scheduler.load_state_dict(torch.load(optimizer_path, map_location=args['device']))
+        scheduler_path = os.path.join(args['load_pretrained_model'], 'scheduler')
+        scheduler.load_state_dict(torch.load(scheduler_path, map_location=args['device']))
         print(f"Loaded optimizer and scheduler state from {args['load_pretrained_model']}")
         
         
@@ -107,7 +111,7 @@ def trainModel(args, model):
     train_loss = []
     
     
-    for epoch in range(args['n_epochs']):
+    for epoch in range(args["start_epoch"], args['n_epochs']):
         
         train_loss = []
         model.train()
@@ -143,7 +147,7 @@ def trainModel(args, model):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()            
-            
+        
         with torch.no_grad():
             
             avgTrainLoss = np.mean(train_loss)

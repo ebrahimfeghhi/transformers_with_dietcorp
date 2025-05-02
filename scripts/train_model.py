@@ -1,70 +1,91 @@
-
 import os
-import sys
+import torch
 
+from neural_decoder.neural_decoder_trainer import trainModel
+from neural_decoder.model import GRUDecoder
 
-num_seeds = 4
-start = 0
+# === CONFIGURATION ===
+NUM_SEEDS = 4
+START_SEED = 0
 
-for seed in range(start, start+num_seeds):
-    
-    modelName = f'neurips_gru_baseline_seed_{seed}'
+SERVER = 'obi'  # Change to 'leia' if needed
 
-    possiblePath_dir = ['/data/willett_data/outputs/', 
-                        '/home3/skaasyap/willett/outputs/']
-    
-    possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
-                          '/data/willett_data/ptDecoder_ctc_held_out_days', 
-                        '/data/willett_data/ptDecoder_ctc_both', 
-                        '/home3/skaasyap/willett/data', 
-                        '/home3/skaasyap/willett/data_log', 
-                        '/home3/skaasyap/willett/data_log_both',
-                        '/home3/skaasyap/willett/data_log_both_held_out_days']
+BASE_PATHS = {
+    'obi': '/data/willett_data',
+    'leia': '/home3/skaasyap/willett'
+}
 
-    args = {}
-    args['outputDir'] = possiblePath_dir[0] + modelName
-    args['datasetPath'] = possiblePaths_data[0]
-    print(args['datasetPath'])
-    args['modelName'] = modelName
+DATA_PATHS = {
+    'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
+    'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
+    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'leia': os.path.join(BASE_PATHS['leia'], 'data'),
+    'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
+    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
+}
 
-    if os.path.exists(args['outputDir']):
-        print(f"Output directory '{args['outputDir']}' already exists. Press c to continue.")
+MODEL_NAME_BASE = "neurips_gru_baseline"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+
+# === MAIN LOOP ===
+for seed in range(START_SEED, START_SEED + NUM_SEEDS):
+
+    model_name = f"{MODEL_NAME_BASE}_seed_{seed}"
+    output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
+    dataset_path = DATA_PATHS[DATA_PATH_KEY]
+
+    print(f"Using dataset: {dataset_path}")
+
+    # Warn if output directory exists
+    if os.path.exists(output_dir):
+        print(f"Output directory '{output_dir}' already exists. Press 'c' to continue.")
         breakpoint()
-        
-    args['seqLen'] = 150
-    args['maxTimeSeriesLen'] = 1200
-    args['batchSize'] = 64
-    args['lrStart'] = 0.02
-    args['lrEnd'] = 0.02
-    args['nUnits'] = 1024
-    args['nLayers'] = 5
-    args['seed'] = seed
-    args['nClasses'] = 40
-    args['nInputFeatures'] = 256
-    args['dropout'] = 0.4
-    args['input_dropout'] = 0
-    args['whiteNoiseSD'] = 0.8
-    args['constantOffsetSD'] = 0.2
-    args['gaussianSmoothWidth'] = 2.0
-    args['strideLen'] = 4
-    args['kernelLen'] = 32
-    args['bidirectional'] = False
-    args['l2_decay'] = 1e-5
-    args['device'] = 'cuda:0'
-    args['nDays'] = 24
-    args['testing_on_held_out'] = False
-    args['restricted_days'] = []
-    args['maxDay'] = 14
-    args['AdamW'] = False
-    args['beta1'] = 0.90
-    args['beta2'] = 0.999
-    args['learning_scheduler'] = 'None'
-    args['load_pretrained_model'] = ''
-    args['n_epochs'] = 73 
 
-    from neural_decoder.neural_decoder_trainer import trainModel
-    from neural_decoder.model import GRUDecoder
+    # === Experiment Config ===
+    args = {
+        'seed': seed,
+        'outputDir': output_dir,
+        'datasetPath': dataset_path,
+        'modelName': model_name,
+        'device': 'cuda:0',
 
+        # Model hyperparameters
+        'nInputFeatures': 256,
+        'nClasses': 40,
+        'nUnits': 1024,
+        'nLayers': 5,
+        'dropout': 0.4,
+        'input_dropout': 0,
+        'bidirectional': False,
+
+        # Data preprocessing
+        'whiteNoiseSD': 0.8,
+        'constantOffsetSD': 0.2,
+        'gaussianSmoothWidth': 2.0,
+        'strideLen': 4,
+        'kernelLen': 32,
+        'restricted_days': [],
+        'maxDay': 14,
+        'nDays': 24,
+
+        # Optimization
+        'AdamW': False,
+        'lrStart': 0.02,
+        'lrEnd': 0.02,
+        'l2_decay': 1e-5,
+        'beta1': 0.90,
+        'beta2': 0.999,
+        'learning_scheduler': 'None',
+        'n_epochs': 73,
+        'batchSize': 64,
+
+        # Optional loading
+        'load_pretrained_model': '', 
+        'wandb_id': '', 
+        'start_epoch': 0
+    }
+
+    # === Instantiate Model ===
     model = GRUDecoder(
         neural_dim=args["nInputFeatures"],
         n_classes=args["nClasses"],
@@ -80,4 +101,5 @@ for seed in range(start, start+num_seeds):
         input_dropout=args['input_dropout']
     ).to(args["device"])
 
+    # === Train ===
     trainModel(args, model)
