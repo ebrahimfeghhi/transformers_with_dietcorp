@@ -5,10 +5,9 @@ from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-NUM_SEEDS = 4
-START_SEED = 0
+SEEDS_LIST = [1,2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 
 BASE_PATHS = {
     'obi': '/data/willett_data',
@@ -28,7 +27,7 @@ MODEL_NAME_BASE = "neurips_gru_ventral_6v_only"
 DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
-for seed in range(START_SEED, START_SEED + NUM_SEEDS):
+for seed in SEEDS_LIST:
 
     model_name = f"{MODEL_NAME_BASE}_seed_{seed}"
     output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
