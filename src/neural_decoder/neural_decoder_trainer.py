@@ -51,7 +51,7 @@ def trainModel(args, model):
          optimizer = torch.optim.AdamW(model.parameters(), lr=args['lrStart'], weight_decay=args['l2_decay'], 
                                        betas=(args['beta1'], args['beta2']))
     else:
-        
+        print("USING VANILLA ADAM")
         optimizer = torch.optim.Adam(
             model.parameters(),
             lr=args["lrStart"],
