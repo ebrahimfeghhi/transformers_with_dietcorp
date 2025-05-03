@@ -81,8 +81,7 @@ class Attention(nn.Module):
             j = torch.arange(seq_len, device=x.device).unsqueeze(0)
             rel_pos = (i - j).clamp(-self.max_rel_dist + 1, self.max_rel_dist - 1) + self.max_rel_dist - 1
             rel_bias = self.rel_pos_bias(rel_pos).squeeze(-1).unsqueeze(0).unsqueeze(0) # shap seq_len x seq_len
-
-        dots = dots + rel_bias
+            dots = dots + rel_bias
 
         if temporal_mask is not None:
             dots = dots.masked_fill(temporal_mask == 0, float('-inf'))
@@ -134,6 +133,7 @@ class BiT_Phoneme(nn.Module):
         self.max_mask_pct = max_mask_pct
         self.num_masks = num_masks    
         self.patch_dim = patch_height * patch_width
+        self.T5_style_pos = T5_style_pos
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -159,6 +159,10 @@ class BiT_Phoneme(nn.Module):
                                     dropout, use_relative_bias=self.T5_style_pos)
     
         self.projection = nn.Linear(dim, nClasses+1)
+        
+        if self.T5_style_pos == False:
+            print("NOT USING T5 STYLE POS")
+            self.register_buffer('pos_embedding', None, persistent=False)
         
     def forward(self, neuralInput, X_len, day_idx):
         """
@@ -193,6 +197,11 @@ class BiT_Phoneme(nn.Module):
         x = self.dropout(x)
         
         b, seq_len, _ = x.shape
+        
+        # Add sin embeddings if T5 Style is False. 
+        if self.T5_style_pos == False:
+            pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
+            x = x + pos_emb.unsqueeze(0)
         
         # Create temporal mask
         temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
