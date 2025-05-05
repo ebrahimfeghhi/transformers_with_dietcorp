@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.bit import BiT_Phoneme
@@ -83,6 +84,9 @@ for seed in seed_list:
     if os.path.exists(args['outputDir']):
         print(f"Output directory '{args['outputDir']}' already exists. Press 'c' to continue.")
         breakpoint()
+        
+    torch.manual_seed(args["seed"])
+    np.random.seed(args["seed"])
 
     # Instantiate model
     model = BiT_Phoneme(

@@ -95,16 +95,20 @@ def trainModel(args, model):
             testDayIdx.to(args["device"]),
         )
         
-        with torch.no_grad():
-            model.eval()
-            pred = model.forward(X, X_len, testDayIdx)
-            adjustedLens = model.compute_length(X_len)
-            cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
-            total_edit_distance += ed
-            total_seq_length += seq_len
-            wandb.log({'cer': cer})
+        if args['next_trial_memo']:
+            
+            with torch.no_grad():
+                
+                model.eval()
+                pred = model.forward(X, X_len, testDayIdx)
+                adjustedLens = model.compute_length(X_len)
+                cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+                total_edit_distance += ed
+                total_seq_length += seq_len
+                wandb.log({'cer': cer})
             
         if prev_day != testDayIdx[0]:
+            
             cer_day = total_edit_distance / total_seq_length
             print(prev_day, cer_day)
             wandb.log({'day_cer': cer_day})
@@ -123,6 +127,7 @@ def trainModel(args, model):
             model.train()
     
             for i in range(args['memo_epochs']):
+                
                 print(f"Epoch: ", i)
                 logits_aug = model.forward(X, X_len, testDayIdx, args['memo_augs'])  # [memo_augs, T, D]
                 probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
@@ -136,6 +141,19 @@ def trainModel(args, model):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                
+                
+        if args['next_trial_memo'] == False:
+            
+            with torch.no_grad():
+                
+                model.eval()
+                pred = model.forward(X, X_len, testDayIdx)
+                adjustedLens = model.compute_length(X_len)
+                cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+                total_edit_distance += ed
+                total_seq_length += seq_len
+                wandb.log({'cer': cer})
                 
 
         prev_day = testDayIdx[0]
