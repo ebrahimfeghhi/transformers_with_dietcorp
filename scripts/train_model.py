@@ -7,7 +7,7 @@ from neural_decoder.model import GRUDecoder
 # === CONFIGURATION ===
 SEEDS_LIST = [0,1,2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 
 BASE_PATHS = {
     'obi': '/data/willett_data',
@@ -23,7 +23,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "neurips_gru_adamw_datalog_time_masked"
+MODEL_NAME_BASE = "neurips_gru_datalog_time_masked"
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -46,7 +46,7 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:0',
+        'device': 'cuda:3',
 
         # Model hyperparameters
         'nInputFeatures': 256,
@@ -68,7 +68,7 @@ for seed in SEEDS_LIST:
         'nDays': 24,
 
         # Optimization
-        'AdamW': True,
+        'AdamW': False,
         'lrStart': 0.001,
         'lrEnd': 0.001,
         'l2_decay': 1e-5,
@@ -76,7 +76,7 @@ for seed in SEEDS_LIST:
         'beta2': 0.999,
         'learning_scheduler': 'None',
         'n_epochs': 600,
-        'batchSize': 64,
+        'batchSize': 54,
 
         # Optional loading
         'load_pretrained_model': '', 
