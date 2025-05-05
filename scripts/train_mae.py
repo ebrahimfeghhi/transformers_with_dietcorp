@@ -19,7 +19,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "mae_masked_20_075"
+MODEL_NAME_BASE = "mae_masked_20_08"
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -51,7 +51,7 @@ for seed in SEEDS_LIST:
     args['T5_style_pos'] = True
     args['look_ahead'] = 0 
     args['input_dropout'] = 0.2
-    args['max_mask_pct'] = 0.075
+    args['max_mask_pct'] = 0.08
     args['num_masks'] = 20
 
     args['whiteNoiseSD'] = 0
@@ -66,7 +66,7 @@ for seed in SEEDS_LIST:
 
     args['weight_decay'] = 1e-5
     args['learning_rate'] = 1e-3
-    args['num_epochs'] = 600
+    args['num_epochs'] = 1000
     args['gaussianSmoothWidth'] = 2.0
 
     args['cosineAnnealing'] = False
@@ -75,7 +75,7 @@ for seed in SEEDS_LIST:
 
     args['extra_notes'] = ("")
 
-    args['device'] = 'cuda:2'
+    args['device'] = 'cuda:0'
 
     from neural_decoder.mae_main import trainModel
 
