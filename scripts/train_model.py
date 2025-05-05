@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 
 from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.model import GRUDecoder
@@ -69,8 +70,8 @@ for seed in SEEDS_LIST:
 
         # Optimization
         'AdamW': False,
-        'lrStart': 0.001,
-        'lrEnd': 0.001,
+        'lrStart': 0.02,
+        'lrEnd': 0.02,
         'l2_decay': 1e-5,
         'beta1': 0.90,
         'beta2': 0.999,
@@ -90,6 +91,9 @@ for seed in SEEDS_LIST:
     }
 
     # === Instantiate Model ===
+    torch.manual_seed(args["seed"])
+    np.random.seed(args["seed"])
+    
     model = GRUDecoder(
         neural_dim=args["nInputFeatures"],
         n_classes=args["nClasses"],

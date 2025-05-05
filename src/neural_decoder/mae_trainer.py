@@ -145,6 +145,8 @@ class Trainer:
             
 
         print(f"Best Validation Loss: {best_val_loss:.2f}%")
+        wandb.finish()
+        return 
         #self.plot_results()
 
         # Save final checkpoint after training completes

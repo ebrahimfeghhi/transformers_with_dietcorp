@@ -31,6 +31,8 @@ def trainModel(args):
     
     
     wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
+    torch.manual_seed(args["seed"])
+    np.random.seed(args["seed"])
 
     # Initialize the model
     enc_model = BiT_Phoneme(
