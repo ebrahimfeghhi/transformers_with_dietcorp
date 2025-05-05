@@ -24,15 +24,15 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
 
 
 args = {}
-modelName = 'held_out_baseline'
+modelName = 'memo_applied'
 args['modelName'] = modelName
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
-args['memo_augs'] = 16
-args['memo_epochs'] = 8
+args['memo_augs'] = 8
+args['memo_epochs'] = 4
 args['evenDaysOnly'] = False
-args['model_to_restore'] = 'held_out_days_seed_1'
+args['model_to_restore'] = 'neurips_transformer_time_masked_held_out_days_seed_0'
 
 args['freeze_all_except_patch_linear'] = True
 args['unfreeze_layer_1'] = False
@@ -76,7 +76,7 @@ args['seed'] = 0
 
 args['T5_style_pos'] = True
 
-from neural_decoder.old_ideas.neural_decoder_trainer_memo import trainModel
+from neural_decoder.neural_decoder_trainer_memo import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
 model = BiT_Phoneme(

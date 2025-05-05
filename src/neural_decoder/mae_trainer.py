@@ -24,6 +24,7 @@ class Trainer:
 
         # self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.AdamW(self.model.parameters(), lr=args['learning_rate'], weight_decay=args['weight_decay'])
+        
         if args['cosineAnnealing']:
         
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=args['num_epochs'])

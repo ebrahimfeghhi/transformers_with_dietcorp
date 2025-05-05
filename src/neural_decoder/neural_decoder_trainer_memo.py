@@ -10,11 +10,10 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from ..model import GRUDecoder
-from ..dataset import getDatasetLoaders
-from ..augmentations import mask_electrodes
+from .dataset import getDatasetLoaders
+from .augmentations import mask_electrodes
 import torch.nn.functional as F
-from ..loss import forward_cr_ctc, forward_ctc
+from .loss import forward_cr_ctc, forward_ctc
 import time
 
 
@@ -124,6 +123,7 @@ def trainModel(args, model):
             model.train()
     
             for i in range(args['memo_epochs']):
+                print(f"Epoch: ", i)
                 logits_aug = model.forward(X, X_len, testDayIdx, args['memo_augs'])  # [memo_augs, T, D]
                 probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
                 marginal_probs = probs_aug.mean(dim=0)  # [T, D]

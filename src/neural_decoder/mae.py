@@ -94,7 +94,7 @@ class MAE_with_mask(nn.Module):
         # Embed patches
         tokens = self.patch_to_emb(patches)
 
-        masked_indices, unmasked_indices = self.encoder.apply_specaugment_mask(patches, X_len, constant_mask=True)
+        masked_indices, unmasked_indices = self.encoder.apply_time_mask(patches, X_len, constant_mask=True)
         
         # Create and embed mask tokens
         mask_tokens = repeat(self.mask_token, 'd -> b n d', b=B, n=masked_indices.shape[1])
