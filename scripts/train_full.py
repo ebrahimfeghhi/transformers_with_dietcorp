@@ -22,9 +22,9 @@ DATA_PATHS = {
 
 seed_list = [0,1,2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_ablation_no_T5pos"
+model_name_base = "neurips_transformer_time_masked_10_15"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -53,8 +53,8 @@ for seed in seed_list:
         'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'constantOffsetSD': 0.05,
-        'num_masks': 20,
-        'max_mask_pct': 0.075,
+        'num_masks': 10,
+        'max_mask_pct': 0.15,
         'l2_decay': 1e-5,
         'input_dropout': 0.2,
         'dropout': 0.35,
@@ -70,12 +70,11 @@ for seed in seed_list:
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:0',
+        'device': 'cuda:3',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
-        'ventral_6v_only': False, 
-        'T5_style_pos': False
+        'ventral_6v_only': False
     }
 
     print(f"Using dataset: {args['datasetPath']}")

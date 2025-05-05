@@ -10,16 +10,16 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .model import GRUDecoder
-from .dataset import getDatasetLoaders_MAE
-from .augmentations import mask_electrodes
+from ..model import GRUDecoder
+from ..dataset import getDatasetLoaders_MAE
+from ..augmentations import mask_electrodes
 
 import wandb
 
 def trainModel(args, model):
     
     wandb.init(project="Neural Decoder with MAE", 
-               entity="skaasyap-ucla", config=dict(args))
+               entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
@@ -82,7 +82,6 @@ def trainModel(args, model):
                 y_len.to(args["device"]),
                 dayIdx.to(args["device"]),
             )
-            
             
             # Compute prediction error
             pred = model.forward(X, X_len, dayIdx)

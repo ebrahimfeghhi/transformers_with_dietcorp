@@ -30,7 +30,7 @@ import wandb
 def trainModel(args):
     
     
-    wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args))
+    wandb.init(project="MAE", entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
 
     # Initialize the model
     enc_model = BiT_Phoneme(
@@ -43,13 +43,11 @@ def trainModel(args):
         dropout=args['dropout'],
         input_dropout=args['input_dropout'], 
         look_ahead=0,
-        nDays=args['nDays'],
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
         T5_style_pos=args['T5_style_pos'], 
         max_mask_pct=args['max_mask_pct'], 
         num_masks=args['num_masks'], 
         nClasses=args['nClasses'], 
-        mae_mode=False
     )
 
     model = MAE_with_mask(
