@@ -25,7 +25,7 @@ seed_list = [0,1,2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_time_masked_10_15"
+model_name_base = "neurips_transformer_channel_masked_25_5"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -71,11 +71,17 @@ for seed in seed_list:
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:3',
+        'device': 'cuda:0',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
-        'ventral_6v_only': False
+        'ventral_6v_only': False,
+        'mask_token_zero' : True,
+        'num_masks_channels' : 25, # number of masks per grid
+        'max_mask_channels' : 5, # maximum number of channels to mask per mask
+        'max_mask_pct' : 0, 
+        'num_masks' : 0,
+        'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt' 
     }
 
     print(f"Using dataset: {args['datasetPath']}")
@@ -103,7 +109,11 @@ for seed in seed_list:
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
         T5_style_pos=args['T5_style_pos'],
         max_mask_pct=args['max_mask_pct'],
-        num_masks=args['num_masks']
+        num_masks=args['num_masks'], 
+        mask_token_zeros=args['mask_token_zero'], 
+        num_masks_channels=args['num_masks_channels'], 
+        max_mask_channels=args['max_mask_channels'], 
+        dist_dict_path=args['dist_dict_path']
     ).to(args['device'])
 
     # Load pretrained model if specified

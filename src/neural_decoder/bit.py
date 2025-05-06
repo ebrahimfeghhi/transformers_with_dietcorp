@@ -119,7 +119,8 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks):
+                 nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
+                 num_masks_channels, max_mask_channels, dist_dict_path):
    
         super().__init__()
 
@@ -134,6 +135,9 @@ class BiT_Phoneme(nn.Module):
         self.num_masks = num_masks    
         self.patch_dim = patch_height * patch_width
         self.T5_style_pos = T5_style_pos
+        self.num_masks_channels = num_masks_channels
+        self.max_channels_to_mask = max_mask_channels
+        self.dist_dict_path = dist_dict_path
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -147,11 +151,15 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
-        self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
-        
+                
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
         )
+        
+        if mask_token_zeros:
+            self.mask_token = nn.Parameter(torch.zeros(self.patch_dim), requires_grad=False)
+        else:
+            self.mask_token = nn.Parameter(torch.randn(self.patch_dim))
                 
         self.dropout = nn.Dropout(input_dropout)
   
@@ -175,6 +183,9 @@ class BiT_Phoneme(nn.Module):
         """
         
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
+        
+        if self.training and self.max_channels_to_mask > 0: 
+            neuralInput, _ = self.apply_channel_mask(neuralInput)
          
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
@@ -189,7 +200,7 @@ class BiT_Phoneme(nn.Module):
 
             # for memo TTA
             if n_masks > 0:
-                print("DOING MEMO")
+                
                 x_masked = []
                 
                 for _ in range(n_masks):
@@ -215,7 +226,6 @@ class BiT_Phoneme(nn.Module):
         b, seq_len, _ = x.shape
         
        
-        
         # Add sin embeddings if T5 Style is False. 
         if self.T5_style_pos == False:
             pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
@@ -323,25 +333,69 @@ class BiT_Phoneme(nn.Module):
         X_masked[mask] = self.mask_token
 
         return X_masked, mask
+    
+    def apply_channel_mask(self, 
+        x,            # tensor [B, T, D]
+        num_channels=64,
+        features_per_channel=2
+    ):
         
-   
-    def load_model(args, path):
-        model = BiT_Phoneme(
-            patch_size=args['patch_size'],
-            dim=args['dim'],
-            dim_head=args['dim_head'], 
-            nClasses=args['nClasses'],
-            depth=args['depth'],
-            heads=args['heads'],
-            mlp_dim_ratio=args['mlp_dim_ratio'],
-            dropout=args['dropout'],
-            input_dropout=args['input_dropout'],
-            look_ahead=0,
-            gaussianSmoothWidth=args['gaussianSmoothWidth'],
-            T5_style_pos=args['T5_style_pos'], 
-            max_mask_pct=args['max_mask_pct'], 
-            num_masks=args['num_masks'], 
-        ).to(args['device'])
+        dist_dict = torch.load(self.dist_dict_path)
+        
+        B, T, D = x.shape
+        device = x.device
+        masks = torch.zeros(B, D, dtype=torch.bool, device=device)
+
+        # build a [B, num_channels] of uniform weights
+        weights = torch.ones(B, num_channels, device=device)
+
+        # now sample *per-row*:
+        # starts1: [B, N], starts2: [B, M]
+        starts1 = torch.multinomial(weights, self.num_masks_channels, replacement=False)
+        starts2 = torch.multinomial(weights, self.num_masks_channels, replacement=False)
+        
+        # widths per mask, per sample
+        widths1 = torch.randint(0, self.max_channels_to_mask+1,
+                                (B, self.num_masks_channels), device=device)
+        
+        widths2 = torch.randint(0, self.max_channels_to_mask+1, 
+                                (B, self.num_masks_channels), device=device)
+        
+        # precompute feature-block offsets
+        off1 = [feat * num_channels for feat in range(features_per_channel)]
+        off2 = [features_per_channel * num_channels + feat * num_channels
+                for feat in range(features_per_channel)]
+        
+
+        for b in range(B):
+            
+            # electrode 1
+            for start_ch, w in zip(starts1[b], widths1[b]):
+                w = int(w)
+                
+                if w == 0: 
+                    continue
+                
+                nearest = dist_dict[int(start_ch.item())][:w]
+                idxs = torch.tensor(nearest, dtype=torch.long, device=device)
+                for base in off1:
+                    masks[b, base + idxs] = True
+
+            # electrode 2
+            for start_ch, w in zip(starts2[b], widths2[b]):
+                w = int(w)
+                if w == 0:
+                    continue
+                nearest = dist_dict[int(start_ch.item())][:w]
+                idxs = torch.tensor(nearest, dtype=torch.long, device=device)
+                for base in off2:
+                    masks[b, base + idxs] = True
+                    
+        masks = masks.unsqueeze(1).expand(-1, T, -1)
+        X_masked = x.clone()
+        X_masked[masks] = 0
+        # broadcast mask over time
+        return X_masked, masks
 
         
 
