@@ -25,7 +25,7 @@ seed_list = [0,1,2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_channel_masked_25_5"
+model_name_base = "neurips_transformer_ablation_no_lRscheduler"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -54,13 +54,11 @@ for seed in seed_list:
         'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'constantOffsetSD': 0.05,
-        'num_masks': 10,
-        'max_mask_pct': 0.15,
         'l2_decay': 1e-5,
         'input_dropout': 0.2,
         'dropout': 0.35,
         'AdamW': True,
-        'learning_scheduler': 'multistep',
+        'learning_scheduler': 'None',
         'lrStart': 0.001,
         'lrEnd': 0.001,
         'batchSize': 64,
@@ -71,16 +69,16 @@ for seed in seed_list:
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:0',
+        'device': 'cuda:3',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
         'ventral_6v_only': False,
-        'mask_token_zero' : True,
-        'num_masks_channels' : 25, # number of masks per grid
-        'max_mask_channels' : 5, # maximum number of channels to mask per mask
-        'max_mask_pct' : 0, 
-        'num_masks' : 0,
+        'mask_token_zero' : False,
+        'num_masks_channels' : 0, # number of masks per grid
+        'max_mask_channels' : 0, # maximum number of channels to mask per mask
+        'max_mask_pct' : 0.075, 
+        'num_masks' : 20,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt' 
     }
 
