@@ -24,17 +24,18 @@ possiblePaths_data = ['/data/willett_data/ptDecoder_ctc',
 
 
 args = {}
-modelName = 'memo_applied'
+modelName = 'memo_16_16_dropout_01'
 args['modelName'] = modelName
 args['outputDir'] = possiblePath_dir[1] + modelName
 args['datasetPath'] = possiblePaths_data[-1]
 
-args['memo_augs'] = 8
-args['memo_epochs'] = 4
+args['memo_augs'] = 16
+args['memo_epochs'] = 16
+args['next_trial_memo'] = False
 args['evenDaysOnly'] = False
 args['model_to_restore'] = 'neurips_transformer_time_masked_held_out_days_seed_0'
 
-args['freeze_all_except_patch_linear'] = True
+args['freeze_all_except_patch_linear'] = False
 args['unfreeze_layer_1'] = False
 args['restore_model_each_update'] = True # restore original model after every update.
 args['restore_model_each_day'] = False
@@ -46,7 +47,7 @@ args['depth'] = 7 #TODO
 args['heads'] = 6
 args['mlp_dim_ratio'] = 4 #TODO
 args['dim_head'] = 64
-args['dropout'] = 0
+args['dropout'] = 0.1
 args['input_dropout'] = 0
 args['num_masks'] = 20
 args['max_mask_pct'] = 0.05

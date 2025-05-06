@@ -79,13 +79,18 @@ def trainModel(args, model):
     
     total_edit_distance = 0
     total_seq_length = 0
-    
-    prev_day = 0
+
+    day_edit_distance = 0
+    day_seq_length = 0
+
+    prev_day = None
+
     for X, y, X_len, y_len, testDayIdx in testLoader:
+    
+        day = testDayIdx[0].item()
         
-        if args['evenDaysOnly']:
-            if testDayIdx[0] % 2 != 0: 
-                continue
+        if args['evenDaysOnly'] and (day % 2 != 0):
+            continue
         
         X, y, X_len, y_len, testDayIdx = (
             X.to(args["device"]),
@@ -95,74 +100,98 @@ def trainModel(args, model):
             testDayIdx.to(args["device"]),
         )
         
+        # ----------------------
+        # LOG CER FOR PREVIOUS DAY
+        # ----------------------
+        if prev_day is not None and day != prev_day:
+            cer_day = day_edit_distance / day_seq_length
+            print(f"Day {prev_day}: CER = {cer_day:.4f}")
+            wandb.log({f'day_cer': cer_day})
+
+            # Reset counters for new day
+            day_edit_distance = 0
+            day_seq_length = 0
+
+            # Restore model if needed
+            if args['restore_model_each_day']:
+                model.load_state_dict(original_state_dict)
+
+        # ----------------------
+        # EVALUATE (Before MEMO update)
+        # ----------------------
         if args['next_trial_memo']:
-            
             with torch.no_grad():
-                
                 model.eval()
                 pred = model.forward(X, X_len, testDayIdx)
                 adjustedLens = model.compute_length(X_len)
                 cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+
+                # Accumulate both global and per-day stats
                 total_edit_distance += ed
                 total_seq_length += seq_len
+                day_edit_distance += ed
+                day_seq_length += seq_len
+
                 wandb.log({'cer': cer})
-            
-        if prev_day != testDayIdx[0]:
-            
-            cer_day = total_edit_distance / total_seq_length
-            print(prev_day, cer_day)
-            wandb.log({'day_cer': cer_day})
-            
-    
-        if args['memo_augs'] > 0: 
-            
-            # restore model before next MEMO update
+        
+        # ----------------------
+        # APPLY MEMO-STYLE TTA
+        # ----------------------
+        if args['memo_augs'] > 0:
             if args['restore_model_each_update']:
                 model.load_state_dict(original_state_dict)
-                
-            if prev_day != testDayIdx[0]:
-                if args['restore_model_each_day']:
-                    model.load_state_dict(original_state_dict)
-                
+
             model.train()
-    
+
             for i in range(args['memo_epochs']):
-                
-                print(f"Epoch: ", i)
                 logits_aug = model.forward(X, X_len, testDayIdx, args['memo_augs'])  # [memo_augs, T, D]
-                probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)  # [memo_augs, T, D]
-                marginal_probs = probs_aug.mean(dim=0)  # [T, D]
-                
+                probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)          # [memo_augs, T, D]
+                marginal_probs = probs_aug.mean(dim=0)                               # [T, D]
+
                 adjustedLens = model.compute_length(X_len)
                 marginal_probs = marginal_probs[:adjustedLens]
-                
-                loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean() # sum across classes, then take mean across time. 
+
+                loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean()
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                
-                
-        if args['next_trial_memo'] == False:
-            
+        
+        # ----------------------
+        # EVALUATE (After MEMO update)
+        # ----------------------
+        if not args['next_trial_memo']:
             with torch.no_grad():
-                
                 model.eval()
                 pred = model.forward(X, X_len, testDayIdx)
                 adjustedLens = model.compute_length(X_len)
                 cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+
                 total_edit_distance += ed
                 total_seq_length += seq_len
-                wandb.log({'cer': cer})
-                
+                day_edit_distance += ed
+                day_seq_length += seq_len
 
-        prev_day = testDayIdx[0]
+                wandb.log({'cer': cer})
         
-        
-    cer_memo = total_edit_distance / total_seq_length
-    print("FINAL VERDICT", cer_memo)
+        prev_day = day
+
+    # ----------------------
+    # FINAL DAY CER
+    # ----------------------
+    if day_seq_length > 0:
+        cer_day = day_edit_distance / day_seq_length
+        print(f"Day {prev_day}: CER = {cer_day:.4f}")
+        wandb.log({f'day_cer': cer_day})
+
+    # ----------------------
+    # TOTAL CER
+    # ----------------------
+    if total_seq_length > 0:
+        total_cer = total_edit_distance / total_seq_length
+        print(f"Total CER across all days: {total_cer:.4f}")
+        wandb.log({'cer_total': total_cer})
     
-    wandb.log({'final_cer_before': cer_memo})
     
     
             
