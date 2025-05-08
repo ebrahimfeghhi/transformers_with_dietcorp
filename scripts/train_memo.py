@@ -1,127 +1,152 @@
+import os
 import argparse
 import torch
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument('--cuda', type=int, default=0,
-                    help='CUDA device number to use (default: 0)')
-
-args_device = parser.parse_args()
-
-
-
-device = f'cuda:{args_device.cuda}'
-
-
-possiblePath_dir = ['/data/willett_data/outputs/', 
-                    '/home3/skaasyap/willett/outputs/']
-possiblePaths_data = ['/data/willett_data/ptDecoder_ctc', 
-                      '/data/willett_data/ptDecoder_ctc_both', 
-                      '/home3/skaasyap/willett/data', 
-                      '/home3/skaasyap/willett/data_log', 
-                      '/home3/skaasyap/willett/data_log_both',
-                      '/home3/skaasyap/willett/data_log_both_held_out_days']
-
-
-args = {}
-modelName = 'memo_16_16_dropout_01'
-args['modelName'] = modelName
-args['outputDir'] = possiblePath_dir[1] + modelName
-args['datasetPath'] = possiblePaths_data[-1]
-
-args['memo_augs'] = 16
-args['memo_epochs'] = 16
-args['next_trial_memo'] = False
-args['evenDaysOnly'] = False
-args['model_to_restore'] = 'neurips_transformer_time_masked_held_out_days_seed_0'
-
-args['freeze_all_except_patch_linear'] = False
-args['unfreeze_layer_1'] = False
-args['restore_model_each_update'] = True # restore original model after every update.
-args['restore_model_each_day'] = False
-args['modelWeightPath'] = f"/home3/skaasyap/willett/outputs/{args['model_to_restore']}/modelWeights"
-
-args['patch_size']= (5, 256) #TODO
-args['dim'] = 384 #TODO
-args['depth'] = 7 #TODO
-args['heads'] = 6
-args['mlp_dim_ratio'] = 4 #TODO
-args['dim_head'] = 64
-args['dropout'] = 0.1
-args['input_dropout'] = 0
-args['num_masks'] = 20
-args['max_mask_pct'] = 0.05
-
-args['gaussianSmoothWidth'] = 2.0
-args['nClasses'] = 40
-
-args['optimizer'] = 'AdamW'
-args['load_optimizer_state'] = False
-args['optimizer_path'] = f"/home3/skaasyap/willett/outputs/{args['model_to_restore']}/optimizer"
-
-args['l2_decay'] = 0
-
-args['lrStart'] = 0.0001
-args['lrEnd'] = 0.0001
-
-args['beta1'] = 0.90
-args['beta2'] = 0.999
-
-args['look_ahead'] = 0 
-
-args['extra_notes'] = ("")
-
-args['device'] = device
-
-args['seed'] = 0
-
-args['T5_style_pos'] = True
+import numpy as np
 
 from neural_decoder.neural_decoder_trainer_memo import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
+# === COMMAND‑LINE ARGUMENTS ===
+parser = argparse.ArgumentParser(description="Memo‑style training script (formatted).")
+parser.add_argument("--cuda", type=int, default=0, help="CUDA device number to use (default: 0)")
+parser.add_argument("--seed", type=int, default=0, help="Random seed (default: 0)")
+cli_args = parser.parse_args()
+
+DEVICE = f"cuda:{cli_args.cuda}"
+SEED = cli_args.seed
+
+# === PATH CONFIGURATION ===
+BASE_PATHS = {
+    "obi": "/data/willett_data",
+    "leia": "/home3/skaasyap/willett"
+}
+
+DATA_PATHS = {
+    'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
+    'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
+    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'leia': os.path.join(BASE_PATHS['leia'], 'data'),
+    'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
+    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
+}
+
+SERVER = "leia"  # change to "obi" if running on Obi
+DATA_PATH_KEY = f"{SERVER}_log"
+
+MODEL_TO_RESTORE = "neurips_transformer_time_masked_seed_0"
+MODEL_NAME = "memo_best_params_all_day"
+OUTPUT_DIR = os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_NAME)
+
+# === EXPERIMENT CONFIG ===
+args = {
+    # bookkeeping
+    "seed": SEED,
+    "modelName": MODEL_NAME,
+    "outputDir": OUTPUT_DIR,
+    "datasetPath": DATA_PATHS[DATA_PATH_KEY],
+
+    # memo‑specific settings
+    "memo_augs": 16,
+    "memo_epochs": 16,
+    "next_trial_memo": False,
+    "evenDaysOnly": False,
+
+    # model restore settings
+    "model_to_restore": MODEL_TO_RESTORE,
+    "restore_model_each_update": True,
+    "restore_model_each_day": False,
+    "modelWeightPath": os.path.join(BASE_PATHS["leia"], "outputs", MODEL_TO_RESTORE, "modelWeights"),
+    "optimizer_path": os.path.join(BASE_PATHS["leia"], "outputs", MODEL_TO_RESTORE, "optimizer"),
+
+    # architecture
+    "patch_size": (5, 256),
+    "dim": 384,
+    "depth": 7,
+    "heads": 6,
+    "mlp_dim_ratio": 4,
+    "dim_head": 64,
+    "dropout": 0.0,
+    "input_dropout": 0.0,
+    "num_masks": 20,
+    "max_mask_pct": 0.05,
+    "gaussianSmoothWidth": 2.0,
+    "nClasses": 40,
+    "T5_style_pos": True,
+
+    # optimisation
+    "optimizer": "AdamW",
+    "load_optimizer_state": False,
+    "l2_decay": 0.0,
+    "lrStart": 1e-4,
+    "lrEnd": 1e-4,
+    "beta1": 0.90,
+    "beta2": 0.999,
+
+    # misc
+    "look_ahead": 0,
+    "extra_notes": "",
+    "device": DEVICE,
+
+    # fine‑tuning flags
+    "freeze_all_except_patch_linear": False,
+    "unfreeze_layer_1": False,
+}
+
+print(f"Using dataset: {args['datasetPath']}")
+print(f"Saving outputs to: {args['outputDir']}")
+
+os.makedirs(args["outputDir"], exist_ok=True)
+
+# === REPRODUCIBILITY ===
+torch.manual_seed(args["seed"])
+np.random.seed(args["seed"])
+
+# === MODEL INITIALISATION ===
 model = BiT_Phoneme(
-    patch_size=args['patch_size'],
-    dim=args['dim'],
-    dim_head=args['dim_head'], 
-    nClasses=args['nClasses'],
-    depth=args['depth'],
-    heads=args['heads'],
-    mlp_dim_ratio=args['mlp_dim_ratio'],
-    dropout=args['dropout'],
-    input_dropout=args['input_dropout'],
-    look_ahead=0,
-    gaussianSmoothWidth=args['gaussianSmoothWidth'],
-    T5_style_pos=args['T5_style_pos'], 
-    max_mask_pct=args['max_mask_pct'], 
-    num_masks=args['num_masks'], 
-).to(args['device'])
+    patch_size=args["patch_size"],
+    dim=args["dim"],
+    dim_head=args["dim_head"],
+    nClasses=args["nClasses"],
+    depth=args["depth"],
+    heads=args["heads"],
+    mlp_dim_ratio=args["mlp_dim_ratio"],
+    dropout=args["dropout"],
+    input_dropout=args["input_dropout"],
+    look_ahead=args["look_ahead"],
+    gaussianSmoothWidth=args["gaussianSmoothWidth"],
+    T5_style_pos=args["T5_style_pos"],
+    max_mask_pct=args["max_mask_pct"],
+    num_masks=args["num_masks"], 
+    mask_token_zeros=False,
+    num_masks_channels=0,
+    max_mask_channels=0,
+    dist_dict_path=None
+).to(args["device"])
 
-import torch
+# === LOAD PRETRAINED WEIGHTS ===
+model.load_state_dict(
+    torch.load(args["modelWeightPath"], map_location=args["device"]),
+    strict=True
+)
+print(f"Loaded pretrained weights from {args['modelWeightPath']}")
 
-model.load_state_dict(torch.load(args['modelWeightPath'],
-                    map_location=args['device']), strict=True)
+# === OPTIONAL PARAMETER FREEZING ===
+if args["freeze_all_except_patch_linear"]:
+    for p in model.parameters():
+        p.requires_grad = False
 
-if args['freeze_all_except_patch_linear']:
-    for param in model.parameters():
-        param.requires_grad = False
+    # Unfreeze patch‑embedding linear projection (assumed third module)
+    for p in model.to_patch_embedding[2].parameters():
+        p.requires_grad = True
 
-    # Unfreeze just the Linear layer
-    linear_layer = model.to_patch_embedding[2]  # assumes Linear is the third module in Sequential
-    for param in linear_layer.parameters():
-        param.requires_grad = True
-        
-    if args['unfreeze_layer_1']:
-        first_transformer_layer = model.transformer.layers[0]  # assumes standard transformer format
-        for param in first_transformer_layer.parameters():
-            param.requires_grad = True
-        
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            print(f"[Trainable] {name}")
-        
+    if args["unfreeze_layer_1"]:
+        for p in model.transformer.layers[0].parameters():
+            p.requires_grad = True
 
-#if args['freeze_params_except_day']:
-#    freeze_except_day_specific(model)
+    # Log trainable params
+    for n, p in model.named_parameters():
+        if p.requires_grad:
+            print(f"[Trainable] {n}")
 
+# === TRAIN ===
 trainModel(args, model)

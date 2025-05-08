@@ -17,15 +17,17 @@ DATA_PATHS = {
     'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
-    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
+    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
+    'leia_log_held_out_1': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_1'), 
+    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
 }
 
 
 seed_list = [0,1,2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_ablation_no_lRscheduler"
+DATA_PATH_KEY = f"{SERVER}_log_held_out_1"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "neurips_transformer_time_masked_held_out_days_1"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -41,7 +43,7 @@ for seed in seed_list:
         'datasetPath': dataset_path,
         'modelName': model_name,
         'testing_on_held_out': False,
-        'maxDay': 14,
+        'maxDay': 9,
         'restricted_days': [],
         'patch_size': (5, 256),
         'dim': 384,
@@ -58,7 +60,7 @@ for seed in seed_list:
         'input_dropout': 0.2,
         'dropout': 0.35,
         'AdamW': True,
-        'learning_scheduler': 'None',
+        'learning_scheduler': 'multistep',
         'lrStart': 0.001,
         'lrEnd': 0.001,
         'batchSize': 64,
