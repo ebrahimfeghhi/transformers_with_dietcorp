@@ -6,7 +6,7 @@ from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [0,1,2,3,4,5,6,7,8,9,10]
+SEEDS_LIST = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -18,14 +18,16 @@ BASE_PATHS = {
 DATA_PATHS = {
     'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
     'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
-    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'obi_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'obi_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_1'),
+    'obi_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_2'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "neurips_gru_datalog_lr_scheduler"
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_fully_held_out_days_1"
+DATA_PATH_KEY = f"{SERVER}_held_out_1"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -47,7 +49,7 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:0',
+        'device': 'cuda:2',
 
         # Model hyperparameters
         'nInputFeatures': 256,
@@ -75,7 +77,7 @@ for seed in SEEDS_LIST:
         'l2_decay': 1e-5,
         'beta1': 0.90,
         'beta2': 0.999,
-        'learning_scheduler': 'multistep',
+        'learning_scheduler': '',
         'milestones': [55],
         'gamma': 0.1,
         'n_epochs': 73,

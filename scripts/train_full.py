@@ -15,6 +15,8 @@ DATA_PATHS = {
     'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
     'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
     'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_1'),
+    'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_2'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
