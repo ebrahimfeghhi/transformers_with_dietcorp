@@ -26,8 +26,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_fully_held_out_days_1"
-DATA_PATH_KEY = f"{SERVER}_held_out_1"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_fully_held_out_days_mod_2"
+DATA_PATH_KEY = f"{SERVER}_held_out_2"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -49,7 +49,7 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:2',
+        'device': 'cuda:1',
 
         # Model hyperparameters
         'nInputFeatures': 256,
@@ -67,7 +67,7 @@ for seed in SEEDS_LIST:
         'strideLen': 4,
         'kernelLen': 32,
         'restricted_days': [],
-        'maxDay': 14,
+        'maxDay': 3,
         'nDays': 24,
 
         # Optimization

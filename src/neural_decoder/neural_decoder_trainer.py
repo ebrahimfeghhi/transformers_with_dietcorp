@@ -115,7 +115,7 @@ def trainModel(args, model):
         model.train()
         
         for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
-                            
+            
             X, y, X_len, y_len, dayIdx = (
                 X.to(args["device"]),
                 y.to(args["device"]),
@@ -155,7 +155,11 @@ def trainModel(args, model):
             total_edit_distance = 0
             total_seq_length = 0
             
+            
             for X, y, X_len, y_len, testDayIdx in testLoader:
+                
+                if testDayIdx.unique().shape[0] == 1 and testDayIdx[0] == 0:
+                    testDayIdx.fill_(args['maxDay'])
                 
                 X, y, X_len, y_len, testDayIdx = (
                     X.to(args["device"]),
