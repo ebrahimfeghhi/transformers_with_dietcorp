@@ -57,10 +57,9 @@ class SpeechDataset(Dataset):
                 self.phone_seq_lens.append(data[day]["phoneLens"][trial])
                 self.days.append(day)
                 
-                
+
         self.n_trials = len(self.days)
 
-                                
     def __len__(self):
         
         return self.n_trials
