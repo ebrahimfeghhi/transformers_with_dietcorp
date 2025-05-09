@@ -260,10 +260,12 @@ def getDatasetLoaders(
         
   
     train_ds = SpeechDataset(loadedData["train"], transform=None, 
-                             restricted_days=restricted_days, ventral_6v_only=ventral_6v_only)
+                             restricted_days=restricted_days, 
+                             ventral_6v_only=ventral_6v_only)
     
     test_ds = SpeechDataset(loadedData["test"], 
-                            restricted_days=restricted_days, ventral_6v_only=ventral_6v_only)
+                            restricted_days=restricted_days, 
+                            ventral_6v_only=ventral_6v_only)
 
     train_loader = DataLoader(
         train_ds,
