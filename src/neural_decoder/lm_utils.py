@@ -33,6 +33,44 @@ def build_opt(modelName='facebook/opt-6.7b', cacheDir=None, device='auto', load_
 
     return model, tokenizer
 
+def build_llama_1B(modelName="meta-llama/Llama-3.2-1B-Instruct",
+                cacheDir=None,
+                device="auto",
+                load_in_8bit=False,
+                auth_token=True,        # NEW: pass your HF token for the gated repo
+                dtype="auto"):          # NEW: pick bfloat16/float16 automatically
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    import torch
+
+    # 1 Load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(
+        modelName,
+        cache_dir=cacheDir,
+        token=auth_token          # required after you’ve accepted Meta’s license
+    )
+
+    # 2 Load model
+    torch_dtype = {"auto": None,
+                   "bf16": torch.bfloat16,
+                   "fp16": torch.float16}.get(dtype, None)
+
+    model = AutoModelForCausalLM.from_pretrained(
+        modelName,
+        cache_dir=cacheDir,
+        device_map=device,        # "auto", "cpu", "cuda", or explicit dict
+        load_in_8bit=load_in_8bit,
+        token=auth_token,
+        torch_dtype=torch_dtype   # saves VRAM if you pick bf16/fp16
+    )
+
+    # 3 Padding tweaks (Llama uses no official pad token)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+    model.config.pad_token_id = tokenizer.pad_token_id
+
+    return model, tokenizer
+
 def rescore_with_gpt2(model, tokenizer, hypotheses, lengthPenalty):
     model_class = type(model).__name__
     if model_class.startswith('TF'):
