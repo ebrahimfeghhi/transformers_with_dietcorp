@@ -45,7 +45,7 @@ for seed in seed_list:
         'datasetPath': dataset_path,
         'modelName': model_name,
         'testing_on_held_out': False,
-        'maxDay': 9,
+        'maxDay': None,
         'restricted_days': [],
         'patch_size': (5, 256),
         'dim': 384,

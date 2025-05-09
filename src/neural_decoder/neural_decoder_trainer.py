@@ -158,7 +158,7 @@ def trainModel(args, model):
             
             for X, y, X_len, y_len, testDayIdx in testLoader:
                 
-                if testDayIdx.unique().shape[0] == 1 and testDayIdx[0] == 0:
+                if args['maxDay'] is not None:
                     testDayIdx.fill_(args['maxDay'])
                 
                 X, y, X_len, y_len, testDayIdx = (
@@ -183,10 +183,12 @@ def trainModel(args, model):
                 allLoss.append(loss.cpu().detach().numpy())
 
                 for iterIdx in range(pred.shape[0]):
+                    
                     decodedSeq = torch.argmax(
                         torch.tensor(pred[iterIdx, 0 : adjustedLens[iterIdx], :]),
                         dim=-1,
                     )  # [num_seq,]
+                    
                     decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
                     decodedSeq = decodedSeq.cpu().detach().numpy()
                     decodedSeq = np.array([i for i in decodedSeq if i != 0])
