@@ -6,7 +6,7 @@ from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [9]
+SEEDS_LIST = [0]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -26,8 +26,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "neurips_gru_data_log_time_masked_lr_schedule"
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "neurips_gru_baseline"
+DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -56,13 +56,13 @@ for seed in SEEDS_LIST:
         'nClasses': 40,
         'nUnits': 1024,
         'nLayers': 5,
-        'dropout': 0.35,
-        'input_dropout': 0.2,
+        'dropout': 0.40,
+        'input_dropout': 0,
         'bidirectional': False,
 
         # Data preprocessing
-        'whiteNoiseSD': 0.2,
-        'constantOffsetSD': 0.05,
+        'whiteNoiseSD': 0.8,
+        'constantOffsetSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
         'kernelLen': 32,
@@ -77,10 +77,10 @@ for seed in SEEDS_LIST:
         'l2_decay': 1e-5,
         'beta1': 0.90,
         'beta2': 0.999,
-        'learning_scheduler': 'multistep',
+        'learning_scheduler': 'None',
         'milestones': [400],
         'gamma': 0.1,
-        'n_epochs': 600,
+        'n_epochs': 73,
         'batchSize': 64,
 
         # Optional loading
@@ -90,8 +90,8 @@ for seed in SEEDS_LIST:
         
         'ventral_6v_only': False, 
         
-        'max_mask_pct': 0.075, 
-        'num_masks': 20
+        'max_mask_pct': 0.0, 
+        'num_masks': 0
     }
 
     # === Instantiate Model ===
