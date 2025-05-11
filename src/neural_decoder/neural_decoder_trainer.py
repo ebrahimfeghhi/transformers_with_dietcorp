@@ -116,6 +116,7 @@ def trainModel(args, model):
         
         for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
             
+            
             X, y, X_len, y_len, dayIdx = (
                 X.to(args["device"]),
                 y.to(args["device"]),

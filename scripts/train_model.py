@@ -6,7 +6,7 @@ from neural_decoder.neural_decoder_trainer import trainModel
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [0]
+SEEDS_LIST = [0,1,2,3,4]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -26,8 +26,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "neurips_gru_baseline"
-DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_held_out_days_redo"
+DATA_PATH_KEY = f"{SERVER}_held_out"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -49,7 +49,7 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:2',
+        'device': 'cuda:1',
 
         # Model hyperparameters
         'nInputFeatures': 256,
@@ -67,7 +67,7 @@ for seed in SEEDS_LIST:
         'strideLen': 4,
         'kernelLen': 32,
         'restricted_days': [],
-        'maxDay': None,
+        'maxDay': 14,
         'nDays': 24,
 
         # Optimization
