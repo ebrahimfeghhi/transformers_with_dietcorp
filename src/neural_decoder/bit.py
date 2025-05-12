@@ -201,15 +201,10 @@ class BiT_Phoneme(nn.Module):
             # for memo TTA
             if n_masks > 0:
                 
-                x_masked = []
+                x_repeated = x.repeat_interleave(n_masks, dim=0)        # shape: (n_masks * B, T, D)
+                X_len_repeated = X_len.repeat_interleave(n_masks) 
+                x, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
                 
-                for _ in range(n_masks):
-                    
-                    xtemp, _ = self.apply_time_mask(x, X_len)
-                    x_masked.append(xtemp)
-
-                x = torch.stack(x_masked).squeeze()
-
             else:
                 x, _ = self.apply_time_mask(x, X_len)
 
