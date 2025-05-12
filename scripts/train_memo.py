@@ -17,24 +17,29 @@ SEED = cli_args.seed
 
 # === PATH CONFIGURATION ===
 BASE_PATHS = {
-    "obi": "/data/willett_data",
-    "leia": "/home3/skaasyap/willett"
+    'obi': '/data/willett_data',
+    'leia': '/home3/skaasyap/willett'
 }
 
 DATA_PATHS = {
     'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
     'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
-    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
+    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days'),
+    'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
+    'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
-    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
+    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
+    'leia_log_held_out_1': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_1'), 
+    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
 }
 
-SERVER = "leia"  # change to "obi" if running on Obi
+
+SERVER = "obi"  # change to "obi" if running on Obi
 DATA_PATH_KEY = f"{SERVER}_log"
 
-MODEL_TO_RESTORE = "neurips_transformer_time_masked_seed_0"
-MODEL_NAME = "memo_best_params_all_day"
+MODEL_TO_RESTORE = f"neurips_transformer_time_masked_seed_{SEED}"
+MODEL_NAME = "scratch"
 OUTPUT_DIR = os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_NAME)
 
 # === EXPERIMENT CONFIG ===
@@ -47,7 +52,7 @@ args = {
 
     # memo‑specific settings
     "memo_augs": 16,
-    "memo_epochs": 16,
+    "memo_epochs": 1,
     "next_trial_memo": False,
     "evenDaysOnly": False,
 
@@ -55,8 +60,8 @@ args = {
     "model_to_restore": MODEL_TO_RESTORE,
     "restore_model_each_update": True,
     "restore_model_each_day": False,
-    "modelWeightPath": os.path.join(BASE_PATHS["leia"], "outputs", MODEL_TO_RESTORE, "modelWeights"),
-    "optimizer_path": os.path.join(BASE_PATHS["leia"], "outputs", MODEL_TO_RESTORE, "optimizer"),
+    "modelWeightPath": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "modelWeights"),
+    "optimizer_path": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "optimizer"),
 
     # architecture
     "patch_size": (5, 256),
@@ -77,8 +82,8 @@ args = {
     "optimizer": "AdamW",
     "load_optimizer_state": False,
     "l2_decay": 0.0,
-    "lrStart": 1e-4,
-    "lrEnd": 1e-4,
+    "lrStart": 9e-4,
+    "lrEnd": 9e-4,
     "beta1": 0.90,
     "beta2": 0.999,
 

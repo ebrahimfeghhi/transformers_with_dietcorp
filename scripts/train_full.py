@@ -14,9 +14,9 @@ BASE_PATHS = {
 DATA_PATHS = {
     'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
     'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
-    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
-    'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_1'),
-    'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_2'),
+    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days'),
+    'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
+    'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
@@ -25,11 +25,11 @@ DATA_PATHS = {
 }
 
 
-seed_list = [0,1,2,3]
+seed_list = [0]
 
-SERVER = 'leia'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_held_out_1"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "neurips_transformer_time_masked_held_out_days_1"
+SERVER = 'obi'  # Change to 'leia' if needed
+DATA_PATH_KEY = f"{SERVER}_log_held_out"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "neurips_transformer_time_masked_held_out_days"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -44,7 +44,7 @@ for seed in seed_list:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'testing_on_held_out': False,
+        'testing_on_held_out': True,
         'maxDay': None,
         'restricted_days': [],
         'patch_size': (5, 256),
@@ -73,7 +73,7 @@ for seed in seed_list:
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:3',
+        'device': 'cuda:2',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
