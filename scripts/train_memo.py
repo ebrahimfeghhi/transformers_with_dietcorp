@@ -39,7 +39,8 @@ SERVER = "obi"  # change to "obi" if running on Obi
 DATA_PATH_KEY = f"{SERVER}_log"
 
 MODEL_TO_RESTORE = f"neurips_transformer_time_masked_seed_{SEED}"
-MODEL_NAME = "scratch"
+MODEL_NAME = f"memo_16_1"
+
 OUTPUT_DIR = os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_NAME)
 
 # === EXPERIMENT CONFIG ===
@@ -49,16 +50,16 @@ args = {
     "modelName": MODEL_NAME,
     "outputDir": OUTPUT_DIR,
     "datasetPath": DATA_PATHS[DATA_PATH_KEY],
+    'skip_days': [],
 
     # memo‑specific settings
     "memo_augs": 16,
     "memo_epochs": 1,
-    "next_trial_memo": False,
     "evenDaysOnly": False,
 
     # model restore settings
     "model_to_restore": MODEL_TO_RESTORE,
-    "restore_model_each_update": True,
+    "restore_model_each_update": False,
     "restore_model_each_day": False,
     "modelWeightPath": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "modelWeights"),
     "optimizer_path": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "optimizer"),
@@ -82,8 +83,8 @@ args = {
     "optimizer": "AdamW",
     "load_optimizer_state": False,
     "l2_decay": 0.0,
-    "lrStart": 9e-4,
-    "lrEnd": 9e-4,
+    "lrStart": 5e-5,
+    "lrEnd": 5e-5,
     "beta1": 0.90,
     "beta2": 0.999,
 
@@ -93,7 +94,7 @@ args = {
     "device": DEVICE,
 
     # fine‑tuning flags
-    "freeze_all_except_patch_linear": False,
+    "freeze_all_except_patch_linear": True,
     "unfreeze_layer_1": False,
 }
 

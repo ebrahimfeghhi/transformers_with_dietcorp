@@ -82,12 +82,23 @@ def trainModel(args, model):
 
     day_edit_distance = 0
     day_seq_length = 0
+    
+    total_edit_distance_pre_memo = 0
+    total_seq_length_pre_memo = 0
+
+    day_edit_distance_pre_memo = 0
+    day_seq_length_pre_memo = 0
 
     prev_day = None
 
     for X, y, X_len, y_len, testDayIdx in testLoader:
-    
+        
+        
         day = testDayIdx[0].item()
+        
+        if len(args['skip_days']) > 0:
+            if day in args['skip_days']:
+                continue
         
         if args['evenDaysOnly'] and (day % 2 != 0):
             continue
@@ -104,13 +115,23 @@ def trainModel(args, model):
         # LOG CER FOR PREVIOUS DAY
         # ----------------------
         if prev_day is not None and day != prev_day:
+            
+            print(day, prev_day)
+            
+            cer_day_pre_memo = day_edit_distance_pre_memo / day_seq_length_pre_memo
+            
             cer_day = day_edit_distance / day_seq_length
-            print(f"Day {prev_day}: CER = {cer_day:.4f}")
+            
+            print(f"Day {prev_day}: CER = {cer_day:.4f}, PRE MEMO = {cer_day_pre_memo:.4f}")
             wandb.log({f'day_cer': cer_day})
-
+            wandb.log({f'day_cer_pre_memo': cer_day_pre_memo})
+            
             # Reset counters for new day
             day_edit_distance = 0
             day_seq_length = 0
+            day_edit_distance_pre_memo = 0
+            day_seq_length_pre_memo = 0
+            
 
             # Restore model if needed
             if args['restore_model_each_day']:
@@ -119,20 +140,19 @@ def trainModel(args, model):
         # ----------------------
         # EVALUATE (Before MEMO update)
         # ----------------------
-        if args['next_trial_memo']:
-            with torch.no_grad():
-                model.eval()
-                pred = model.forward(X, X_len, testDayIdx)
-                adjustedLens = model.compute_length(X_len)
-                cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+        with torch.no_grad():
+            model.eval()
+            pred = model.forward(X, X_len, testDayIdx)
+            adjustedLens = model.compute_length(X_len)
+            cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
 
-                # Accumulate both global and per-day stats
-                total_edit_distance += ed
-                total_seq_length += seq_len
-                day_edit_distance += ed
-                day_seq_length += seq_len
+            # Accumulate both global and per-day stats
+            total_edit_distance_pre_memo += ed
+            total_seq_length_pre_memo += seq_len
+            day_edit_distance_pre_memo += ed
+            day_seq_length_pre_memo += seq_len
 
-                wandb.log({'cer': cer})
+            wandb.log({'cer_pre_memo': cer})
         
         # ----------------------
         # APPLY MEMO-STYLE TTA
@@ -160,19 +180,18 @@ def trainModel(args, model):
         # ----------------------
         # EVALUATE (After MEMO update)
         # ----------------------
-        if not args['next_trial_memo']:
-            with torch.no_grad():
-                model.eval()
-                pred = model.forward(X, X_len, testDayIdx)
-                adjustedLens = model.compute_length(X_len)
-                cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+        with torch.no_grad():
+            model.eval()
+            pred = model.forward(X, X_len, testDayIdx)
+            adjustedLens = model.compute_length(X_len)
+            cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
 
-                total_edit_distance += ed
-                total_seq_length += seq_len
-                day_edit_distance += ed
-                day_seq_length += seq_len
+            total_edit_distance += ed
+            total_seq_length += seq_len
+            day_edit_distance += ed
+            day_seq_length += seq_len
 
-                wandb.log({'cer': cer})
+            wandb.log({'cer_post_memo': cer})
         
         prev_day = day
 
@@ -180,17 +199,24 @@ def trainModel(args, model):
     # FINAL DAY CER
     # ----------------------
     if day_seq_length > 0:
+        cer_day_pre_memo = day_edit_distance_pre_memo / day_seq_length_pre_memo
+        
         cer_day = day_edit_distance / day_seq_length
-        print(f"Day {prev_day}: CER = {cer_day:.4f}")
+        print(f"Day {prev_day}: CER = {cer_day:.4f} CER PRE MEMO = {cer_day_pre_memo:.4f}")
         wandb.log({f'day_cer': cer_day})
+        wandb.log({f'day_cer_pre_memo': cer_day_pre_memo})
+        
 
     # ----------------------
     # TOTAL CER
     # ----------------------
     if total_seq_length > 0:
+        total_cer_pre_memo = total_edit_distance_pre_memo / total_seq_length_pre_memo
         total_cer = total_edit_distance / total_seq_length
-        print(f"Total CER across all days: {total_cer:.4f}")
+        print(f"Total CER across all days: {total_cer:.4f}, {total_cer_pre_memo:.4f}")
         wandb.log({'cer_total': total_cer})
+        wandb.log({'cer_total_pre_memo': total_cer_pre_memo})
+        
     
     
     
