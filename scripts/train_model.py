@@ -3,6 +3,7 @@ import torch
 import numpy as np
 
 from neural_decoder.neural_decoder_trainer import trainModel
+from neural_decoder.measure_memory import trainModel_mem
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
@@ -26,8 +27,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_held_out_days_redo"
-DATA_PATH_KEY = f"{SERVER}_held_out"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "scratch"
+DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -49,7 +50,7 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:1',
+        'device': 'cuda:0',
 
         # Model hyperparameters
         'nInputFeatures': 256,
@@ -116,4 +117,4 @@ for seed in SEEDS_LIST:
     ).to(args["device"])
 
     # === Train ===
-    trainModel(args, model)
+    trainModel_mem(args, model)

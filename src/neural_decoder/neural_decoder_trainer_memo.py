@@ -158,12 +158,14 @@ def trainModel(args, model):
         # APPLY MEMO-STYLE TTA
         # ----------------------
         if args['memo_augs'] > 0:
+            
             if args['restore_model_each_update']:
                 model.load_state_dict(original_state_dict)
 
             model.train()
 
             for i in range(args['memo_epochs']):
+                
                 logits_aug = model.forward(X, X_len, testDayIdx, args['memo_augs'])  # [memo_augs, T, D]
                 probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)          # [memo_augs, T, D]
                 marginal_probs = probs_aug.mean(dim=0)                               # [T, D]

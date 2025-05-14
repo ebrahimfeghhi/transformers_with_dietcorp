@@ -19,7 +19,7 @@ from .loss import forward_cr_ctc, forward_ctc
 
 
 
-def trainModel(args, model):
+def trainModel_mem(args, model):
     
     os.makedirs(args["outputDir"], exist_ok=True)
     torch.manual_seed(args["seed"])
@@ -33,11 +33,6 @@ def trainModel(args, model):
         args["batchSize"],
         args['restricted_days']
     )
-    
-    print(len(testLoader))
-    breakpoint()
-
-    loss_ctc = torch.nn.CTCLoss(blank=0, reduction="mean", zero_infinity=True)
     
     if args['AdamW']:
         
@@ -105,69 +100,103 @@ def trainModel(args, model):
     # Start of epoch — reset peak memory tracker
     torch.cuda.reset_peak_memory_stats(args["device"])
     
-    startTime = time.time()
-
-    for X, y, X_len, y_len, dayIdx, compute_val in training_batch_generator(trainLoader, args):
+    avg_epoch_time = []
+    for epoch in range(args["start_epoch"], args['n_epochs']):
         
-        
+        train_loss = []
         model.train()
-
-        # Noise augmentation is faster on GPU
-        if args["whiteNoiseSD"] > 0:
-            X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
-
-        if args["constantOffsetSD"] > 0:
-            X += (
-                torch.randn([X.shape[0], 1, X.shape[2]], device=args["device"])
-                * args["constantOffsetSD"]
+        
+        
+        startTime = time.time()
+        for batch_idx, (X, y, X_len, y_len, dayIdx) in enumerate(tqdm(trainLoader, desc="Training")):
+            
+               
+            X, y, X_len, y_len, dayIdx = (
+                X.to(args["device"]),
+                y.to(args["device"]),
+                X_len.to(args["device"]),
+                y_len.to(args["device"]),
+                dayIdx.to(args["device"]),
             )
-    
-        # Compute prediction error
-        pred = model.forward(X, X_len, dayIdx)
-                    
-        adjustedLens = model.compute_length(X_len)
-        
-        loss = forward_ctc(pred, adjustedLens, y, y_len)
-        train_loss.append(loss.cpu().detach().numpy())
+
             
-        # Backpropagation
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()      
+            
+            model.train()
+
+            # Noise augmentation is faster on GPU
+            if args["whiteNoiseSD"] > 0:
+                X += torch.randn(X.shape, device=args["device"]) * args["whiteNoiseSD"]
+
+            if args["constantOffsetSD"] > 0:
+                X += (
+                    torch.randn([X.shape[0], 1, X.shape[2]], device=args["device"])
+                    * args["constantOffsetSD"]
+                )
         
+            # Compute prediction error
+            pred = model.forward(X, X_len, dayIdx)
+                        
+            adjustedLens = model.compute_length(X_len)
+            
+            loss = forward_ctc(pred, adjustedLens, y, y_len)
+            train_loss.append(loss.cpu().detach().numpy())
+                
+            # Backpropagation
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()      
+            
         # signals end of epoch. 
-        if compute_val:
-            endTime = time.time()
-            print(endTime - startTime)
-            # End of epoch — print peak GPU memory
-            peak_mem_epoch = torch.cuda.max_memory_allocated(args["device"])
-            print(f"[Epoch Peak] Peak memory allocated during full epoch: {peak_mem_epoch / 1e6:.2f} MB")
+        endTime = time.time()
+        print("Training time: ", endTime - startTime)
+        # End of epoch — print peak GPU memory
+        peak_mem_epoch = torch.cuda.max_memory_allocated(args["device"])
+        print(f"[Epoch Peak] Peak memory allocated during full epoch: {peak_mem_epoch / 1e6:.2f} MB")
+        avg_epoch_time.append(endTime-startTime)
+        if epoch == 9:
+            print(np.mean(avg_epoch_time), np.std(avg_epoch_time))
+            breakpoint()
+        continue
+        
+        with torch.no_grad():
+                        
+            model.eval()
+            timings = []
             
-            with torch.no_grad():
-                            
-                model.eval()
-                allLoss = []
-                total_edit_distance = 0
-                total_seq_length = 0
+            total_len = 0
+                        
+            for X, y, X_len, y_len, testDayIdx in testLoader:
                 
-                startTime = time.time()
+                #if args['testing_on_held_out']:
+                #    testDayIdx.fill_(args['maxDay'])
+
+                X, y, X_len, y_len, testDayIdx = (
+                    X.to(args["device"]),
+                    y.to(args["device"]),
+                    X_len.to(args["device"]),
+                    y_len.to(args["device"]),
+                    testDayIdx.to(args["device"]),
+                )
                 
-                for X, y, X_len, y_len, testDayIdx in testLoader:
-                    
-                    #if args['testing_on_held_out']:
-                    #    testDayIdx.fill_(args['maxDay'])
+                torch.cuda.synchronize()  # Optional but recommended if using GPU
+                start = time.time()
 
-                    X, y, X_len, y_len, testDayIdx = (
-                        X.to(args["device"]),
-                        y.to(args["device"]),
-                        X_len.to(args["device"]),
-                        y_len.to(args["device"]),
-                        testDayIdx.to(args["device"]),
-                    )
+                pred = model.forward(X, X_len, testDayIdx)
 
-                    pred = model.forward(X, X_len, testDayIdx)
-                    
-                endTime = time.time()
-                print(endTime - startTime)
-                breakpoint()
-                    
+                torch.cuda.synchronize()
+                end = time.time()
+                
+                total_len += X_len
+
+                # Measure time per trial (per sample in batch)
+                elapsed_per_sample = (end - start) / X.shape[0]
+                timings.append(elapsed_per_sample)
+                
+            timings_ms = np.array(timings) * 1000
+            mean_time = np.mean(timings_ms)
+            std_time = np.std(timings_ms)
+            print(f"Inference time per trial: {mean_time:.3f} ± {std_time:.3f} ms")
+            print(f"Avg trial length: {total_len/len(testLoader)}")
+            
+            breakpoint()
+                        
