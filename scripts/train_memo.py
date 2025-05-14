@@ -36,10 +36,10 @@ DATA_PATHS = {
 
 
 SERVER = "obi"  # change to "obi" if running on Obi
-DATA_PATH_KEY = f"{SERVER}_log"
+DATA_PATH_KEY = f"{SERVER}_log_held_out"
 
-MODEL_TO_RESTORE = f"neurips_transformer_time_masked_seed_{SEED}"
-MODEL_NAME = f"memo_16_1"
+MODEL_TO_RESTORE = f"neurips_transformer_time_masked_held_out_days_seed_{SEED}"
+MODEL_NAME = f"restore_each_day"
 
 OUTPUT_DIR = os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_NAME)
 
@@ -59,7 +59,7 @@ args = {
 
     # model restore settings
     "model_to_restore": MODEL_TO_RESTORE,
-    "restore_model_each_update": False,
+    "restore_model_each_update": True,
     "restore_model_each_day": False,
     "modelWeightPath": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "modelWeights"),
     "optimizer_path": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "optimizer"),
@@ -83,8 +83,8 @@ args = {
     "optimizer": "AdamW",
     "load_optimizer_state": False,
     "l2_decay": 0.0,
-    "lrStart": 5e-5,
-    "lrEnd": 5e-5,
+    "lrStart": 1e-3,
+    "lrEnd": 1e-3,
     "beta1": 0.90,
     "beta2": 0.999,
 
@@ -94,8 +94,7 @@ args = {
     "device": DEVICE,
 
     # fine‑tuning flags
-    "freeze_all_except_patch_linear": True,
-    "unfreeze_layer_1": False,
+    "freeze_all_except_patch_embed": True,
 }
 
 print(f"Using dataset: {args['datasetPath']}")
@@ -136,23 +135,27 @@ model.load_state_dict(
 )
 print(f"Loaded pretrained weights from {args['modelWeightPath']}")
 
+    
 # === OPTIONAL PARAMETER FREEZING ===
-if args["freeze_all_except_patch_linear"]:
-    for p in model.parameters():
-        p.requires_grad = False
-
-    # Unfreeze patch‑embedding linear projection (assumed third module)
-    for p in model.to_patch_embedding[2].parameters():
-        p.requires_grad = True
-
-    if args["unfreeze_layer_1"]:
-        for p in model.transformer.layers[0].parameters():
+if args["freeze_all_except_patch_embed"]:
+    for name, p in model.named_parameters():
+        if name in {
+            "to_patch_embedding.1.weight",
+            "to_patch_embedding.1.bias",
+            "to_patch_embedding.2.weight",
+            "to_patch_embedding.2.bias",
+            "to_patch_embedding.3.weight",
+            "to_patch_embedding.3.bias"
+        }:
             p.requires_grad = True
+        else:
+            p.requires_grad = False
 
     # Log trainable params
     for n, p in model.named_parameters():
         if p.requires_grad:
             print(f"[Trainable] {n}")
+            
 
 # === TRAIN ===
 trainModel(args, model)
