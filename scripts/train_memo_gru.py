@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from neural_decoder.neural_decoder_trainer_memo import trainModel
-from neural_decoder.bit import BiT_Phoneme
+from neural_decoder.model import GRUDecoder
 
 # === COMMAND‑LINE ARGUMENTS ===
 parser = argparse.ArgumentParser(description="Memo‑style training script (formatted).")
@@ -34,99 +34,101 @@ DATA_PATHS = {
     'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
 }
 
-
 SERVER = "obi"  # change to "obi" if running on Obi
 DATA_PATH_KEY = f"{SERVER}_log_held_out_2"
 
-MODEL_TO_RESTORE = f"neurips_transformer_time_masked_held_out_days_2_seed_{SEED}"
+MODEL_TO_RESTORE = f"gru_fully_held_out_days_mod_2_seed_3"
 MODEL_NAME = f"scratch"
 
 OUTPUT_DIR = os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_NAME)
 
 # === EXPERIMENT CONFIG ===
 args = {
-    # bookkeeping
+      # bookkeeping
     "seed": SEED,
     "modelName": MODEL_NAME,
     "outputDir": OUTPUT_DIR,
     "datasetPath": DATA_PATHS[DATA_PATH_KEY],
     'skip_days': [],
-
+    
     # memo‑specific settings
     "memo_augs": 16,
     "memo_epochs": 1,
     "evenDaysOnly": False,
-
+    
     # model restore settings
     "model_to_restore": MODEL_TO_RESTORE,
     "restore_model_each_update": False,
     "restore_model_each_day": False,
-    "modelWeightPath": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "modelWeights"),
-    "optimizer_path": os.path.join(BASE_PATHS[SERVER], "leia_outputs", MODEL_TO_RESTORE, "optimizer"),
+    "modelWeightPath": os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_TO_RESTORE, "modelWeights"),
+    "optimizer_path": os.path.join(BASE_PATHS[SERVER], "outputs", MODEL_TO_RESTORE, "optimizer"),
+    
+    # Model hyperparameters
+    'nInputFeatures': 256,
+    'nClasses': 40,
+    'nUnits': 1024,
+    'nLayers': 5,
+    'dropout': 0.40,
+    'input_dropout': 0,
+    'bidirectional': False,
 
-    # architecture
-    "patch_size": (5, 256),
-    "dim": 384,
-    "depth": 7,
-    "heads": 6,
-    "mlp_dim_ratio": 4,
-    "dim_head": 64,
-    "dropout": 0.0,
-    "input_dropout": 0.0,
-    "num_masks": 20,
-    "max_mask_pct": 0.05,
-    "gaussianSmoothWidth": 2.0,
-    "nClasses": 40,
-    "T5_style_pos": True,
+    # Data preprocessing
+    'whiteNoiseSD': 0.8,
+    'constantOffsetSD': 0.2,
+    'gaussianSmoothWidth': 2.0,
+    'strideLen': 4,
+    'kernelLen': 32,
+    'restricted_days': [],
+    'maxDay': 14,
+    'nDays': 24,
 
-    # optimisation
-    "optimizer": "AdamW",
-    "load_optimizer_state": False,
-    "l2_decay": 0.0,
-    "lrStart": 5e-6,
-    "lrDecrease": None,
-    "lrEnd": 5e-6,
-    "beta1": 0.90,
-    "beta2": 0.999,
+    # Optimization
+    'AdamW': False,
+    'lrStart': 0.02,
+    'lrEnd': 0.02,
+    'l2_decay': 1e-5,
+    'beta1': 0.90,
+    'beta2': 0.999,
+    'learning_scheduler': 'None',
+    'milestones': [400],
+    'gamma': 0.1,
+    'n_epochs': 73,
+    'batchSize': 64,
 
-    # misc
-    "look_ahead": 0,
-    "extra_notes": "",
-    "device": DEVICE,
-
-    # fine‑tuning flags
-    "freeze_all_except_patch_embed": True,
+    # Optional loading
+    'load_pretrained_model': '', 
+    'wandb_id': '', 
+    'start_epoch': 0,
+    
+    'ventral_6v_only': False, 
+    
+    'max_mask_pct': 0.05, 
+    'num_masks': 20, 
+    'device': 'cuda:1', 
+    'optimizer': 'AdamW', 
+    'load_optimizer_state': False,
+    'lrDecrease': False
 }
 
-print(f"Using dataset: {args['datasetPath']}")
-print(f"Saving outputs to: {args['outputDir']}")
-
-os.makedirs(args["outputDir"], exist_ok=True)
-
-# === REPRODUCIBILITY ===
+# === Instantiate Model ===
 torch.manual_seed(args["seed"])
 np.random.seed(args["seed"])
 
-# === MODEL INITIALISATION ===
-model = BiT_Phoneme(
-    patch_size=args["patch_size"],
-    dim=args["dim"],
-    dim_head=args["dim_head"],
-    nClasses=args["nClasses"],
-    depth=args["depth"],
-    heads=args["heads"],
-    mlp_dim_ratio=args["mlp_dim_ratio"],
+model = GRUDecoder(
+    neural_dim=args["nInputFeatures"],
+    n_classes=args["nClasses"],
+    hidden_dim=args["nUnits"],
+    layer_dim=args["nLayers"],
+    nDays=args['nDays'],
     dropout=args["dropout"],
-    input_dropout=args["input_dropout"],
-    look_ahead=args["look_ahead"],
+    device=args["device"],
+    strideLen=args["strideLen"],
+    kernelLen=args["kernelLen"],
     gaussianSmoothWidth=args["gaussianSmoothWidth"],
-    T5_style_pos=args["T5_style_pos"],
-    max_mask_pct=args["max_mask_pct"],
-    num_masks=args["num_masks"], 
-    mask_token_zeros=False,
-    num_masks_channels=0,
-    max_mask_channels=0,
-    dist_dict_path=None
+    bidirectional=args["bidirectional"],
+    input_dropout=args['input_dropout'], 
+    max_mask_pct=args['max_mask_pct'],
+    num_masks=args['num_masks']
 ).to(args["device"])
 
 # === LOAD PRETRAINED WEIGHTS ===
@@ -136,17 +138,13 @@ model.load_state_dict(
 )
 print(f"Loaded pretrained weights from {args['modelWeightPath']}")
 
-    
+
 # === OPTIONAL PARAMETER FREEZING ===
-if args["freeze_all_except_patch_embed"]:
+if False:
     for name, p in model.named_parameters():
         if name in {
-            "to_patch_embedding.1.weight",
-            "to_patch_embedding.1.bias",
-            "to_patch_embedding.2.weight",
-            "to_patch_embedding.2.bias",
-            "to_patch_embedding.3.weight",
-            "to_patch_embedding.3.bias"
+            "dayWeights",
+            "dayBias"
         }:
             p.requires_grad = True
         else:
