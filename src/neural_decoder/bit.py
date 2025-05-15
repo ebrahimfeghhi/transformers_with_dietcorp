@@ -203,7 +203,7 @@ class BiT_Phoneme(nn.Module):
                 
                 x_repeated = x.repeat_interleave(n_masks, dim=0)        # shape: (n_masks * B, T, D)
                 X_len_repeated = X_len.repeat_interleave(n_masks) 
-                x, _ = self.apply_time_masking(x_repeated, X_len_repeated) 
+                x, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
                 
             else:
                 x, _ = self.apply_time_mask(x, X_len)
