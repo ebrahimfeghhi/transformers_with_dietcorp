@@ -89,14 +89,24 @@ class GRUDecoder(nn.Module):
         else:
             self.fc_decoder_out = nn.Linear(hidden_dim, n_classes + 1)  # +1 for CTC blank
 
-    def forward(self, neuralInput, X_len, dayIdx):
+    def forward(self, neuralInput, X_len, dayIdx, n_masks=0):
         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         
         if self.training and self.max_mask_pct > 0:
-            neuralInput, _ = self.apply_time_masking(neuralInput, X_len)
+            
+            
+            # for memo TTA
+            if n_masks > 0:
+                
+                neuralInput = neuralInput.repeat_interleave(n_masks, dim=0)        # shape: (n_masks * B, T, D)
+                X_len_repeated = X_len.repeat_interleave(n_masks) 
+                neuralInput, _ = self.apply_time_masking(neuralInput, X_len_repeated) 
+            
+            else:
+                neuralInput, _ = self.apply_time_masking(neuralInput, X_len)
         
         # apply day layer
         dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)
