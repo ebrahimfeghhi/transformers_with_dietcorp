@@ -12,6 +12,10 @@ parser.add_argument("--cuda", type=int, default=0, help="CUDA device number to u
 parser.add_argument("--seed", type=int, default=0, help="Random seed (default: 0)")
 cli_args = parser.parse_args()
 
+
+# this script is only for measuring memory and speed. Did not evaluate performance with memo
+# on GRU. 
+
 DEVICE = f"cuda:{cli_args.cuda}"
 SEED = cli_args.seed
 
@@ -140,7 +144,7 @@ print(f"Loaded pretrained weights from {args['modelWeightPath']}")
 
 
 # === OPTIONAL PARAMETER FREEZING ===
-if False:
+if True:
     for name, p in model.named_parameters():
         if name in {
             "dayWeights",

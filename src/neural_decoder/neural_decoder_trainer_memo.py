@@ -73,15 +73,6 @@ def trainModel(args, model):
     
     original_state_dict = copy.deepcopy(model.state_dict())
     
-    skip_keys = {
-        "to_patch_embedding.1.weight",
-        "to_patch_embedding.1.bias",
-        "to_patch_embedding.2.weight",
-        "to_patch_embedding.2.bias",
-        "to_patch_embedding.3.weight",
-        "to_patch_embedding.3.bias"
-    }
-    
     total_edit_distance = 0
     total_seq_length = 0
 
@@ -103,16 +94,16 @@ def trainModel(args, model):
     counter = 0
     for X, y, X_len, y_len, testDayIdx in testLoader:
         
-        #day = testDayIdx[0].item()
+        day = testDayIdx[0].item()
         
-        #if len(args['skip_days']) > 0:
-        #    if day in args['skip_days']:
-        #        continue
+        if len(args['skip_days']) > 0:
+            if day in args['skip_days']:
+                continue
         
-        #if args['evenDaysOnly'] and (day % 2 != 0):
-        #    continue
-        torch.cuda.reset_peak_memory_stats(args['device'])
-        torch.cuda.synchronize()  # Ensure all prior CUDA ops are done
+        if args['evenDaysOnly'] and (day % 2 != 0):
+            continue
+        #torch.cuda.reset_peak_memory_stats(args['device'])
+        #torch.cuda.synchronize()  # Ensure all prior CUDA ops are done
     
         start_time = time.time()
         
@@ -129,63 +120,60 @@ def trainModel(args, model):
         # ----------------------
         # LOG CER FOR PREVIOUS DAY
         # ----------------------
-        #if prev_day is not None and day != prev_day:
-        #    breakpoint()
+        if prev_day is not None and day != prev_day:
             
-        #    if args['lrDecrease'] is not None:
-        #        learning_rate = max(learning_rate - args['lrDecrease'], 0)
-        #        print("learning rate decreased to: ", learning_rate)
-        #        
-        #        for param_group in optimizer.param_groups:
-        #            param_group['lr'] = learning_rate
-        #                
-        #    print(day, prev_day)
-        #    
-        #    cer_day_pre_memo = day_edit_distance_pre_memo / day_seq_length_pre_memo
-        #    
-        #    cer_day = day_edit_distance / day_seq_length
-        #    
-        #    print(f"Day {prev_day}: CER = {cer_day:.4f}, PRE MEMO = {cer_day_pre_memo:.4f}")
-        #    wandb.log({f'day_cer': cer_day})
-        #    wandb.log({f'day_cer_pre_memo': cer_day_pre_memo})
-        #    
-        #    # Reset counters for new day
-        #    day_edit_distance = 0
-        #    day_seq_length = 0
-        #    day_edit_distance_pre_memo = 0
-        #    day_seq_length_pre_memo = 0
+            if args['lrDecrease'] is not None:
+                learning_rate = max(learning_rate - args['lrDecrease'], 0)
+                print("learning rate decreased to: ", learning_rate)
+                
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = learning_rate
+                        
+            print(day, prev_day)
+            
+            cer_day_pre_memo = day_edit_distance_pre_memo / day_seq_length_pre_memo
+            
+            cer_day = day_edit_distance / day_seq_length
+            
+            print(f"Day {prev_day}: CER = {cer_day:.4f}, PRE MEMO = {cer_day_pre_memo:.4f}")
+            wandb.log({f'day_cer': cer_day})
+            wandb.log({f'day_cer_pre_memo': cer_day_pre_memo})
+            
+            # Reset counters for new day
+            day_edit_distance = 0
+            day_seq_length = 0
+            day_edit_distance_pre_memo = 0
+            day_seq_length_pre_memo = 0
             
 
             # Restore model if needed
-            #if args['restore_model_each_day']:
-            #    print("RESTORE EACH DAY IS TURNED OFF")
-                #model.load_state_dict(original_state_dict)
+            if args['restore_model_each_day']:
+                model.load_state_dict(original_state_dict)
 
         # ----------------------
         # EVALUATE (Before MEMO update)
         # ----------------------
-        #with torch.no_grad():
-        #    model.eval()
-        #    pred = model.forward(X, X_len, testDayIdx)
-        #    adjustedLens = model.compute_length(X_len)
-        #    cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+        with torch.no_grad():
+            model.eval()
+            pred = model.forward(X, X_len, testDayIdx)
+            adjustedLens = model.compute_length(X_len)
+            cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
 
             # Accumulate both global and per-day stats
-        #    total_edit_distance_pre_memo += ed
-        #    total_seq_length_pre_memo += seq_len
-        #    day_edit_distance_pre_memo += ed
-        #    day_seq_length_pre_memo += seq_len
+            total_edit_distance_pre_memo += ed
+            total_seq_length_pre_memo += seq_len
+            day_edit_distance_pre_memo += ed
+            day_seq_length_pre_memo += seq_len
 
-        #    wandb.log({'cer_pre_memo': cer})
+            wandb.log({'cer_pre_memo': cer})
         
         # ----------------------
         # APPLY MEMO-STYLE TTA
         # ----------------------
-        #if args['memo_augs'] > 0:
+        if args['memo_augs'] > 0:
             
-            #if args['restore_model_each_update']:
-
-            #    model.load_state_dict(original_state_dict)
+            if args['restore_model_each_update']:
+                model.load_state_dict(original_state_dict)
         
         for i in range(args['memo_epochs']):
             
@@ -210,8 +198,8 @@ def trainModel(args, model):
         #print(f"{peak_mem / (1024 ** 3):.2f} GiB")
         peak_memory.append(peak_mem)
             
-        #end_time_after_training = time.time()
-        #counter+=1
+        end_time_after_training = time.time()
+        counter+=1
         #total_time = end_time_after_training - start_time_before_training
         #memo_time = end_time - start_time
         #print(f"Time for one MEMO epoch: {memo_time:.4f} seconds")
@@ -221,20 +209,20 @@ def trainModel(args, model):
         # ----------------------
         # EVALUATE (After MEMO update)
         # ----------------------
-       # with torch.no_grad():
-       #     model.eval()
-       #     pred = model.forward(X, X_len, testDayIdx)
-       #     adjustedLens = model.compute_length(X_len)
-       #     cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
+        with torch.no_grad():
+             model.eval()
+             pred = model.forward(X, X_len, testDayIdx)
+             adjustedLens = model.compute_length(X_len)
+             cer, ed, seq_len = compute_batch_cer(pred, y, adjustedLens, y_len)
 
-       #     total_edit_distance += ed
-       #     total_seq_length += seq_len
-       #     day_edit_distance += ed
-       #     day_seq_length += seq_len
+             total_edit_distance += ed
+             total_seq_length += seq_len
+             day_edit_distance += ed
+             day_seq_length += seq_len
 
-       #     wandb.log({'cer_post_memo': cer})
+             wandb.log({'cer_post_memo': cer})
         
-        #prev_day = day
+        prev_day = day
 
     end_time_after_training = time.time()
     # ----------------------
@@ -259,9 +247,8 @@ def trainModel(args, model):
         wandb.log({'cer_total': total_cer})
         wandb.log({'cer_total_pre_memo': total_cer_pre_memo})
         
-    print(end_time_after_training - start_time_before_training)
-    print(np.mean(time_for_single_memo_update), np.std(time_for_single_memo_update))
-    print(f"{np.max(peak_memory) / (1024 ** 3):.2f} GiB")
-    breakpoint()
+    #print(end_time_after_training - start_time_before_training)
+    #print(np.mean(time_for_single_memo_update), np.std(time_for_single_memo_update))
+    #print(f"{np.max(peak_memory) / (1024 ** 3):.2f} GiB")
     
             
