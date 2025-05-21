@@ -35,6 +35,9 @@ Additional packages used for this paper can be found in the environment.yml file
    - `n_gram_lm.ipynb`  
    - `n_gram_lm_memo.ipynb`
 
+   In the case that the n-gram language model does not load properly, you can import it in the following manner:
+   a) HELLLOOOO
+
 5. **Submit predictions**  
    Upload the generated `.txt` files to EvalAI for test-set WER:  
    https://eval.ai/web/challenges/challenge-page/2099/overview
