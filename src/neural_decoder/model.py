@@ -140,7 +140,9 @@ class GRUDecoder(nn.Module):
                 self.hidden_dim,
                 device=self.device,
             ).requires_grad_()
+            
 
+        
         hid, _ = self.gru_decoder(stridedInputs, h0.detach())
 
         # get seq
