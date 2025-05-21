@@ -3,7 +3,7 @@
 Adapted from: https://github.com/cffan/neural_seq_decoder/tree/master
 
 ## Requirements
-- Python ≥ 3.9
+- Python ≥ 3.9 (recommend using Python version 3.9.21)
 
 ## Installation
 
@@ -39,5 +39,5 @@ Additional packages used for this paper can be found in the environment.yml file
    Upload the generated `.txt` files to EvalAI for test-set WER:  
    https://eval.ai/web/challenges/challenge-page/2099/overview
 
-6. **Generate figures**  
-   All figure-generation code is in `notebooks/figures/`.
+6. **Generate figures and results**  
+   Code to generate results/figures is in `notebooks/figures/`.
