@@ -43,8 +43,11 @@ Additional packages used for this paper can be found in the environment.yml file
 6. **Generate figures and results**  
    Code to generate results/figures is in `notebooks/figures/`.
 
-**Additional Instructions for n-gram language model**
+**Additional Instructions for n-gram language model** 
+
+
 If the n-gram language model does not load, perform the following steps.
+
 1. Clone https://github.com/fwillett/speechBCI
 2. mv ./speechBCI/LanguageModelDecoder into this repository
 3. cd LanguageModelDecoder/runtime/server/x86
