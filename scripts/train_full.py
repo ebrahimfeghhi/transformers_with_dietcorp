@@ -31,7 +31,7 @@ seed_list = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "tf_no_time_mask_blue"
+model_name_base = "scratch"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -125,6 +125,7 @@ for seed in seed_list:
         ckpt_path = os.path.join(args['load_pretrained_model'], 'modelWeights')
         model.load_state_dict(torch.load(ckpt_path, map_location=args['device']), strict=True)
         print(f"Loaded pretrained model from {ckpt_path}")
+    
 
     # Train
     trainModel(args, model)

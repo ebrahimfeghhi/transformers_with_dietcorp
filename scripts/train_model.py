@@ -115,6 +115,8 @@ for seed in SEEDS_LIST:
         max_mask_pct=args['max_mask_pct'],
         num_masks=args['num_masks']
     ).to(args["device"])
+    
+    from fvcore.nn import FlopCountAnalysis, parameter_count_table
 
     # === Train ===
     trainModel_mem(args, model)

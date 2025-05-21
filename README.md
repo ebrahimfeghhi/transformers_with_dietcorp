@@ -1,14 +1,43 @@
-## Pytorch implementation of [Neural Sequence Decoder](https://github.com/fwillett/speechBCI/tree/main/NeuralDecoder)
+# Neural Sequence Decoder
+
+Adapted from: https://github.com/cffan/neural_seq_decoder/tree/master
 
 ## Requirements
-- python >= 3.9
+- Python ≥ 3.9
 
 ## Installation
 
-pip install -e .
+For the original install environment, run: 
 
-## How to run
+```bash
+pip install -e . 
+```
 
-1. Convert the speech BCI dataset using [formatCompetitionData.ipynb](./notebooks/formatCompetitionData.ipynb)
-2. Train model: `python ./scripts/train_model.py`
+Additional packages used for this paper can be found in the environment.yml file.
 
+
+## How to Run
+
+1. **Download the neural dataset**  
+   https://datadryad.org/dataset/doi:10.5061/dryad.x69p8czpq
+
+2. **Format the dataset**  
+   Convert the speech BCI dataset using `notebooks/formatCompetitionData.ipynb`
+
+3. **Train the models**  
+   Run the Python scripts in `./scripts/`:
+   - `train_model.py` – trains the original GRU-based baseline algorithm  
+   - `train_full.py` – trains the Transformer-based model  
+   - `train_memo.py` – performs MEMO test-time adaptation on a pretrained Transformer
+
+4. **Evaluate with an N-gram language model**  
+   Use the notebooks in `./src/neural_decoder/`:
+   - `n_gram_lm.ipynb`  
+   - `n_gram_lm_memo.ipynb`
+
+5. **Submit predictions**  
+   Upload the generated `.txt` files to EvalAI for test-set WER:  
+   https://eval.ai/web/challenges/challenge-page/2099/overview
+
+6. **Generate figures**  
+   All figure-generation code is in `notebooks/figures/`.
