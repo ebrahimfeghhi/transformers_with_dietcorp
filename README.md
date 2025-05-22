@@ -1,4 +1,4 @@
-# Neural Sequence Decoder
+# Masked Transformers with Test-Time Adaptation for Speech Neuroprostheses
 
 Adapted from: https://github.com/cffan/neural_seq_decoder/tree/master
 
@@ -26,15 +26,16 @@ Additional packages used for this paper can be found in the environment.yml file
 
 3. **Train the models**  
    Run the Python scripts in `./scripts/`:
-   - `train_model.py` – trains the original GRU-based baseline algorithm  
+   - `train_gru.py` – trains the original GRU-based baseline algorithm  
    - `train_full.py` – trains the Transformer-based model  
-   - `train_memo.py` – performs MEMO test-time adaptation on a pretrained Transformer
+   - `train_memo.py` – performs MEMO style test-time adaptation on a pretrained Transformer
+   - `train_mae.py` – trains a masked autoencoder to predict masked tokens
+
 
 4. **Evaluate with an N-gram language model**  
    Use the notebooks in `./src/neural_decoder/`:
    - `n_gram_lm.ipynb`  
    - `n_gram_lm_memo.ipynb`
-
 
 5. **Submit predictions**  
    Upload the generated `.txt` files to EvalAI for test-set WER:  
