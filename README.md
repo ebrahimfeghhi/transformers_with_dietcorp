@@ -28,7 +28,7 @@ Additional packages used for this paper can be found in the environment.yml file
    Run the Python scripts in `./scripts/`:
    - `train_gru.py` – trains the original GRU-based baseline algorithm  
    - `train_transformer.py` – trains the Transformer-based model  
-   - `train_memo.py` – performs MEMO style test-time adaptation on a pretrained Transformer
+   - `train_cort.py` – performs MEMO style test-time adaptation (**C**ontinual **O**nline **R**ecalibration with Time Masking) on a pretrained Transformer
    - `train_mae.py` – trains a masked autoencoder to predict masked tokens
 
 
