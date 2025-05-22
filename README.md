@@ -28,14 +28,14 @@ Additional packages used for this paper can be found in the environment.yml file
    Run the Python scripts in `./scripts/`:
    - `train_gru.py` – trains the original GRU-based baseline algorithm  
    - `train_transformer.py` – trains the Transformer-based model  
-   - `train_cort.py` – performs MEMO style test-time adaptation (**C**ontinual **O**nline **R**ecalibration with Time Masking) on a pretrained Transformer
+   - `train_cort.py` – performs MEMO style test-time adaptation (**C**ontinual **O**nline **R**ecalibration with **T**ime Masking) on a pretrained Transformer
    - `train_mae.py` – trains a masked autoencoder to predict masked tokens
 
 
 4. **Evaluate with an N-gram language model**  
    Use the notebooks in `./src/neural_decoder/` to generate the competition `.txt` files :
    - `n_gram_lm.ipynb`  
-   - `n_gram_lm_memo.ipynb`
+   - `n_gram_lm_cort.ipynb`
 
 5. **Submit predictions**  
    Upload the generated `.txt` files to EvalAI for test-set WER:  
