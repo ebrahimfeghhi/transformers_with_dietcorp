@@ -27,13 +27,13 @@ Additional packages used for this paper can be found in the environment.yml file
 3. **Train the models**  
    Run the Python scripts in `./scripts/`:
    - `train_gru.py` – trains the original GRU-based baseline algorithm  
-   - `train_full.py` – trains the Transformer-based model  
+   - `train_transformer.py` – trains the Transformer-based model  
    - `train_memo.py` – performs MEMO style test-time adaptation on a pretrained Transformer
    - `train_mae.py` – trains a masked autoencoder to predict masked tokens
 
 
 4. **Evaluate with an N-gram language model**  
-   Use the notebooks in `./src/neural_decoder/`:
+   Use the notebooks in `./src/neural_decoder/` to generate the competition `.txt` files :
    - `n_gram_lm.ipynb`  
    - `n_gram_lm_memo.ipynb`
 
