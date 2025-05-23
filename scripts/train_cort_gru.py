@@ -3,7 +3,7 @@ import argparse
 import torch
 import numpy as np
 
-from neural_decoder.neural_decoder_trainer_memo import trainModel
+from neural_decoder.neural_decoder_trainer_cort import trainModel
 from neural_decoder.model import GRUDecoder
 
 # === COMMAND‑LINE ARGUMENTS ===
