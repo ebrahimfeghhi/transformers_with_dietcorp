@@ -3,7 +3,7 @@ import argparse
 import torch
 import numpy as np
 
-from neural_decoder.neural_decoder_trainer_memo import trainModel
+from neural_decoder.neural_decoder_trainer_cort import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
 # === COMMAND‑LINE ARGUMENTS ===
@@ -83,9 +83,9 @@ args = {
     "optimizer": "AdamW",
     "load_optimizer_state": False,
     "l2_decay": 0.0,
-    "lrStart": 5e-6,
+    "lrStart": 3e-5,
     "lrDecrease": None,
-    "lrEnd": 5e-6,
+    "lrEnd": 3e-5,
     "beta1": 0.90,
     "beta2": 0.999,
 
