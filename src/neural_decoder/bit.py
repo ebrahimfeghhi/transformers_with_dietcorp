@@ -177,7 +177,7 @@ class BiT_Phoneme(nn.Module):
             print("NOT USING T5 STYLE POS")
             self.register_buffer('pos_embedding', None, persistent=False)
         
-    def forward(self, neuralInput, X_len, day_idx, n_masks=0):
+    def forward(self, neuralInput, X_len, day_idx, n_masks=0, n_masks_nptl_augs=0):
         """
         Args:
             neuralInput: Tensor of shape (B, T, F)
@@ -188,6 +188,20 @@ class BiT_Phoneme(nn.Module):
         """
         
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
+        device = neuralInput.device
+        
+        if n_masks_nptl_augs: 
+            
+            neuralInput = neuralInput.repeat_interleave(n_masks_nptl_augs, dim=0) 
+            neuralInput += torch.randn(neuralInput.shape, 
+                        device=device) * 0.2
+        
+            neuralInput += (
+                torch.randn([neuralInput.shape[0], 1, neuralInput.shape[2]], 
+                device=device)
+                * 0.05
+            )
+            
         
         #if self.training and self.max_channels_to_mask > 0: 
         #    neuralInput, _ = self.apply_channel_mask(neuralInput)
@@ -208,10 +222,22 @@ class BiT_Phoneme(nn.Module):
                 
                 x_repeated = x.repeat_interleave(n_masks, dim=0)        # shape: (n_masks * B, T, D)
                 X_len_repeated = X_len.repeat_interleave(n_masks) 
+                
+                x_repeated += torch.randn(x_repeated.shape, 
+                        device=device) * 0.2
+        
+                x_repeated += (
+                    torch.randn([x_repeated.shape[0], 1, x_repeated.shape[2]], 
+                    device=device)
+                    * 0.05
+                )
+            
                 x, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
             
             else:
                 x, _ = self.apply_time_mask(x, X_len)
+                
+            
 
             x = self.patch_to_emb(x)
 
