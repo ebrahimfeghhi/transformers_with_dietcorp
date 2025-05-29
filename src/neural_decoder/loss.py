@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 from typing import Dict, Iterable, List, Optional, TextIO, Tuple, Union
+from torch import Tensor
+from typing import Optional
+import torch.nn.functional as F
+
 
 # code from Icefall package
 def make_pad_mask(lengths: torch.Tensor, max_len: int = 0) -> torch.Tensor:
@@ -79,6 +83,7 @@ def forward_cr_ctc(
         """
         # Compute CTC loss
         ctc_output = encoder_out.log_softmax(2)  # (2 * N, T, C)
+        
         ctc_loss = torch.nn.functional.ctc_loss(
             log_probs=ctc_output.permute(1, 0, 2),  # (T, 2 * N, C)
             targets=targets.cpu(),
@@ -104,3 +109,38 @@ def forward_cr_ctc(
         cr_loss = cr_loss.masked_fill(length_mask, 0.0).sum()
       
         return ctc_loss, cr_loss
+
+
+def memo_loss_from_logits(
+    logits_aug: Tensor,
+    adjusted_len: int,
+    blank_id: Optional[int] = None,
+) -> Tensor:
+    """
+    Computes negative entropy loss from augmented logits.
+
+    Parameters
+    ----------
+    logits_aug : Tensor
+        Logits from multiple augmentations. Shape: [n_aug, T, D]
+    adjusted_len : int
+        If provided, truncate to this length along time dimension.
+    blank_id : Optional[int]
+        If not None, filter out time steps where the most likely
+        token is the blank_id.
+
+    Returns
+    -------
+    loss : Tensor
+        Scalar loss tensor (requires grad).
+    """
+    probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)   # [n_aug, T, D]
+    marginal_probs = probs_aug.mean(dim=0)                        # [T, D]
+    marginal_probs = marginal_probs[:adjusted_len]
+
+    if blank_id is not None:
+        max_indices = marginal_probs.argmax(dim=1)
+        marginal_probs = marginal_probs[max_indices != blank_id]
+
+    loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean()
+    return loss

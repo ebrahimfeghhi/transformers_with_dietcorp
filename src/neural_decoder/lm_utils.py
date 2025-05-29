@@ -10,7 +10,7 @@ import neural_decoder.lm_decoder as lm_decoder
 Neural Language Model Utils
 '''
 
-def wer(r, h):
+def compute_wer(r, h):
     """
     Calculation of WER with Levenshtein distance.
     Works only for iterables up to 254 elements (uint8).
@@ -390,14 +390,14 @@ def _cer_and_wer(decodedSentences, trueSentences, outputType='handwriting',
         decSent = decodedSentences[x]
         trueSent = trueSentences[x]
 
-        nCharErr = rnnEval.wer([c for c in trueSent], [c for c in decSent])
+        nCharErr = compute_wer([c for c in trueSent], [c for c in decSent])
         if outputType == 'handwriting':
             trueWords = trueSent.replace(">", " > ").split(" ")
             decWords = decSent.replace(">", " > ").split(" ")
         elif outputType == 'speech' or outputType == 'speech_sil':
             trueWords = trueSent.split(" ")
             decWords = decSent.split(" ")
-        nWordErr = rnnEval.wer(trueWords, decWords)
+        nWordErr = compute_wer(trueWords, decWords)
 
         allCharErr.append(nCharErr)
         allWordErr.append(nWordErr)
