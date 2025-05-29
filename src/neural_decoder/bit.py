@@ -177,7 +177,8 @@ class BiT_Phoneme(nn.Module):
             print("NOT USING T5 STYLE POS")
             self.register_buffer('pos_embedding', None, persistent=False)
         
-    def forward(self, neuralInput, X_len, day_idx, n_masks=0, n_masks_nptl_augs=0):
+    def forward(self, neuralInput, X_len, day_idx, n_masks=0, 
+                n_masks_nptl_augs=0, aug_values=None):
         """
         Args:
             neuralInput: Tensor of shape (B, T, F)
@@ -190,22 +191,17 @@ class BiT_Phoneme(nn.Module):
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
         device = neuralInput.device
         
+        # adding white noise and gaussian augs 
         if n_masks_nptl_augs: 
             
-            neuralInput = neuralInput.repeat_interleave(n_masks_nptl_augs, dim=0) 
-            neuralInput += torch.randn(neuralInput.shape, 
-                        device=device) * 0.2
-        
-            neuralInput += (
-                torch.randn([neuralInput.shape[0], 1, neuralInput.shape[2]], 
-                device=device)
-                * 0.05
-            )
+            neuralInput_augs = self.apply_original_augs(neuralInput.clone(), 
+                                n_masks_nptl_augs, aug_values)
             
+            # add original input back in 
+            neuralInput = torch.cat((neuralInput, neuralInput_augs), 0)
         
         #if self.training and self.max_channels_to_mask > 0: 
         #    neuralInput, _ = self.apply_channel_mask(neuralInput)
-         
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
@@ -217,28 +213,21 @@ class BiT_Phoneme(nn.Module):
 
             x = self.to_patch(neuralInput)
 
-            # for memo TTA
-            if n_masks > 0:
-                
-                x_repeated = x.repeat_interleave(n_masks, dim=0)        # shape: (n_masks * B, T, D)
-                X_len_repeated = X_len.repeat_interleave(n_masks) 
-                
-                x_repeated += torch.randn(x_repeated.shape, 
-                        device=device) * 0.2
+            if n_masks:
         
-                x_repeated += (
-                    torch.randn([x_repeated.shape[0], 1, x_repeated.shape[2]], 
-                    device=device)
-                    * 0.05
-                )
-            
-                x, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
-            
+                x_repeated = x[0:1].repeat_interleave(n_masks, dim=0)        # shape: (n_masks, T, D)
+                X_len_repeated = X_len.repeat_interleave(n_masks)         
+                x_masked, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
+                
+                if n_masks_nptl_augs:
+                    x = torch.cat((x[1:], x_masked), 0) # skip first index because it's original input
+                else:
+                    x = x_masked
+                                
             else:
+                
                 x, _ = self.apply_time_mask(x, X_len)
                 
-            
-
             x = self.patch_to_emb(x)
 
         else:
@@ -250,8 +239,6 @@ class BiT_Phoneme(nn.Module):
         x = self.dropout(x)
         
         b, seq_len, _ = x.shape
-        
-       
         # Add sin embeddings if T5 Style is False. 
         #if self.T5_style_pos == False:
         #    pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
@@ -272,6 +259,23 @@ class BiT_Phoneme(nn.Module):
         return torch.ceil(X_len / self.patch_height).to(dtype=torch.int32)
     
     
+    def apply_original_augs(self, neuralInput, n_masks_nptl_augs, aug_values):
+        
+            device = neuralInput.device
+        
+            neuralInput = neuralInput.repeat_interleave(n_masks_nptl_augs, dim=0) 
+            neuralInput += torch.randn(neuralInput.shape, 
+                        device=device) * aug_values[0]
+        
+            neuralInput += (
+                torch.randn([neuralInput.shape[0], 1, neuralInput.shape[2]], 
+                device=device)
+                * aug_values[1]
+            )
+            
+            return neuralInput
+        
+        
     def apply_time_mask(self, X, X_len, constant_mask=False, mask_range=[]):
         
         """
