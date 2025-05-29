@@ -218,11 +218,7 @@ class BiT_Phoneme(nn.Module):
                 x_repeated = x[0:1].repeat_interleave(n_masks, dim=0)        # shape: (n_masks, T, D)
                 X_len_repeated = X_len.repeat_interleave(n_masks)         
                 x_masked, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
-                
-                if n_masks_nptl_augs:
-                    x = torch.cat((x[1:], x_masked), 0) # skip first index because it's original input
-                else:
-                    x = x_masked
+                x = torch.cat((x, x_masked), 0)
                                 
             else:
                 
@@ -234,7 +230,6 @@ class BiT_Phoneme(nn.Module):
 
             x = self.to_patch_embedding(neuralInput)
 
-        # apply input level dropout. 
         # apply input level dropout. 
         x = self.dropout(x)
         
