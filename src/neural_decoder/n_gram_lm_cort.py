@@ -78,7 +78,7 @@ blank_penalty = np.log(2)
 blank_id = 0
 
 # Language model config
-load_lm = False
+load_lm = True
 run_lm = False
 run_for_llm = False
 
@@ -104,6 +104,8 @@ if load_lm:
     )
     print("Loaded language model")
     load_lm = False  # reset flag
+    
+breakpoint()
 
 # Evaluation config
 evaluate_comp = True
