@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+LanguageModelDecoder/
+src/neural_decoder/lm_decoder.so
 scripts/wandb/
 /home2/ebrahim/neural_seq_decoder/scripts/wandb/
 /home2/ebrahim/neural_seq_decoder/src/neural_decoder/save_best/
