@@ -37,19 +37,17 @@ Additional packages used for this paper can be found in the environment.yml file
    - `n_gram_lm.ipynb`  
    - `n_gram_lm_cort.ipynb`
 
+   In order to load the n-gram language model, follow these steps:
+   1. Clone https://github.com/fwillett/speechBCI
+   2. mv ./speechBCI/LanguageModelDecoder into this repository
+   3. cd LanguageModelDecoder/runtime/server/x86
+   4. Run "python setup.py install" inside your virtual/conda environment. 
+   5. Run the following command: find build \( -name "lm_decoder*.so" -o -name "lm_decoder*.pyd" \)
+   6. cp the file from command 5 into neural_seq_decoder/src/neural_decoder/lm_decoder.so
+
 5. **Submit predictions**  
    Upload the generated `.txt` files to EvalAI for test-set WER:  
    https://eval.ai/web/challenges/challenge-page/2099/overview
 
 6. **Generate figures and results**  
    Code to generate results/figures is in `notebooks/figures/`.
-
-**Additional Instructions for n-gram language model** 
-   In order to load the n-gram language model, implement the following steps. 
-
-1. Clone https://github.com/fwillett/speechBCI
-2. mv ./speechBCI/LanguageModelDecoder into this repository
-3. cd LanguageModelDecoder/runtime/server/x86
-4. Run "python setup.py install" inside your virtual/conda environment. 
-5. Run the following command: find build \( -name "lm_decoder*.so" -o -name "lm_decoder*.pyd" \)
-6. cp the file from command 5 into neural_seq_decoder/src/neural_decoder/lm_decoder.so
