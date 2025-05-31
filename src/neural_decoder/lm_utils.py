@@ -3,8 +3,9 @@ from time import time
 
 import numpy as np
 from tqdm.notebook import trange, tqdm
-
-import neural_decoder.lm_decoder as lm_decoder
+import sys
+sys.path.append('/home3/ebrahim2/language_model')
+import lm_decoder
 
 '''
 Neural Language Model Utils
