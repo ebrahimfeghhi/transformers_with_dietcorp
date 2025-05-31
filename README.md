@@ -44,7 +44,7 @@ Additional packages used for this paper can be found in the environment.yml file
    4. python setup.py install
    5. find build \\( -name "lm_decoder*.so" -o -name "lm_decoder*.pyd" \\)
    6. Move the file to your desired location, and rename it "lm_decoder.so". Recommend not including it in git repo, because the build depends on each system.
-   7. Change file path in lm_utils to where lm_decoder.so is located. 
+   7. Change file path in lm_utils.py to where lm_decoder.so is located. 
 
 5. **Submit predictions**  
    Upload the generated `.txt` files to EvalAI for test-set WER:  
