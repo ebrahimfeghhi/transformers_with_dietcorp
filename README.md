@@ -41,7 +41,8 @@ Additional packages used for this paper can be found in the environment.yml file
    1. "git clone https://github.com/fwillett/speechBCI"
    2. "cd speechBCI/LanguageModelDecoder/runtime/server/x86"
    4. Run "python setup.py install" inside your virtual/conda environment. 
-   5. Run the following command: "find build \( -name "lm_decoder*.so" -o -name "lm_decoder*.pyd" \)"
+   5. Run the following command: ```bash
+      find build \\( -name "lm_decoder*.so" -o -name "lm_decoder*.pyd" \\)
    6. cp the file from command 5 into neural_seq_decoder/src/neural_decoder/lm_decoder.so
 
 5. **Submit predictions**  
