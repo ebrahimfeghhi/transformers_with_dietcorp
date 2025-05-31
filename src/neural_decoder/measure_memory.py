@@ -17,8 +17,6 @@ import torch.nn.functional as F
 from .loss import forward_cr_ctc, forward_ctc
 
 
-
-
 def trainModel_mem(args, model):
     
     os.makedirs(args["outputDir"], exist_ok=True)
