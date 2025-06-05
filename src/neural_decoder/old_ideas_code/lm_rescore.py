@@ -17,6 +17,8 @@ model = AutoModelForCausalLM.from_pretrained(
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"
 
+breakpoint()
+
 
 from neural_decoder.old_ideas_code.llm_utils import cer_with_gpt2_decoder
 import time
@@ -53,4 +55,3 @@ llm_out = cer_with_gpt2_decoder(
 )
 
 print(llm_out["cer"], llm_out["wer"])
-breakpoint()

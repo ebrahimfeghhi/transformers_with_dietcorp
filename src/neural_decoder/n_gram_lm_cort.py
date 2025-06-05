@@ -3,12 +3,11 @@ import re
 import time
 import pickle
 import numpy as np
-
+import sys
 from edit_distance import SequenceMatcher
 import torch
 from dataset import SpeechDataset
 import matplotlib.pyplot as plt
-
 from neural_decoder.dataset import getDatasetLoaders
 import neural_decoder.lm_utils as lmDecoderUtils
 from neural_decoder.model import GRUDecoder
@@ -27,59 +26,34 @@ import json
 import os
 import copy
 from torch.utils.data import Subset
+from torch.utils.data import ConcatDataset
+from loss import memo_loss_from_logits, forward_ctc
+from g2p_en import G2p
+g2p = G2p()  # <- Global instance
+import wandb
 
 
-
-# ----------------------
-# Utility
-# ----------------------
-def convert_sentence(s: str) -> str:
-    """
-    Lowercases and strips all characters not in a-z, apostrophe, or space.
-    """
-    valid_chars = set("abcdefghijklmnopqrstuvwxyz' ")
-    return ''.join([c for c in s.lower() if c in valid_chars])
-
-
-# ----------------------
-# Configuration
-# ----------------------
-
-# Base directories
-base_dir = "/home3/skaasyap/willett"
 saveFolder_data = "/data/willett_data/paper_results_obi/"
 saveFolder_transcripts = "/data/willett_data/model_transcriptions_comp/"
 
-# Output mode (for storage path selection)
 output_file = 'leia'
 device = "cuda:2"
 
-model_storage_path = {
-    'obi': '/data/willett_data/outputs/',
-    'leia': '/data/willett_data/leia_outputs/'
-}.get(output_file, '/data/willett_data/outputs/')
+if output_file == 'obi':
+    model_storage_path = '/data/willett_data/outputs/'
+elif output_file == 'leia':
+    model_storage_path = '/data/willett_data/leia_outputs/'
+    
+    
+    
+base_dir = "/home3/skaasyap/willett"
 
-# Models to evaluate
-models_to_run = [
-    'neurips_transformer_time_masked_held_out_days_2',
-    'neurips_transformer_time_masked_held_out_days_1',
-    'neurips_transformer_time_masked_held_out_days'
-]
+load_lm = True
 
-# Output handling
-shared_output_file = 'combined'
-val_save_file = 'per_combined'
-write_mode = "a" if shared_output_file else "w"
-print(f"Writing mode: {write_mode}")
-
-# Acoustic decoding parameters
+# LM decoding hyperparameters
 acoustic_scale = 0.8
 blank_penalty = np.log(2)
-blank_id = 0
 
-# Language model config
-load_lm = True
-run_lm = False
 run_for_llm = False
 
 if run_for_llm:
@@ -92,36 +66,44 @@ else:
     rescore = False
     nbest = 1
     print("RUNNING IN N-GRAM MODE")
-
-# Load n-gram language model if needed
-if load_lm:
-    lmDir = f"{base_dir}/lm/languageModel"
+    
+if load_lm and 'ngramDecoder' not in globals():
+        
+    lmDir = base_dir +'/lm/languageModel'
     ngramDecoder = lmDecoderUtils.build_lm_decoder(
         lmDir,
-        acoustic_scale=acoustic_scale,
+        acoustic_scale=acoustic_scale, #1.2
         nbest=nbest,
         beam=18
     )
-    print("Loaded language model")
-    load_lm = False  # reset flag
+    print("loaded LM")
     
-breakpoint()
+elif load_lm:
+    print("Already loaded LM")
+    
 
-# Evaluation config
+
+models_to_run = ['neurips_transformer_time_masked_held_out_days_2']
+
+shared_output_file = 'scratch'
+val_save_file = 'per_scratch'
+seeds_list = [0]
+
+if len(shared_output_file) > 0:
+    print("Writing to shared output file")
+    write_mode = "a"
+else:
+    write_mode = "w"
+    
 evaluate_comp = True
-kl_only = False
-partition = "competition"
-seeds_list = [0, 1, 2, 3]
+run_lm = True
 
-# MEMO / adaptation parameters
-memo = True
-memo_epochs = 1
-memo_augs = 8
-memo_lr = [3e-5, 6e-5, 6e-5]
-nptl_augs = 8
-nptl_aug_params = [0.2, 0.05]  # [white noise SD, offset SD]
+tta = True
+run_memo = False
+run_lang_informed = True
 
-# Augmentation mask parameters
+tta_epochs = 1
+memo_augs = 0
 if memo_augs:
     max_mask_pct = 0.05
     num_masks = 20
@@ -129,425 +111,199 @@ else:
     max_mask_pct = 0
     num_masks = 0
 
-# Misc
+
+nptl_augs = 0
+nptl_aug_params = [0.2, 0.05] # white noise, constant offset
+
+memo_lr = [1e-5]
+
+partition = "competition" 
+blank_id = 0
+
+
+
+
+
+def convert_sentence(s):
+    
+    s = s.lower()
+    charMarks = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+                 "'", ' ']
+    ans = []
+    for i in s:
+        if(i in charMarks):
+            ans.append(i)
+    
+    return ''.join(ans)
+
+def clean_transcription(text):
+    
+    """
+    Cleans a transcription string by:
+    1. Removing leading/trailing whitespace
+    2. Removing all characters except letters, hyphens, spaces, and apostrophes
+    3. Removing double hyphens
+    4. Converting to lowercase
+    """
+    
+    text = str(text).strip()
+    text = re.sub(r"[^a-zA-Z\- ']", '', text)
+    text = text.replace('--', '')
+    return text.lower()
+
+def get_phonemes(thisTranscription):
+    
+    phonemes = []
+    
+    for p in g2p(thisTranscription):
+        
+        if p == ' ':
+            phonemes.append('SIL')
+        p = re.sub(r'[0-9]', '', p)  # Remove stress
+        if re.match(r'^[A-Z]+$', p):  # Only keep phonemes (uppercase only)
+            phonemes.append(p)
+    
+    phonemes.append('SIL')  # Add trailing SIL
+    
+    PHONE_DEF = [
+        'AA', 'AE', 'AH', 'AO', 'AW',
+        'AY', 'B',  'CH', 'D', 'DH',
+        'EH', 'ER', 'EY', 'F', 'G',
+        'HH', 'IH', 'IY', 'JH', 'K',
+        'L', 'M', 'N', 'NG', 'OW',
+        'OY', 'P', 'R', 'S', 'SH',
+        'T', 'TH', 'UH', 'UW', 'V',
+        'W', 'Y', 'Z', 'ZH','SIL'
+    ]
+    
+    PHONE_DEF_SIL = PHONE_DEF + ['SIL']
+
+    phoneme_ids = [PHONE_DEF_SIL.index(p) + 1 for p in phonemes]
+
+    return torch.tensor(phoneme_ids, dtype=torch.long), torch.tensor([len(phoneme_ids)], dtype=torch.long)
+
+def get_data_file(path):
+    
+    suffix_map = {
+        "data_log_both": "/data/willett_data/ptDecoder_ctc_both",
+        "data": "/data/willett_data/ptDecoder_ctc",
+        "data_log_both_held_out_days": "/data/willett_data/ptDecoder_ctc_both_held_out_days",
+        "data_log_both_held_out_days_1": "/data/willett_data/ptDecoder_ctc_both_held_out_days_1",
+        "data_log_both_held_out_days_2": "/data/willett_data/ptDecoder_ctc_both_held_out_days_2",
+    }
+    suffix = path.rsplit('/', 1)[-1]
+    return suffix_map.get(suffix, path)
+
+def reverse_dataset(dataset):
+    return Subset(dataset, list(reversed(range(len(dataset)))))
+
+def get_dataloader(dataset, batch_size=1):
+    return torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
+                                       shuffle=False, num_workers=0)
+
+def decode_sequence(pred, adjusted_len):
+    pred = torch.argmax(pred[:adjusted_len], dim=-1)
+    pred = torch.unique_consecutive(pred)
+    return np.array([i for i in pred.cpu().numpy() if i != 0])
+
+
+
 day_edit_distance = 0
 day_seq_length = 0
 
-saveFolder_data = "/data/willett_data/paper_results_obi/"
-saveFolder_transcripts = "/data/willett_data/model_transcriptions_comp/"
-
-print(write_mode)
-
-import torch
-from torch import Tensor
-from typing import Optional
-import torch.nn.functional as F
-
-def memo_loss_from_logits(
-    logits_aug: Tensor,
-    adjusted_len: int,
-    blank_id: Optional[int] = None,
-) -> Tensor:
-    """
-    Computes negative entropy loss from augmented logits.
-
-    Parameters
-    ----------
-    logits_aug : Tensor
-        Logits from multiple augmentations. Shape: [n_aug, T, D]
-    adjusted_len : int
-        If provided, truncate to this length along time dimension.
-    blank_id : Optional[int]
-        If not None, filter out time steps where the most likely
-        token is the blank_id.
-
-    Returns
-    -------
-    loss : Tensor
-        Scalar loss tensor (requires grad).
-    """
-    probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)   # [n_aug, T, D]
-    marginal_probs = probs_aug.mean(dim=0)                        # [T, D]
-    marginal_probs = marginal_probs[:adjusted_len]
-
-    if blank_id is not None:
-        max_indices = marginal_probs.argmax(dim=1)
-        marginal_probs = marginal_probs[max_indices != blank_id]
-
-    loss = - (marginal_probs * marginal_probs.log()).sum(dim=-1).mean()
-    return loss
-
 for mn, model_name_str in enumerate(models_to_run):
     
-    day_cer_dict = {}
-    total_wer_dict = {}
-    
+    day_cer_dict, total_wer_dict = {}, {}
+
     for seed in seeds_list:
-    
-        day_cer_dict[seed] = []
-        total_wer_dict[seed] = []
-                
-        modelPath = f"{model_storage_path}{model_name_str}_seed_{seed}"
         
-        if len(shared_output_file) > 0:
-            output_file = f"{shared_output_file}_seed_{seed}"
-            print(output_file)
-        else:
-            output_file = f"{model_name_str}_seed_{seed}"
-            
         print(f"Running model: {model_name_str}_seed_{seed}")
-            
-        with open(modelPath + "/args", "rb") as handle:
+        
+        day_cer_dict[seed], total_wer_dict[seed] = [], []
+
+        modelPath = f"{model_storage_path}{model_name_str}_seed_{seed}"
+        output_file = f"{shared_output_file}_seed_{seed}" if shared_output_file else f"{model_name_str}_seed_{seed}"
+
+        with open(f"{modelPath}/args", "rb") as handle:
             args = pickle.load(handle)
             
-        if args['datasetPath'].rsplit('/', 1)[-1] == 'data_log_both':
-            data_file = '/data/willett_data/ptDecoder_ctc_both'
-            
-        elif args['datasetPath'].rsplit('/', 1)[-1] == 'data':
-            data_file = '/data/willett_data/ptDecoder_ctc'
-            
-        elif args['datasetPath'].rsplit('/', 1)[-1] == 'data_log_both_held_out_days':
-            data_file = '/data/willett_data/ptDecoder_ctc_both_held_out_days'
-            
-        elif args['datasetPath'].rsplit('/', 1)[-1] == 'data_log_both_held_out_days_1':
-            data_file = '/data/willett_data/ptDecoder_ctc_both_held_out_days_1'
-            
-        elif args['datasetPath'].rsplit('/', 1)[-1] == 'data_log_both_held_out_days_2':
-            data_file = '/data/willett_data/ptDecoder_ctc_both_held_out_days_2'
-            
-        else:
-            data_file = args['datasetPath']
-            
-        trainLoaders, testLoaders, loadedData = getDatasetLoaders(
-            data_file, 8
-        )
-        
-        if 'mask_token_zero' not in args:
-            args['mask_token_zero'] = False
-                        
-        # Instantiate model
-        # set training relevant parameters for MEMO, doesn't matter for other runs because they are 
-        # only run in eval mode.
         model = BiT_Phoneme(
-            patch_size=args['patch_size'],
-            dim=args['dim'],
-            dim_head=args['dim_head'],
-            nClasses=args['nClasses'],
-            depth=args['depth'],
-            heads=args['heads'],
-            mlp_dim_ratio=args['mlp_dim_ratio'],
-            dropout=0,
-            input_dropout=0,
-            look_ahead=args['look_ahead'],
-            gaussianSmoothWidth=args['gaussianSmoothWidth'],
-            T5_style_pos=args['T5_style_pos'],
-            max_mask_pct=max_mask_pct,
-            num_masks=num_masks, 
-            mask_token_zeros=args['mask_token_zero'], 
-            num_masks_channels=0, 
-            max_mask_channels=0, 
-            dist_dict_path=0, 
+        patch_size=args['patch_size'], dim=args['dim'], dim_head=args['dim_head'],
+        nClasses=args['nClasses'], depth=args['depth'], heads=args['heads'],
+        mlp_dim_ratio=args['mlp_dim_ratio'], dropout=0, input_dropout=0,
+        look_ahead=args['look_ahead'], gaussianSmoothWidth=args['gaussianSmoothWidth'],
+        T5_style_pos=args['T5_style_pos'], max_mask_pct=max_mask_pct,
+        num_masks=num_masks, mask_token_zeros=args['mask_token_zero'], max_mask_channels=0,
+        num_masks_channels=0, dist_dict_path=None
         ).to(device)
-            
-            
-        ckpt_path = modelPath + '/modelWeights'
-        model.load_state_dict(torch.load(ckpt_path, map_location=device), strict=True)
-        model = model.to(device)
-        
-        optimizer = torch.optim.AdamW(model.parameters(), lr=memo_lr[mn], weight_decay=0, 
-                                betas=(args['beta1'], args['beta2']))
-        
-        for name, p in model.named_parameters():
-            
-            if name in {
-                "to_patch_embedding.1.weight",
-                "to_patch_embedding.1.bias",
-                "to_patch_embedding.2.weight",
-                "to_patch_embedding.2.bias",
-                "to_patch_embedding.3.weight",
-                "to_patch_embedding.3.bias"
-            }:
-                p.requires_grad = True
-            else:
-                p.requires_grad = False
-        
+
+        data_file = get_data_file(args['datasetPath'])
+
+        trainLoaders, testLoaders, loadedData = getDatasetLoaders(data_file, 8)
+        args.setdefault('mask_token_zero', False)
+
+        model.load_state_dict(torch.load(f"{modelPath}/modelWeights", map_location=device), strict=True)
         model.eval()
 
-        model_outputs = {
-            "logits": [],
-            "logitLengths": [],
-            "trueSeqs": [],
-            "transcriptions": [],
-        }
-        
-        total_edit_distance = 0
-        total_seq_length = 0
+        optimizer = torch.optim.AdamW(model.parameters(), lr=memo_lr[mn], weight_decay=0,
+                                      betas=(args['beta1'], args['beta2']))
 
+        for name, p in model.named_parameters():
+            p.requires_grad = name in {
+                "to_patch_embedding.1.weight", "to_patch_embedding.1.bias",
+                "to_patch_embedding.2.weight", "to_patch_embedding.2.bias",
+                "to_patch_embedding.3.weight", "to_patch_embedding.3.bias"
+            }
 
         testDayIdxs = np.arange(5)
+        valDayIdxs = [0, 1, 3, 4, 5] if mn == 2 else [0, 1, 2, 3, 4]
+
+        model_outputs = {"logits": [], "logitLengths": [], "trueSeqs": [], "transcriptions": []}
         
-        if mn == 2:
-            print("MOD VAL")
-            # skip day 2, since it's not in the test days
-            valDayIdxs = [0,1,3,4,5]
-        else:
-            valDayIdxs = [0,1,2,3,4]
-          
-  
-        ground_truth_sentences = []
-        
+        total_edit_distance = total_seq_length = 0
+        nbest_outputs = []
+        nbest_outputs_val = []
         
         for i, testDayIdx in enumerate(testDayIdxs):
             
-            day_values = {
-                "logits": [],
-                "logitLengths": [],
-                "trueSeqs": [],
-                "transcriptions": [],
-            }
-        
             ve = valDayIdxs[i]
-            
-            # load val data 
-            val_ds = SpeechDataset([loadedData['test'][ve]])
-            # reverse, so that TTA updates are done from the last sentence first 
-            # doing this because the test sentences are the first 80 sentences in the day
-            reversed_val_ds = Subset(val_ds, list(reversed(range(len(val_ds)))))
-            
-            if evaluate_comp:
-                val_loader = torch.utils.data.DataLoader(
-                    reversed_val_ds, batch_size=1, shuffle=False, num_workers=0
-                )
-            else:
-                val_loader = torch.utils.data.DataLoader(
-                    val_ds, batch_size=1, shuffle=False, num_workers=0
-                )
+            val_ds = reverse_dataset(SpeechDataset([loadedData['test'][ve]]))
+            test_ds = reverse_dataset(SpeechDataset([loadedData['competition'][i]]))
+            combined_ds = ConcatDataset([val_ds, test_ds])
+            data_loader = get_dataloader(combined_ds)
+
+            if tta:
                 
-            # perform val updates
-            for _, (X, y, X_len, y_len, _) in enumerate(val_loader):
+                for trial_idx, (X, y, X_len, y_len, _) in enumerate(data_loader):
+                                    
+                    total_start = time.time()
+
+                    X, y, X_len, y_len = map(lambda x: x.to(device), [X, y, X_len, y_len])
+                    dayIdx = torch.tensor([ve], dtype=torch.int64).to(device)
+
+                    model.train()
+                    memo_loss = li_loss = torch.tensor(0.0, device=device)
+
+                    for _ in range(tta_epochs):
                         
-                X, y, X_len, y_len, dayIdx = (
-                    X.to(device),
-                    y.to(device),
-                    X_len.to(device),
-                    y_len.to(device),
-                    torch.tensor([ve], dtype=torch.int64).to(device),
-                )
- 
-                if memo: 
-                    
-                    model.train()       
-                    
-                    for _ in range(memo_epochs):
-                        
-                        logits_aug = model.forward(X, X_len, ve, memo_augs, nptl_augs, nptl_aug_params)
                         adjusted_len = model.compute_length(X_len)
-                    
-                        loss = memo_loss_from_logits(logits_aug, adjusted_len=adjusted_len, blank_id=blank_id)
-            
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
+    
+                        logits = model(X, X_len, ve, memo_augs, nptl_augs, nptl_aug_params) # (augs x T x C)
+                        logits_np = logits.detach().cpu().numpy()
+                        logits_np = np.concatenate([
+                            logits_np[:, :, 1:],   # classes 1 to C-1
+                            logits_np[:, :, 0:1]   # class 0, preserved in its own dimension
+                        ], axis=-1)
+                        logits_np = lmDecoderUtils.rearrange_speech_logits(logits_np, has_sil=True)
                         
-                model.eval()
-                
-                with torch.no_grad():
-                
-                    pred = model.forward(X, X_len, dayIdx)
-                    
-                if hasattr(model, 'compute_length'):
-                    adjustedLens = model.compute_length(X_len)
-                else:
-                    adjustedLens = ((X_len - model.kernelLen) / model.strideLen).to(torch.int32)
-                    
-                for iterIdx in range(pred.shape[0]):
-                    
-                    trueSeq = np.array(y[iterIdx][0 : y_len[iterIdx]].cpu().detach())
-            
-                    decodedSeq = torch.argmax(
-                        torch.tensor(pred[iterIdx, 0 : adjustedLens[iterIdx], :]),
-                        dim=-1,
-                    ) 
-                    
-                    decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
-                    decodedSeq = decodedSeq.cpu().detach().numpy()
-                    decodedSeq = np.array([i for i in decodedSeq if i != 0])
-                    
-                    matcher = SequenceMatcher(
-                        a=trueSeq.tolist(), b=decodedSeq.tolist()
-                    )
-                    
-                    total_edit_distance += matcher.distance()
-                    total_seq_length += len(trueSeq)
-                    
-                    day_edit_distance += matcher.distance()
-                    day_seq_length += len(trueSeq)
-            
-                            
-            cer_day = day_edit_distance / day_seq_length
-            day_cer_dict[seed].append(cer_day)
-            #print("CER DAY: ", cer_day)
-            day_edit_distance = 0 
-            day_seq_length = 0
+                        #if run_memo:
+                        #    memo_loss = memo_loss_from_logits(logits_aug, adjusted_len, blank_id)
 
-            if evaluate_comp: 
-                model.eval()
+                        #if run_lang_informed:
                     
-                # load test
-                test_ds = SpeechDataset([loadedData[partition][i]])
-                
-                reversed_test_ds = Subset(test_ds, list(reversed(range(len(test_ds)))))
-
-                test_loader = torch.utils.data.DataLoader(
-                    reversed_test_ds, batch_size=1, shuffle=False, num_workers=0
-                )
-                    
-                # perform comp memo updates
-                for j, (X, y, X_len, y_len, _) in enumerate(test_loader):
-                            
-                    X, y, X_len, y_len, dayIdx = (
-                        X.to(device),
-                        y.to(device),
-                        X_len.to(device),
-                        y_len.to(device),
-                        torch.tensor([testDayIdx], dtype=torch.int64).to(device),
-                    )
-
-                    if memo: 
-                                            
-                        model.train()
-                        
-                        for _ in range(memo_epochs):
-                            
-                            logits_aug = model.forward(X, X_len, ve, memo_augs, nptl_augs, nptl_aug_params)
-                            adjusted_len = model.compute_length(X_len)
-                            
-                            loss = memo_loss_from_logits(logits_aug, adjusted_len=adjusted_len, blank_id=blank_id)
-
-                            optimizer.zero_grad()
-                            loss.backward()
-                            optimizer.step()
-                            
-                        model.eval()
-                        
-                    with torch.no_grad():
-                        pred = model.forward(X, X_len, dayIdx)
-                    
-                    if hasattr(model, 'compute_length'):
-                        adjustedLens = model.compute_length(X_len)
-                    else:
-                        adjustedLens = ((X_len - model.kernelLen) / model.strideLen).to(torch.int32)
-                        
-                    for iterIdx in range(pred.shape[0]):
-                        
-                        day_values["logits"].append(pred[iterIdx].cpu().detach().numpy())
-                        
-                        day_values["logitLengths"].append(
-                            adjustedLens[iterIdx].cpu().detach().item()
+                        decoded = lmDecoderUtils.lm_decode(
+                            ngramDecoder, logits_np[0],
+                            blankPenalty=blank_penalty,
+                            returnNBest=return_n_best, rescore=rescore
                         )
                         
-                        day_values["trueSeqs"].append(trueSeq)
-                        
-                        decodedSeq = torch.argmax(
-                            torch.tensor(pred[iterIdx, 0 : adjustedLens[iterIdx], :]),
-                            dim=-1,
-                        ) 
-                        
-                        decodedSeq = torch.unique_consecutive(decodedSeq, dim=-1)
-                        decodedSeq = decodedSeq.cpu().detach().numpy()
-                        decodedSeq = np.array([i for i in decodedSeq if i != 0])
-                        
-                
-                    transcript = loadedData[partition][i]["transcriptions"][j].strip()
-                    transcript = re.sub(r"[^a-zA-Z\- \']", "", transcript)
-                    transcript = transcript.replace("--", "").lower()
-                    day_values["transcriptions"].append(transcript)
-                
-                model_outputs['logits'].extend(reversed(day_values['logits']))
-                model_outputs["transcriptions"].extend(reversed(day_values["transcriptions"]))
-                model_outputs["trueSeqs"].extend(reversed(day_values["trueSeqs"]))
-                model_outputs["logitLengths"].extend(reversed(day_values["logitLengths"]))
-                    
-                # reset day values
-                day_values = {
-                    "logits": [],
-                    "logitLengths": [],
-                    "trueSeqs": [],
-                    "transcriptions": [],
-                }
-            
-            
-            cer = total_edit_distance / total_seq_length
-         
-
-        if run_lm:
-            
-            #print("Running n-gram LM")
-            
-            llm_outputs = []
-            start_t = time.time()
-            nbest_outputs = []
-            
-            for j in range(len(model_outputs["logits"])):
-                
-                logits = model_outputs["logits"][j]
-                
-                logits = np.concatenate(
-                    [logits[:, 1:], logits[:, 0:1]], axis=-1
-                )  # Blank is last token
-                
-                logits = lmDecoderUtils.rearrange_speech_logits(logits[None, :, :], has_sil=True)
-                
-                nbest = lmDecoderUtils.lm_decode(
-                    ngramDecoder,
-                    logits[0],
-                    blankPenalty=blank_penalty,
-                    returnNBest=return_n_best,
-                    rescore=rescore,
-                )
-                
-                nbest_outputs.append(nbest)
-                
-            time_per_sample = (time.time() - start_t) / len(model_outputs["logits"])
-            #print(f"N-gram decoding took {time_per_sample} seconds per sample")
-            
-            if run_for_llm:
-                print("SAVING OUTPUTS FOR LLM")
-                with open(f"{saveFolder_transcripts}{model_name_str}_seed_{seed}_model_outputs.pkl", "wb") as f:
-                    pickle.dump(model_outputs, f)
-                    
-                with open(f"{saveFolder_transcripts}{model_name_str}_seed_{seed}_nbest.pkl", "wb") as f:
-                    pickle.dump(nbest_outputs, f)
-                
-            else:
-                # just get perf with greedy decoding
-                for i in range(len(model_outputs["transcriptions"])):
-                    model_outputs["transcriptions"][i] = model_outputs["transcriptions"][i].strip()
-                    nbest_outputs[i] = nbest_outputs[i].strip()
-                
-                # lower case + remove puncs
-                for i in range(len(model_outputs["transcriptions"])):
-                    model_outputs["transcriptions"][i] = convert_sentence(model_outputs["transcriptions"][i])
-
-                cer, wer = _cer_and_wer(nbest_outputs, model_outputs["transcriptions"], 
-                                    outputType='speech', returnCI=True)
-
-                #print("CER and WER after 3-gram LM: ", cer, wer)       
-                
-                out_file = os.path.join(saveFolder_transcripts, output_file)   # no extension per your spec
-                
-                print(len(model_outputs["transcriptions"]))
-                breakpoint()
-                with open(out_file + '.txt', write_mode, encoding="utf-8") as f:
-                    f.write("\n".join(nbest_outputs)+ "\n")   # one line per LLM output  
-                    
-                total_wer_dict[seed] = wer
-                    
-                    
-        
-    if len(val_save_file) > 0:
-        print(f"SAVING VAL RESULTS FOR {model_name_str}")
-        print("Model performance: ", cer)
-        with open(f"{saveFolder_data}{model_name_str}_{val_save_file}.pkl", "wb") as f:
-            pickle.dump(day_cer_dict, f)
-        
