@@ -267,12 +267,13 @@ def lm_decode(decoder, logits, returnNBest=False, rescore=False,
 
     if logPriors is None:
         logPriors = np.zeros([1, logits.shape[1]])
+        
     lm_decoder.DecodeNumpy(decoder, logits, logPriors, blankPenalty)
+    
     decoder.FinishDecoding()
     if rescore:
         decoder.Rescore()
-
-
+        
     if not returnNBest:
         if len(decoder.result()) == 0:
             decoded = ''
@@ -282,11 +283,10 @@ def lm_decode(decoder, logits, returnNBest=False, rescore=False,
         decoded = []
         for r in decoder.result():
             decoded.append((r.sentence, r.ac_score, r.lm_score))
-
+    
     decoder.Reset()
 
     return decoded
-
 def nbest_with_lm_decoder(decoder,
                           inferenceOut,
                           includeSpaceSymbol=True,
