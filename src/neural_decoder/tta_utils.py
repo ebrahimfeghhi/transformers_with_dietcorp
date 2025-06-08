@@ -5,6 +5,8 @@ import math
 from torch.utils.data import Subset
 from g2p_en import G2p
 g2p = G2p()  # <- Global instance
+
+
 def convert_sentence(s):
     
     s = s.lower()
@@ -92,5 +94,4 @@ def decode_sequence(pred, adjusted_len):
     pred = torch.argmax(pred[:adjusted_len], dim=-1)
     pred = torch.unique_consecutive(pred)
     return np.array([i for i in pred.cpu().numpy() if i != 0])
-
 
