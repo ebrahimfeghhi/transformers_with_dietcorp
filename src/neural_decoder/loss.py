@@ -114,8 +114,10 @@ def forward_cr_ctc(
 def memo_loss_from_logits(
     logits_aug: Tensor,
     adjusted_len: int,
-    blank_id: Optional[int] = None,
+    blank_id: Optional[int] = 0,
+    T: float = 1
 ) -> Tensor:
+  
     """
     Computes negative entropy loss from augmented logits.
 
@@ -128,15 +130,19 @@ def memo_loss_from_logits(
     blank_id : Optional[int]
         If not None, filter out time steps where the most likely
         token is the blank_id.
-
+    T : float
+        Temperature for softmax. 
+        
     Returns
     -------
     loss : Tensor
         Scalar loss tensor (requires grad).
     """
+    
+    logits_aug /= T # temperature scaling
     probs_aug = torch.nn.functional.softmax(logits_aug, dim=-1)   # [n_aug, T, D]
     marginal_probs = probs_aug.mean(dim=0)                        # [T, D]
-    marginal_probs = marginal_probs[:adjusted_len]
+    marginal_probs = marginal_probs[:adjusted_len] # [T', D], where T' <= T
 
     if blank_id is not None:
         max_indices = marginal_probs.argmax(dim=1)

@@ -10,10 +10,11 @@ import numpy as np
 
 class SpeechDataset(Dataset):
     
-    def __init__(self, data, transform=None, restricted_days=[], ventral_6v_only=False):
+    def __init__(self, data, transform=None, restricted_days=[], ventral_6v_only=False, return_transcript=False):
         
         self.data = data
         self.transform = transform
+        self.return_transcript = return_transcript
     
         self.n_days = len(data)
             
@@ -22,6 +23,7 @@ class SpeechDataset(Dataset):
         self.neural_time_bins = []
         self.phone_seq_lens = []
         self.days = []
+        self.transcriptions = []
         
         #if channel_drop is not None:
         #    
@@ -55,6 +57,7 @@ class SpeechDataset(Dataset):
                 self.phone_seqs.append(data[day]["phonemes"][trial])
                 self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
                 self.phone_seq_lens.append(data[day]["phoneLens"][trial])
+                self.transcriptions.append(data[day]['transcriptions'][trial])
                 self.days.append(day)
                 
 
@@ -70,14 +73,26 @@ class SpeechDataset(Dataset):
 
         if self.transform:
             neural_feats = self.transform(neural_feats)
-
-        return (
-            neural_feats,
-            torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
-            torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
-            torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
-            torch.tensor(self.days[idx], dtype=torch.int64),
-        )
+            
+        if self.return_transcript:
+            
+            return (
+                neural_feats,
+                torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
+                torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
+                torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
+                torch.tensor(self.days[idx], dtype=torch.int64), 
+                self.transcriptions[idx]
+            )
+            
+        else:
+            return (
+                neural_feats,
+                torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
+                torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
+                torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
+                torch.tensor(self.days[idx], dtype=torch.int64)
+            )
         
 class SpeechDataset_MAE(Dataset):
     
@@ -240,7 +255,7 @@ def getDatasetLoaders(
     datasetName,
     batchSize, 
     restricted_days=[],
-    ventral_6v_only=False
+    ventral_6v_only=False, 
 ):
     with open(datasetName, "rb") as handle:
         loadedData = pickle.load(handle)
