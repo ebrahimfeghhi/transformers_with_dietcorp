@@ -192,13 +192,13 @@ class BiT_Phoneme(nn.Module):
         device = neuralInput.device
         
         # adding white noise and gaussian augs 
-        if n_masks_nptl_augs: 
+        #if n_masks_nptl_augs: 
             
-            neuralInput_augs = self.apply_original_augs(neuralInput.clone(), 
-                                n_masks_nptl_augs, aug_values)
+        #    neuralInput_augs = self.apply_original_augs(neuralInput.clone(), 
+        #                        n_masks_nptl_augs, aug_values)
             
             # add original input back in 
-            neuralInput = torch.cat((neuralInput, neuralInput_augs), 0)
+        #   neuralInput = torch.cat((neuralInput, neuralInput_augs), 0)
         
         #if self.training and self.max_channels_to_mask > 0: 
         #    neuralInput, _ = self.apply_channel_mask(neuralInput)
@@ -215,13 +215,11 @@ class BiT_Phoneme(nn.Module):
 
             if n_masks:
         
-                x_repeated = x[0:1].repeat_interleave(n_masks, dim=0)        # shape: (n_masks, T, D)
+                x_repeated = x.repeat_interleave(n_masks, dim=0)        # shape: (n_masks, T, D)
                 X_len_repeated = X_len.repeat_interleave(n_masks)         
-                x_masked, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
-                x = torch.cat((x, x_masked), 0)
+                x, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
                                 
-            else:
-                
+            else:   
                 x, _ = self.apply_time_mask(x, X_len)
                 
             x = self.patch_to_emb(x)

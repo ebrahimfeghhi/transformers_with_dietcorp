@@ -5,6 +5,7 @@ import math
 from torch.utils.data import Subset
 from g2p_en import G2p
 g2p = G2p()  # <- Global instance
+from torch.nn.utils.rnn import pad_sequence
 
 
 def convert_sentence(s):
@@ -86,9 +87,23 @@ def get_data_file(path):
 def reverse_dataset(dataset):
     return Subset(dataset, list(reversed(range(len(dataset)))))
 
+def _padding(batch):
+    X, y, X_lens, y_lens, days, transcript = zip(*batch)
+    X_padded = pad_sequence(X, batch_first=True, padding_value=0)
+    y_padded = pad_sequence(y, batch_first=True, padding_value=0)
+
+    return (
+        X_padded,
+        y_padded,
+        torch.stack(X_lens),
+        torch.stack(y_lens),
+        torch.stack(days),
+        transcript
+    )
+        
 def get_dataloader(dataset, batch_size=1):
     return torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
-                                       shuffle=False, num_workers=0)
+                                       shuffle=False, num_workers=0, collate_fn=_padding)
 
 def decode_sequence(pred, adjusted_len):
     pred = torch.argmax(pred[:adjusted_len], dim=-1)
