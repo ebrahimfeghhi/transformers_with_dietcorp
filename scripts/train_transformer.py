@@ -19,6 +19,7 @@ DATA_PATHS = {
     'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days'),
     'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
     'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'),
+    'obi_log_held_out_2_sil': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2_sil'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
@@ -30,8 +31,8 @@ DATA_PATHS = {
 seed_list = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "scratch"
+DATA_PATH_KEY = f"{SERVER}_log_held_out_2_sil"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "neurips_transformer_time_masked_held_out_days_2_sil"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -46,7 +47,6 @@ for seed in seed_list:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'testing_on_held_out': False,
         'maxDay': None,
         'restricted_days': [],
         'patch_size': (5, 256),
@@ -57,12 +57,12 @@ for seed in seed_list:
         'dim_head': 64,
         'T5_style_pos': True,
         'nClasses': 40,
-        'whiteNoiseSD': 0.8,
+        'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
-        'constantOffsetSD': 0.2,
+        'constantOffsetSD': 0.05,
         'l2_decay': 1e-5,
-        'input_dropout': 0,
-        'dropout': 0.40,
+        'input_dropout': 0.2,
+        'dropout': 0.35,
         'AdamW': True,
         'learning_scheduler': 'multistep',
         'lrStart': 0.001,
@@ -70,8 +70,8 @@ for seed in seed_list:
         'batchSize': 64,
         'beta1': 0.90,
         'beta2': 0.999,
-        'n_epochs': 73,
-        'milestones': [55],
+        'n_epochs': 600,
+        'milestones': [400],
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
@@ -83,8 +83,8 @@ for seed in seed_list:
         'mask_token_zero' : False,
         'num_masks_channels' : 0, # number of masks per grid
         'max_mask_channels' : 0, # maximum number of channels to mask per mask
-        'max_mask_pct' : 0.0, 
-        'num_masks' : 0,
+        'max_mask_pct' : 0.075, 
+        'num_masks' : 20,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt' 
     }
 
