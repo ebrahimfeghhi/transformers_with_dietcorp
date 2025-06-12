@@ -17,6 +17,7 @@ class SpeechDataset(Dataset):
         self.return_transcript = return_transcript
     
         self.n_days = len(data)
+        
             
         self.neural_feats = []
         self.phone_seqs = []

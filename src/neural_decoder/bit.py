@@ -177,8 +177,7 @@ class BiT_Phoneme(nn.Module):
             print("NOT USING T5 STYLE POS")
             self.register_buffer('pos_embedding', None, persistent=False)
         
-    def forward(self, neuralInput, X_len, day_idx, n_masks=0, 
-                n_masks_nptl_augs=0, aug_values=None):
+    def forward(self, neuralInput, X_len, day_idx=None):
         """
         Args:
             neuralInput: Tensor of shape (B, T, F)
@@ -189,39 +188,22 @@ class BiT_Phoneme(nn.Module):
         """
         
         neuralInput = pad_to_multiple(neuralInput, multiple=self.patch_height)
-        device = neuralInput.device
-        
-        # adding white noise and gaussian augs 
-        #if n_masks_nptl_augs: 
-            
-        #    neuralInput_augs = self.apply_original_augs(neuralInput.clone(), 
-        #                        n_masks_nptl_augs, aug_values)
-            
-            # add original input back in 
-        #   neuralInput = torch.cat((neuralInput, neuralInput_augs), 0)
         
         #if self.training and self.max_channels_to_mask > 0: 
         #    neuralInput, _ = self.apply_channel_mask(neuralInput)
+        
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
         neuralInput = self.gaussianSmoother(neuralInput)
         neuralInput = torch.permute(neuralInput, (0, 2, 1))
     
-        # if in mae mode, input has already been patched. 
+
         neuralInput = neuralInput.unsqueeze(1)
         
+        # add time masking
         if self.training and self.max_mask_pct > 0:
 
             x = self.to_patch(neuralInput)
-
-            if n_masks:
-        
-                x_repeated = x.repeat_interleave(n_masks, dim=0)        # shape: (n_masks, T, D)
-                X_len_repeated = X_len.repeat_interleave(n_masks)         
-                x, _ = self.apply_time_mask(x_repeated, X_len_repeated) 
-                                
-            else:   
-                x, _ = self.apply_time_mask(x, X_len)
-                
+            x, _ = self.apply_time_mask(x, X_len)    
             x = self.patch_to_emb(x)
 
         else:
@@ -232,12 +214,14 @@ class BiT_Phoneme(nn.Module):
         x = self.dropout(x)
         
         b, seq_len, _ = x.shape
+        
         # Add sin embeddings if T5 Style is False. 
         #if self.T5_style_pos == False:
         #    pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
         #    x = x + pos_emb.unsqueeze(0)
         
         # Create temporal mask
+        
         temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
 
         x = self.transformer(x, mask=temporal_mask)
