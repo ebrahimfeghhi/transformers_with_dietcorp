@@ -1,4 +1,3 @@
-
 import re
 import time
 import pickle
@@ -25,15 +24,16 @@ from lm_utils import _cer_and_wer
 import json
 import os
 import copy
-from torch.utils.data import Subset
 from torch.utils.data import ConcatDataset
 from loss import memo_loss_from_logits, forward_ctc
-from g2p_en import G2p
-g2p = G2p()  # <- Global instance
+from collections import deque
+
 import wandb
+import math
 
+from tta_utils import convert_sentence, compute_lambda, clean_transcription, get_phonemes, get_data_file, reverse_dataset, get_dataloader, decode_sequence
 
-saveFolder_data = "/data/willett_data/paper_results_obi/"
+saveFolder_data = "/data/willett_data/paper_results_wer/"
 saveFolder_transcripts = "/data/willett_data/model_transcriptions_comp/"
 
 output_file = 'leia'
@@ -44,8 +44,7 @@ if output_file == 'obi':
 elif output_file == 'leia':
     model_storage_path = '/data/willett_data/leia_outputs/'
     
-    
-    
+
 base_dir = "/home3/skaasyap/willett"
 
 load_lm = True
@@ -82,46 +81,56 @@ elif load_lm:
     print("Already loaded LM")
     
 
+models_to_run = ['neurips_transformer_time_masked_held_out_days']
 
-models_to_run = ['neurips_transformer_time_masked_held_out_days_2']
 
-shared_output_file = 'scratch'
-val_save_file = 'per_scratch'
-seeds_list = [0]
+seeds_list = [0,1,2,3]
 
-if len(shared_output_file) > 0:
-    print("Writing to shared output file")
-    write_mode = "a"
-else:
-    write_mode = "w"
-    
 evaluate_comp = True
-run_lm = True
-
-tta = True
-run_memo = False
-run_lang_informed = True
-
-tta_epochs = 1
-memo_augs = 0
-if memo_augs:
-    max_mask_pct = 0.05
-    num_masks = 20
-else:
-    max_mask_pct = 0
-    num_masks = 0
-
-
-nptl_augs = 0
-nptl_aug_params = [0.2, 0.05] # white noise, constant offset
-
-memo_lr = [1e-5]
+use_lm = True
 
 partition = "competition" 
 blank_id = 0
+num_classes = 41
+
+# no tta
+baseline_args = {
+    'dropout': 0, 
+    'input_dropout': 0, 
+    'max_mask_pct': 0, 
+    'num_masks': 0, 
+    'comp_day_idxs': [0,1,3,4,5]
+}
+
+# corp
+corp_args = {
+    'learning_rate': [1e-3], 
+    'comp_day_idxs': [0,1,3,4,5],
+    'repeats': 64,
+    'adaptation_steps': 1,
+    'WN+BS': True,
+    'white_noise': 0.2,
+    'baseline_shift': 0.05,
+    'dropout': 0.35, 
+    'input_dropout': 0.2, 
+    'l2_decay': 1e-5, 
+    'max_mask_pct': 0.075, 
+    'num_masks': 20, 
+    'freeze_patch': True
+}
 
 
+tta_mode = ['corp', 'baseline']
 
+shared_output_file = ['transformer_held_out_final_dietcorp', 'transformer_held_out_final']
+val_save_file = 'transformer_held_out_final_dietcorp'
+
+if tta_mode == 'corp':
+    updated_args = corp_args  
+else:
+    updated_args = baseline_args
+
+skip_models = []
 
 
 def convert_sentence(s):

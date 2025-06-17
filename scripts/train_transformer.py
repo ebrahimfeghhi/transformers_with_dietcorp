@@ -20,7 +20,6 @@ DATA_PATHS = {
     'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
     'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'), 
     'obi_log_big_0': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_big_0'), 
-    'obi_log_big_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_big_1'),
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
@@ -29,11 +28,11 @@ DATA_PATHS = {
 }
 
 
-seed_list = [0,1,2,3]
+seed_list = [3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_big_1"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_held_out_big_1"
+DATA_PATH_KEY = f"{SERVER}_log_big_0"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "transformer_held_out_big_0"
 
 # === MAIN LOOP ===
 for seed in seed_list:

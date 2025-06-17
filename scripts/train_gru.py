@@ -7,7 +7,7 @@ from neural_decoder.measure_memory import trainModel_mem
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [0,1,2,3,4]
+SEEDS_LIST = [2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -22,13 +22,14 @@ DATA_PATHS = {
     'obi_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days'),
     'obi_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_1'),
     'obi_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_2'),
+    'obi_big_0': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_big_0'), 
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_held_out_days_1_redo2"
-DATA_PATH_KEY = f"{SERVER}_held_out_1"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_held_out_days_big"
+DATA_PATH_KEY = f"{SERVER}_big_0"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -50,7 +51,7 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:1',
+        'device': 'cuda:0',
 
         # Model hyperparameters
         'nInputFeatures': 256,
@@ -68,8 +69,8 @@ for seed in SEEDS_LIST:
         'strideLen': 4,
         'kernelLen': 32,
         'restricted_days': [],
-        'maxDay': 8,
-        'nDays': 14,
+        'maxDay': 11,
+        'nDays': 24,
         
         # Optimization
         'AdamW': False,
@@ -119,4 +120,4 @@ for seed in SEEDS_LIST:
     from fvcore.nn import FlopCountAnalysis, parameter_count_table
 
     # === Train ===
-    trainModel_mem(args, model)
+    trainModel(args, model)
