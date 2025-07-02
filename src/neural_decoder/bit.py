@@ -12,8 +12,6 @@ from .dataset import pad_to_multiple
 Code adapted from Fracois Porcher: https://github.com/FrancoisPorcher/vit-pytorch
 '''
 
-
-
 class FFN(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
@@ -125,7 +123,7 @@ class BiT_Phoneme(nn.Module):
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
                  nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path):
+                 num_masks_channels, max_mask_channels, dist_dict_path, linderman_lab):
    
         super().__init__()
 
@@ -143,6 +141,7 @@ class BiT_Phoneme(nn.Module):
         self.num_masks_channels = num_masks_channels
         self.max_channels_to_mask = max_mask_channels
         self.dist_dict_path = dist_dict_path
+        self.linderman_lab = linderman_lab
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -176,6 +175,19 @@ class BiT_Phoneme(nn.Module):
         if self.T5_style_pos == False:
             print("NOT USING T5 STYLE POS")
             self.register_buffer('pos_embedding', None, persistent=False)
+        
+        if self.linderman_lab:
+            
+            self.post_model_block = nn.Sequential(
+                nn.LayerNorm(dim),
+                nn.Dropout(dropout),
+                nn.Linear(dim, dim),
+                nn.ReLU(),
+            )
+            
+        else:
+            
+            self.post_model_block = nn.Identity()
         
     def forward(self, neuralInput, X_len, day_idx=None):
         """
@@ -216,15 +228,16 @@ class BiT_Phoneme(nn.Module):
         b, seq_len, _ = x.shape
         
         # Add sin embeddings if T5 Style is False. 
-        #if self.T5_style_pos == False:
-        #    pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
-        #    x = x + pos_emb.unsqueeze(0)
+        if self.T5_style_pos == False:
+            pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
+            x = x + pos_emb.unsqueeze(0)
         
         # Create temporal mask
-        
         temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
 
         x = self.transformer(x, mask=temporal_mask)
+        
+        x = self.post_model_block(x)
         
         out = self.projection(x)
         
