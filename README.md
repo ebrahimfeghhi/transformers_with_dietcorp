@@ -1,4 +1,4 @@
-# Masked Transformers with Test-Time Adaptation for Speech Neuroprostheses
+# Time-Masked Transformers with Lightweight Test-Time Adaptation for Neural Speech Decoding
 
 Adapted from: https://github.com/cffan/neural_seq_decoder/tree/master
 
