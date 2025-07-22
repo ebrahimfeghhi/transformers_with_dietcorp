@@ -61,6 +61,7 @@ class GRUDecoder(nn.Module):
         num_masks: int,
         linderman_lab: bool = False,
     ) -> None:
+        
         super().__init__()
 
         # Store constructor args
@@ -115,14 +116,23 @@ class GRUDecoder(nn.Module):
 
         # === Optional post‑RNN block ===
         rnn_out_dim = hidden_dim * 2 if self.bidirectional else hidden_dim
+        
         if self.linderman_lab:
-            self.post_rnn_block = nn.Sequential(
-                nn.LayerNorm(rnn_out_dim),
-                nn.Dropout(dropout), 
-                nn.Linear(rnn_out_dim, rnn_out_dim),
-                nn.ReLU(),
+            
+            self.post_rnn_block = nn.Sequential( #best sequence
+                      nn.LayerNorm(rnn_out_dim),
+                      nn.Dropout(p=self.dropout),
+                      nn.Linear(rnn_out_dim, rnn_out_dim),
+                      nn.SiLU(),
+                      nn.LayerNorm(rnn_out_dim),
+                      nn.Dropout(p=self.dropout),
+                      nn.Linear(rnn_out_dim, rnn_out_dim),
+                      nn.SiLU(),
+                      nn.Dropout(p=self.dropout)            
             )
+            
         else:
+            
             self.post_rnn_block = nn.Identity()
 
         # === Final linear projection ===
@@ -149,6 +159,9 @@ class GRUDecoder(nn.Module):
         # --- SpecAugment‑style time masking (training only) ---
         if self.training and self.max_mask_pct > 0:
             neuralInput, _ = self.apply_time_masking(neuralInput, X_len)
+            
+        # moved input dropout before day specific linear layer, as per Linderma Lab submission 
+        neuralInput = self.inputDropoutLayer(neuralInput)
 
         # --- Day‑specific affine transform ---
         dayWeights = torch.index_select(self.dayWeights, 0, dayIdx)  # (B, C, C)
@@ -156,7 +169,6 @@ class GRUDecoder(nn.Module):
             self.dayBias, 0, dayIdx
         )
         transformedNeural = self.inputLayerNonlinearity(transformedNeural)
-        transformedNeural = self.inputDropoutLayer(transformedNeural)
 
         # --- Temporal unfolding (stride / kernel) ---
         stridedInputs = torch.permute(

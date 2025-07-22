@@ -28,7 +28,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_linderman_lab_masked"
+MODEL_NAME_BASE = "gru_linderman_lab_updated"
 DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -51,20 +51,20 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:1',
+        'device': 'cuda:2',
 
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
         'nUnits': 1024,
         'nLayers': 5,
-        'dropout': 0.35,
-        'input_dropout': 0,
+        'dropout': 0.40,
+        'input_dropout': 0.3,
         'bidirectional': False,
 
         # Data preprocessing
-        'whiteNoiseSD': 0.2,
-        'constantOffsetSD': 0.05,
+        'whiteNoiseSD': 0.8,
+        'constantOffsetSD': 0.20,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
         'kernelLen': 32,
@@ -92,8 +92,8 @@ for seed in SEEDS_LIST:
         
         'ventral_6v_only': False, 
         
-        'max_mask_pct': 0.05, 
-        'num_masks': 20, 
+        'max_mask_pct': 0, 
+        'num_masks': 0, 
         'linderman_lab': True
     }
 
