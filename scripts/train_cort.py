@@ -3,7 +3,7 @@ import argparse
 import torch
 import numpy as np
 
-from neural_decoder.neural_decoder_trainer_cort import trainModel
+from neural_decoder.old_ideas_code.neural_decoder_trainer_cort import trainModel
 from neural_decoder.bit import BiT_Phoneme
 
 # === COMMAND‑LINE ARGUMENTS ===
