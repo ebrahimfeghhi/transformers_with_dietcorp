@@ -10,10 +10,10 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .dataset import getDatasetLoaders
-from .augmentations import mask_electrodes
+from ..dataset import getDatasetLoaders
+from ..augmentations import mask_electrodes
 import torch.nn.functional as F
-from .loss import forward_cr_ctc, forward_ctc
+from ..loss import forward_cr_ctc, forward_ctc
 import time
 
 
