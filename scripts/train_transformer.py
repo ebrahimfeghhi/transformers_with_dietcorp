@@ -28,11 +28,11 @@ DATA_PATHS = {
 }
 
 
-seed_list = [0,1,2,3]
+seed_list = [2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_linderman_lab"
+model_name_base = "bidirectional_transformer"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -75,7 +75,7 @@ for seed in seed_list:
         'gamma': 0.1,
         'look_ahead': 0,
         'extra_notes': "",
-        'device': 'cuda:1',
+        'device': 'cuda:2',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
@@ -86,7 +86,8 @@ for seed in seed_list:
         'max_mask_pct' : 0.075, 
         'num_masks' : 20,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt',
-        'linderman_lab': True
+        'linderman_lab': False, 
+        'bidirectional': True
     }
 
     print(f"Using dataset: {args['datasetPath']}")
@@ -98,6 +99,9 @@ for seed in seed_list:
         
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
+    
+    if args['bidirectional']:
+        print("RUNNING TRANSFORMER IN BIDIRECTIONAL MODE")
 
     # Instantiate model
     model = BiT_Phoneme(
@@ -119,7 +123,8 @@ for seed in seed_list:
         num_masks_channels=args['num_masks_channels'], 
         max_mask_channels=args['max_mask_channels'], 
         dist_dict_path=args['dist_dict_path'], 
-        linderman_lab=args['linderman_lab']
+        linderman_lab=args['linderman_lab'], 
+        bidirectional=args['bidirectional']
     ).to(args['device'])
 
     # Load pretrained model if specified
