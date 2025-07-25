@@ -32,7 +32,7 @@ seed_list = [0,1,2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_look_ahead_3"
+model_name_base = "transformer_look_back_20"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -51,7 +51,7 @@ for seed in seed_list:
         'restricted_days': [],
         'patch_size': (5, 256),
         'dim': 384,
-        'depth': 7,
+        'depth': 5,
         'heads': 6,
         'mlp_dim_ratio': 4,
         'dim_head': 64,
@@ -73,7 +73,8 @@ for seed in seed_list:
         'n_epochs': 600,
         'milestones': [400],
         'gamma': 0.1,
-        'look_ahead': 3,
+        'look_ahead': 0,
+        'look_back': 20,
         'extra_notes': "",
         'device': 'cuda:2',
         'load_pretrained_model': "",
@@ -86,7 +87,7 @@ for seed in seed_list:
         'max_mask_pct' : 0.075, 
         'num_masks' : 20,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt',
-        'bidirectional': False
+        'bidirectional': False, 
     }
 
     print(f"Using dataset: {args['datasetPath']}")
@@ -114,6 +115,7 @@ for seed in seed_list:
         dropout=args['dropout'],
         input_dropout=args['input_dropout'],
         look_ahead=args['look_ahead'],
+        look_back=args['look_back'],
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
         T5_style_pos=args['T5_style_pos'],
         max_mask_pct=args['max_mask_pct'],
@@ -122,7 +124,7 @@ for seed in seed_list:
         num_masks_channels=args['num_masks_channels'], 
         max_mask_channels=args['max_mask_channels'], 
         dist_dict_path=args['dist_dict_path'], 
-        bidirectional=False
+        bidirectional=args['bidirectional']
     ).to(args['device'])
 
     # Load pretrained model if specified
