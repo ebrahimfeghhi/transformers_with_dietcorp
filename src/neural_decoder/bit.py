@@ -42,12 +42,11 @@ def get_sinusoidal_pos_emb(seq_len, dim, device=None):
 def create_temporal_mask(seq_len, device=None):
     """
     Build a boolean mask of shape [1, 1, seq_len, seq_len] that allows each
-    timestep t to attend to positions ≤ t + look_ahead.
+    timestep t to attend to positions ≤ t 
 
     Args:
         seq_len (int): sequence length T
-        look_ahead (int): how many future positions each timestep can see
-        device (torch.device or str or None): where to place the tensor
+
 
     Returns:
         torch.Tensor: Boolean mask of shape [1, 1, T, T]
