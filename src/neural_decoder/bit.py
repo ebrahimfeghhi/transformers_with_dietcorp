@@ -39,36 +39,23 @@ def get_sinusoidal_pos_emb(seq_len, dim, device=None):
     return pe
 
 
-def create_temporal_mask(
-    seq_len: int,
-    look_back: int = -1,   # -1 => unconstrained past
-    look_ahead: int = 0,
-    device=None,           # torch.device, str, or None
-) -> torch.Tensor:
+def create_temporal_mask(seq_len, device=None):
     """
-    Build a boolean mask of shape [1, 1, seq_len, seq_len] where
-    mask[..., t, k] == True iff k is within [t - look_back, t + look_ahead].
+    Build a boolean mask of shape [1, 1, seq_len, seq_len] that allows each
+    timestep t to attend to positions ≤ t + look_ahead.
 
     Args:
-        seq_len:     sequence length T.
-        look_back:   how many past positions each timestep can see.
-                     If < 0, it's treated as unlimited (T-1).
-        look_ahead:  how many future positions each timestep can see.
-        device:      torch device or string (e.g., 'cuda'), or None.
+        seq_len (int): sequence length T
+        look_ahead (int): how many future positions each timestep can see
+        device (torch.device or str or None): where to place the tensor
 
     Returns:
-        Boolean tensor of shape [1, 1, T, T].
+        torch.Tensor: Boolean mask of shape [1, 1, T, T]
     """
-    if look_back < 0:
-        look_back = seq_len - 1  # effectively unlimited past
-
-    i = torch.arange(seq_len, device=device).unsqueeze(1)  # [T, 1] (query idx)
-    j = torch.arange(seq_len, device=device).unsqueeze(0)  # [1, T] (key idx)
-
-    dist = j - i  # [T, T]
-    mask = (dist >= -look_back) & (dist <= look_ahead)  # bool [T, T]
-
-    return mask.unsqueeze(0).unsqueeze(0)  # [1, 1, T, T]
+    i = torch.arange(seq_len, device=device).unsqueeze(1)  # [T, 1] (query index)
+    j = torch.arange(seq_len, device=device).unsqueeze(0)  # [1, T] (key index)
+    mask = j <= i                           # [T, T], True = allowed
+    return mask.unsqueeze(0).unsqueeze(0)                  # [1, 1, T, T]
 
 class Attention(nn.Module):
     
@@ -149,9 +136,9 @@ class Transformer(nn.Module):
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
-                 dim_head, dropout, input_dropout, look_ahead, look_back, gaussianSmoothWidth, 
+                 dim_head, dropout, input_dropout, gaussianSmoothWidth, 
                  nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path, bidirectional):
+                 num_masks_channels, max_mask_channels, dist_dict_path):
    
         super().__init__()
 
@@ -159,8 +146,7 @@ class BiT_Phoneme(nn.Module):
         self.patch_height = patch_height
         self.patch_width = patch_width
         self.dim = dim
-        self.look_ahead = look_ahead  
-        self.look_back = look_back
+
         self.gaussianSmoothWidth = gaussianSmoothWidth
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
@@ -170,7 +156,6 @@ class BiT_Phoneme(nn.Module):
         self.num_masks_channels = num_masks_channels
         self.max_channels_to_mask = max_mask_channels
         self.dist_dict_path = dist_dict_path
-        self.bidirectional = bidirectional
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -248,11 +233,7 @@ class BiT_Phoneme(nn.Module):
             x = x + pos_emb.unsqueeze(0)
         
         # Create temporal mask
-        if self.bidirectional:
-            temporal_mask = None
-        else:
-            temporal_mask = create_temporal_mask(seq_len, look_back=self.look_back, 
-            look_ahead=self.look_ahead, device=x.device)
+        temporal_mask = create_temporal_mask(seq_len, device=x.device)
 
         x = self.transformer(x, mask=temporal_mask)
         
