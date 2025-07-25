@@ -123,8 +123,7 @@ class BiT_Phoneme(nn.Module):
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
                  nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path, linderman_lab, 
-                 bidirectional):
+                 num_masks_channels, max_mask_channels, dist_dict_path, bidirectional):
    
         super().__init__()
 
@@ -142,7 +141,6 @@ class BiT_Phoneme(nn.Module):
         self.num_masks_channels = num_masks_channels
         self.max_channels_to_mask = max_mask_channels
         self.dist_dict_path = dist_dict_path
-        self.linderman_lab = linderman_lab
         self.bidirectional = bidirectional
         
         self.to_patch_embedding = nn.Sequential(
@@ -157,7 +155,6 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
-                
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
         )
@@ -177,19 +174,6 @@ class BiT_Phoneme(nn.Module):
         if self.T5_style_pos == False:
             print("NOT USING T5 STYLE POS")
             self.register_buffer('pos_embedding', None, persistent=False)
-        
-        if self.linderman_lab:
-            
-            self.post_model_block = nn.Sequential(
-                nn.LayerNorm(dim),
-                nn.Dropout(dropout),
-                nn.Linear(dim, dim),
-                nn.ReLU(),
-            )
-            
-        else:
-            
-            self.post_model_block = nn.Identity()
         
     def forward(self, neuralInput, X_len, day_idx=None):
         """
@@ -221,7 +205,6 @@ class BiT_Phoneme(nn.Module):
             x = self.patch_to_emb(x)
 
         else:
-
             x = self.to_patch_embedding(neuralInput)
 
         # apply input level dropout. 
@@ -242,8 +225,6 @@ class BiT_Phoneme(nn.Module):
             temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
 
         x = self.transformer(x, mask=temporal_mask)
-        
-        x = self.post_model_block(x)
         
         out = self.projection(x)
         
