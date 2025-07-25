@@ -73,8 +73,6 @@ for seed in seed_list:
         'n_epochs': 250,
         'milestones': [150],
         'gamma': 0.1,
-        'look_ahead': 0,
-        'look_back': -1,
         'extra_notes': "",
         'device': 'cuda:2',
         'load_pretrained_model': "",
@@ -99,8 +97,6 @@ for seed in seed_list:
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
     
-    if args['bidirectional']:
-        print("RUNNING TRANSFORMER IN BIDIRECTIONAL MODE")
 
     # Instantiate model
     model = BiT_Phoneme(
@@ -113,8 +109,6 @@ for seed in seed_list:
         mlp_dim_ratio=args['mlp_dim_ratio'],
         dropout=args['dropout'],
         input_dropout=args['input_dropout'],
-        look_ahead=args['look_ahead'],
-        look_back=args['look_back'],
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
         T5_style_pos=args['T5_style_pos'],
         max_mask_pct=args['max_mask_pct'],
