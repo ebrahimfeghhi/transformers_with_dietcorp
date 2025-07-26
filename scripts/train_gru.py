@@ -28,7 +28,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_shortened"
+MODEL_NAME_BASE = "scratch"
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -60,7 +60,7 @@ for seed in SEEDS_LIST:
         'nLayers': 5,
         'dropout': 0.35,
         'input_dropout': 0.2,
-        'bidirectional': False,
+        'bidirectional': True,
 
         # Data preprocessing
         'whiteNoiseSD': 0.2,

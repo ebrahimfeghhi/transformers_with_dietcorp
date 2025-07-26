@@ -32,7 +32,7 @@ seed_list = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_short_training_fixed"
+model_name_base = "transformer_short_training_fixed_depth_7"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -51,7 +51,7 @@ for seed in seed_list:
         'restricted_days': [],
         'patch_size': (5, 256),
         'dim': 384,
-        'depth': 5,
+        'depth': 7,
         'heads': 6,
         'mlp_dim_ratio': 4,
         'dim_head': 64,
