@@ -32,7 +32,7 @@ seed_list = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_short_training"
+model_name_base = "transformer_short_training_fixed"
 
 # === MAIN LOOP ===
 for seed in seed_list:

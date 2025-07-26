@@ -28,8 +28,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_linderman_lab_updated"
-DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_shortened"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -58,13 +58,13 @@ for seed in SEEDS_LIST:
         'nClasses': 40,
         'nUnits': 1024,
         'nLayers': 5,
-        'dropout': 0.40,
-        'input_dropout': 0.3,
+        'dropout': 0.35,
+        'input_dropout': 0.2,
         'bidirectional': False,
 
         # Data preprocessing
-        'whiteNoiseSD': 0.8,
-        'constantOffsetSD': 0.20,
+        'whiteNoiseSD': 0.2,
+        'constantOffsetSD': 0.05,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
         'kernelLen': 32,
@@ -74,15 +74,15 @@ for seed in SEEDS_LIST:
         
         # Optimization
         'AdamW': False,
-        'lrStart': 0.025,
-        'lrEnd': 0.0005,
+        'lrStart': 0.02,
+        'lrEnd': 0.02,
         'l2_decay': 1e-5,
         'beta1': 0.90,
         'beta2': 0.999,
-        'learning_scheduler': 'linear',
-        'milestones': [None],
-        'gamma': None,
-        'n_epochs': 146,
+        'learning_scheduler': 'multistep',
+        'milestones': [150],
+        'gamma': 0.1,
+        'n_epochs': 250,
         'batchSize': 64,
 
         # Optional loading
@@ -92,9 +92,9 @@ for seed in SEEDS_LIST:
         
         'ventral_6v_only': False, 
         
-        'max_mask_pct': 0, 
-        'num_masks': 0, 
-        'linderman_lab': True
+        'max_mask_pct': 0.075, 
+        'num_masks': 20, 
+        'linderman_lab': False
     }
 
     # === Instantiate Model ===
