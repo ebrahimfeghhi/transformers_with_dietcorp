@@ -9,7 +9,7 @@ from neural_decoder.model import GRUDecoder
 # === CONFIGURATION ===
 SEEDS_LIST = [0,1,2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 
 BASE_PATHS = {
     'obi': '/data/willett_data',
@@ -28,7 +28,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_shortened"
+MODEL_NAME_BASE = "gru_4_4_512_units"
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -51,12 +51,12 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:2',
+        'device': 'cuda:1',
 
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
-        'nUnits': 1024,
+        'nUnits': 512,
         'nLayers': 5,
         'dropout': 0.35,
         'input_dropout': 0.2,
@@ -67,7 +67,7 @@ for seed in SEEDS_LIST:
         'constantOffsetSD': 0.05,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
-        'kernelLen': 32,
+        'kernelLen': 4,
         'restricted_days': [],
         'maxDay': None, # SET TO NONE IF NOT DOING HELD OUT DAYS TESTING
         'nDays': 24,
