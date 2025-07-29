@@ -28,7 +28,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_4_4_512_units"
+MODEL_NAME_BASE = "neurips_gru_nonoverlapping_4_4"
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -56,7 +56,7 @@ for seed in SEEDS_LIST:
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
-        'nUnits': 512,
+        'nUnits': 1024,
         'nLayers': 5,
         'dropout': 0.35,
         'input_dropout': 0.2,
@@ -80,9 +80,9 @@ for seed in SEEDS_LIST:
         'beta1': 0.90,
         'beta2': 0.999,
         'learning_scheduler': 'multistep',
-        'milestones': [150],
+        'milestones': [400],
         'gamma': 0.1,
-        'n_epochs': 250,
+        'n_epochs': 600,
         'batchSize': 64,
 
         # Optional loading
@@ -118,6 +118,17 @@ for seed in SEEDS_LIST:
         num_masks=args['num_masks'], 
         linderman_lab=args['linderman_lab']
     ).to(args["device"])
+    
+    
+    def count_parameters(model):
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Total parameters: {total:,}")
+        print(f"Trainable parameters: {trainable:,}")
+        
+    count_parameters(model)
+
+
     
     # === Train ===
     trainModel(args, model)
