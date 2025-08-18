@@ -129,6 +129,5 @@ for seed in SEEDS_LIST:
     count_parameters(model)
 
 
-    
     # === Train ===
     trainModel(args, model)

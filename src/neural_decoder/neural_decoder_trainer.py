@@ -19,12 +19,12 @@ def trainModel(args, model):
     
     if len(args['wandb_id']) > 0:
         
-        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", 
+        wandb.init(project="End to End", entity="ebrahimfeghhi", 
                    config=dict(args), name=args['modelName'], 
                    resume="must", id=args["wandb_id"])
     else:
-        wandb.init(project="Neural Decoder", 
-                   entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
+        wandb.init(project="End to End", 
+                   entity="ebrahimfeghhi", config=dict(args), name=args['modelName'])
         
     
     os.makedirs(args["outputDir"], exist_ok=True)
@@ -201,6 +201,7 @@ def trainModel(args, model):
                     matcher = SequenceMatcher(
                         a=trueSeq.tolist(), b=decodedSeq.tolist()
                     )
+                    
                     total_edit_distance += matcher.distance()
                     total_seq_length += len(trueSeq)
 
