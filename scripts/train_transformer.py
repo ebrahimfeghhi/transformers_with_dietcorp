@@ -16,12 +16,14 @@ BASE_PATHS = {
 DATA_PATHS = {
     'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
     'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
+    'obi_log_char': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_char'),
     'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days'),
     'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
     'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'), 
     'obi_log_big_0': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_big_0'), 
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
+    'leia_log_char': os.path.join(BASE_PATHS['leia'], 'data_log_both_char'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
     'leia_log_held_out_1': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_1'), 
     'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
@@ -31,8 +33,8 @@ DATA_PATHS = {
 seed_list = [0,1,2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_held_out"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_short_held_out_normal"
+DATA_PATH_KEY = f"{SERVER}_log_char"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "time_masked_transfomer_characters"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -74,7 +76,7 @@ for seed in seed_list:
         'milestones': [150],
         'gamma': 0.1,
         'extra_notes': "",
-        'device': 'cuda:2',
+        'device': 'cuda:3',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,

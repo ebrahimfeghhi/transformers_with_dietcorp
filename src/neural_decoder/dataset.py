@@ -55,9 +55,9 @@ class SpeechDataset(Dataset):
                 else:
                     self.neural_feats.append(data[day]["sentenceDat"][trial])
                     
-                self.phone_seqs.append(data[day]["phonemes"][trial])
+                self.phone_seqs.append(data[day]["text"][trial])
                 self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
-                self.phone_seq_lens.append(data[day]["phoneLens"][trial])
+                self.phone_seq_lens.append(data[day]["textLens"][trial])
                 self.transcriptions.append(data[day]['transcriptions'][trial])
                 self.days.append(day)
                 
@@ -114,9 +114,9 @@ class SpeechDataset_MAE(Dataset):
             for trial in range(len(data[day]["sentenceDat"])):
                 
                 self.neural_feats.append(data[day]["sentenceDat"][trial])
-                self.phone_seqs.append(data[day]["phonemes"][trial])
+                self.phone_seqs.append(data[day]["text"][trial])
                 self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
-                self.phone_seq_lens.append(data[day]["phoneLens"][trial])
+                self.phone_seq_lens.append(data[day]["textLens"][trial])
                 self.days.append(day)
                 
         
