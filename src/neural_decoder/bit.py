@@ -12,8 +12,6 @@ from .dataset import pad_to_multiple
 Code adapted from Fracois Porcher: https://github.com/FrancoisPorcher/vit-pytorch
 '''
 
-
-
 class FFN(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
@@ -40,13 +38,27 @@ def get_sinusoidal_pos_emb(seq_len, dim, device=None):
     pe[:, 1::2] = torch.cos(position * div_term)
     return pe
 
-def create_temporal_mask(seq_len, look_ahead=0, device=None):
-    i = torch.arange(seq_len, device=device).unsqueeze(1)
-    j = torch.arange(seq_len, device=device).unsqueeze(0)
-    mask = j <= i + look_ahead
-    return mask.unsqueeze(0).unsqueeze(0)
+
+def create_temporal_mask(seq_len, device=None):
+    """
+    Build a boolean mask of shape [1, 1, seq_len, seq_len] that allows each
+    timestep t to attend to positions ≤ t + look_ahead.
+
+    Args:
+        seq_len (int): sequence length T
+        look_ahead (int): how many future positions each timestep can see
+        device (torch.device or str or None): where to place the tensor
+
+    Returns:
+        torch.Tensor: Boolean mask of shape [1, 1, T, T]
+    """
+    i = torch.arange(seq_len, device=device).unsqueeze(1)  # [T, 1] (query index)
+    j = torch.arange(seq_len, device=device).unsqueeze(0)  # [1, T] (key index)
+    mask = j <= i                           # [T, T], True = allowed
+    return mask.unsqueeze(0).unsqueeze(0)                  # [1, 1, T, T]
 
 class Attention(nn.Module):
+    
     def __init__(self, dim, heads, dim_head, dropout, max_rel_dist=200, use_relative_bias=True):
         super().__init__()
         inner_dim = dim_head * heads
@@ -69,6 +81,7 @@ class Attention(nn.Module):
         # T5-style relative position bias
         self.max_rel_dist = max_rel_dist
         self.use_relative_bias = use_relative_bias
+        
         if self.use_relative_bias:
             self.rel_pos_bias = nn.Embedding(2 * max_rel_dist - 1, 1)
       
@@ -123,7 +136,7 @@ class Transformer(nn.Module):
 class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
-                 dim_head, dropout, input_dropout, look_ahead, gaussianSmoothWidth, 
+                 dim_head, dropout, input_dropout, gaussianSmoothWidth, 
                  nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
                  num_masks_channels, max_mask_channels, dist_dict_path):
    
@@ -133,7 +146,7 @@ class BiT_Phoneme(nn.Module):
         self.patch_height = patch_height
         self.patch_width = patch_width
         self.dim = dim
-        self.look_ahead = look_ahead  
+
         self.gaussianSmoothWidth = gaussianSmoothWidth
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
@@ -156,7 +169,6 @@ class BiT_Phoneme(nn.Module):
         self.to_patch = self.to_patch_embedding[0]
         self.patch_to_emb = nn.Sequential(*self.to_patch_embedding[1:])
 
-                
         self.gaussianSmoother = GaussianSmoothing(
             patch_width, 20, self.gaussianSmoothWidth, dim=1
         )
@@ -207,7 +219,6 @@ class BiT_Phoneme(nn.Module):
             x = self.patch_to_emb(x)
 
         else:
-
             x = self.to_patch_embedding(neuralInput)
 
         # apply input level dropout. 
@@ -216,13 +227,13 @@ class BiT_Phoneme(nn.Module):
         b, seq_len, _ = x.shape
         
         # Add sin embeddings if T5 Style is False. 
-        #if self.T5_style_pos == False:
-        #    pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
-        #    x = x + pos_emb.unsqueeze(0)
+        if self.T5_style_pos == False:
+            
+            pos_emb = get_sinusoidal_pos_emb(seq_len, self.dim, device=x.device)
+            x = x + pos_emb.unsqueeze(0)
         
         # Create temporal mask
-        
-        temporal_mask = create_temporal_mask(seq_len, look_ahead=self.look_ahead, device=x.device)
+        temporal_mask = create_temporal_mask(seq_len, device=x.device)
 
         x = self.transformer(x, mask=temporal_mask)
         

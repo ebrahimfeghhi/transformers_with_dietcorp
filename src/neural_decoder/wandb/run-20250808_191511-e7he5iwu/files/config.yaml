@@ -1,0 +1,80 @@
+_wandb:
+    value:
+        cli_version: 0.21.1
+        e:
+            d864j02b0p0s1s4ltj6fd9qfl96ph6to:
+                codePath: src/neural_decoder/call_llama_finetuning.py
+                codePathLocal: call_llama_finetuning.py
+                cpu_count: 32
+                cpu_count_logical: 64
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "416055988224"
+                        used: "364274475008"
+                email: efeghhi@gmail.com
+                executable: /home/ubuntu/miniconda/envs/unsloth_env/bin/python
+                git:
+                    commit: e0cea83b03f9efc048167cd56c4de27776fc5b58
+                    remote: https://github.com/ebrahimfeghhi/transformers_with_dietcorp.git
+                gpu: NVIDIA L40S
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 18176
+                      memoryTotal: "48305799168"
+                      name: NVIDIA L40S
+                      uuid: GPU-1085c5db-bd8c-c5bb-173a-59e756af5d86
+                host: ip-172-31-44-246
+                memory:
+                    total: "533739081728"
+                os: Linux-6.8.0-1030-aws-x86_64-with-glibc2.35
+                program: /home/ubuntu/transformers_with_dietcorp/src/neural_decoder/call_llama_finetuning.py
+                python: CPython 3.11.13
+                root: /home/ubuntu/transformers_with_dietcorp/src/neural_decoder
+                startedAt: "2025-08-08T19:15:11.137137Z"
+                writerId: d864j02b0p0s1s4ltj6fd9qfl96ph6to
+        m: []
+        python_version: 3.11.13
+        t:
+            "1":
+                - 1
+                - 11
+                - 41
+                - 49
+                - 51
+                - 71
+                - 83
+                - 84
+                - 98
+            "2":
+                - 1
+                - 11
+                - 41
+                - 49
+                - 51
+                - 71
+                - 83
+                - 84
+                - 98
+            "3":
+                - 2
+                - 13
+                - 16
+            "4": 3.11.13
+            "5": 0.21.1
+            "6": 4.55.0
+            "12": 0.21.1
+            "13": linux-x86_64
+batch_size:
+    value: 16
+gradient_accumulation_steps:
+    value: 4
+learning_rate:
+    value: 0.0002
+lora_alpha:
+    value: 8
+num_train_epochs:
+    value: 1
+r:
+    value: 8

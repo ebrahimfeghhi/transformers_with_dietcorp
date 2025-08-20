@@ -7,32 +7,24 @@ from neural_decoder.measure_memory import trainModel_mem
 
 from neural_decoder.bit import BiT_Phoneme
 
-# === CONFIGURATION ===
+
+SERVER = 'ec2'  # Change to 'leia' if needed
+
 BASE_PATHS = {
     'obi': '/data/willett_data',
-    'leia': '/home3/skaasyap/willett'
+    'leia': '/home3/skaasyap/willett',
+    'ec2': '/home/ubuntu/data/'
 }
 
 DATA_PATHS = {
-    'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
-    'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
-    'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days'),
-    'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
-    'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'), 
-    'obi_log_big_0': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_big_0'), 
-    'leia': os.path.join(BASE_PATHS['leia'], 'data'),
-    'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
-    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
-    'leia_log_held_out_1': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_1'), 
-    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
+    'ec2': os.path.join(BASE_PATHS['ec2'], 'ptDecoder_ctc'),
+    'ec2_log': os.path.join(BASE_PATHS['ec2'], 'ptDecoder_ctc_both')
 }
 
+seed_list = [0,1]
 
-seed_list = [3]
-
-SERVER = 'obi'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_big_0"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "transformer_held_out_big_0"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "transformer_silu"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -70,12 +62,13 @@ for seed in seed_list:
         'batchSize': 64,
         'beta1': 0.90,
         'beta2': 0.999,
-        'n_epochs': 600,
-        'milestones': [400],
+        'n_epochs': 250,
+        'milestones': [150],
         'gamma': 0.1,
         'look_ahead': 0,
+        'look_back': 1, 
         'extra_notes': "",
-        'device': 'cuda:1',
+        'device': 'cuda',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
@@ -110,6 +103,7 @@ for seed in seed_list:
         dropout=args['dropout'],
         input_dropout=args['input_dropout'],
         look_ahead=args['look_ahead'],
+        look_back=args['look_back'],
         gaussianSmoothWidth=args['gaussianSmoothWidth'],
         T5_style_pos=args['T5_style_pos'],
         max_mask_pct=args['max_mask_pct'],
@@ -117,7 +111,8 @@ for seed in seed_list:
         mask_token_zeros=args['mask_token_zero'], 
         num_masks_channels=args['num_masks_channels'], 
         max_mask_channels=args['max_mask_channels'], 
-        dist_dict_path=args['dist_dict_path']
+        dist_dict_path=args['dist_dict_path'], 
+        bidirectional=False
     ).to(args['device'])
 
     # Load pretrained model if specified
@@ -126,6 +121,6 @@ for seed in seed_list:
         model.load_state_dict(torch.load(ckpt_path, map_location=args['device']), strict=True)
         print(f"Loaded pretrained model from {ckpt_path}")
     
-
+    breakpoint
     # Train
     trainModel(args, model)

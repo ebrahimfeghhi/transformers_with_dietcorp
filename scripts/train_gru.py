@@ -7,13 +7,14 @@ from neural_decoder.measure_memory import trainModel_mem
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [2,3]
+SEEDS_LIST = [0,1]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'ec2'  # Change to 'leia' if needed
 
 BASE_PATHS = {
     'obi': '/data/willett_data',
-    'leia': '/home3/skaasyap/willett'
+    'leia': '/home3/skaasyap/willett',
+    'ec2': '/home/ubuntu/data/'
 }
 
 DATA_PATHS = {
@@ -25,11 +26,13 @@ DATA_PATHS = {
     'obi_big_0': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_held_out_days_big_0'), 
     'leia': os.path.join(BASE_PATHS['leia'], 'data'),
     'leia_log': os.path.join(BASE_PATHS['leia'], 'data_log_both'),
-    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
+    'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
+    'ec2': os.path.join(BASE_PATHS['ec2'], 'ptDecoder_ctc'),
+    'ec2_log': os.path.join(BASE_PATHS['ec2'], 'ptDecoder_ctc_both')
 }
 
-MODEL_NAME_BASE = "gru_held_out_days_big"
-DATA_PATH_KEY = f"{SERVER}_big_0"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "bidirectional_gru_linderman_time_masked"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -51,25 +54,25 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:0',
+        'device': 'cuda',
 
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
         'nUnits': 1024,
         'nLayers': 5,
-        'dropout': 0.40,
-        'input_dropout': 0,
-        'bidirectional': False,
+        'dropout': 0.35,
+        'input_dropout': 0.2,
+        'bidirectional': True,
 
         # Data preprocessing
-        'whiteNoiseSD': 0.8,
-        'constantOffsetSD': 0.2,
+        'whiteNoiseSD': 0.2,
+        'constantOffsetSD': 0.05,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
         'kernelLen': 32,
         'restricted_days': [],
-        'maxDay': 11,
+        'maxDay': None,
         'nDays': 24,
         
         # Optimization
@@ -82,7 +85,7 @@ for seed in SEEDS_LIST:
         'learning_scheduler': 'None',
         'milestones': [400],
         'gamma': 0.1,
-        'n_epochs': 73,
+        'n_epochs': 600,
         'batchSize': 64,
 
         # Optional loading
@@ -92,8 +95,9 @@ for seed in SEEDS_LIST:
         
         'ventral_6v_only': False, 
         
-        'max_mask_pct': 0.0, 
-        'num_masks': 0
+        'max_mask_pct': 0.075, 
+        'num_masks': 20, 
+        'linderman_lab': True
     }
 
     # === Instantiate Model ===
@@ -114,10 +118,9 @@ for seed in SEEDS_LIST:
         bidirectional=args["bidirectional"],
         input_dropout=args['input_dropout'], 
         max_mask_pct=args['max_mask_pct'],
-        num_masks=args['num_masks']
+        num_masks=args['num_masks'], 
+        linderman_lab=args['linderman_lab']
     ).to(args["device"])
     
-    from fvcore.nn import FlopCountAnalysis, parameter_count_table
-
     # === Train ===
     trainModel(args, model)

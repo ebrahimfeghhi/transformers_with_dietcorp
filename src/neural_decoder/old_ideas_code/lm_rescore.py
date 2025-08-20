@@ -20,7 +20,7 @@ tokenizer.padding_side = "right"
 breakpoint()
 
 
-from neural_decoder.old_ideas_code.llm_utils import cer_with_gpt2_decoder
+from neural_decoder.llm_utils import cer_with_gpt2_decoder
 import time
 
 import pickle
