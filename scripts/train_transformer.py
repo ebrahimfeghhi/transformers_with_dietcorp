@@ -10,7 +10,8 @@ from neural_decoder.bit import BiT_Phoneme
 # === CONFIGURATION ===
 BASE_PATHS = {
     'obi': '/data/willett_data',
-    'leia': '/home3/skaasyap/willett'
+    'leia': '/home3/skaasyap/willett', 
+    'ec2': 
 }
 
 DATA_PATHS = {
@@ -26,7 +27,8 @@ DATA_PATHS = {
     'leia_log_char': os.path.join(BASE_PATHS['leia'], 'data_log_both_char'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
     'leia_log_held_out_1': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_1'), 
-    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
+    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2'), 
+    'ec2_log_char': os.path.join(BASE_PATHS['ec2'], 'ptDecoder_ctc_both_char')
 }
 
 
