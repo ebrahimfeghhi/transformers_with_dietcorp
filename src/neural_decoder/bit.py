@@ -5,8 +5,8 @@ import math
 
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
-from .augmentations import GaussianSmoothing
-from .dataset import pad_to_multiple
+from augmentations import GaussianSmoothing
+from dataset import pad_to_multiple
 
 '''
 Code adapted from Fracois Porcher: https://github.com/FrancoisPorcher/vit-pytorch
