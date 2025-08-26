@@ -10,8 +10,7 @@ from neural_decoder.bit import BiT_Phoneme
 # === CONFIGURATION ===
 BASE_PATHS = {
     'obi': '/data/willett_data',
-    'leia': '/home3/skaasyap/willett', 
-    'ec2': 
+    'leia': '/home3/skaasyap/willett'
 }
 
 DATA_PATHS = {
