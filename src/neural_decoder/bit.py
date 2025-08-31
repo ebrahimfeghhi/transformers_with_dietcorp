@@ -136,7 +136,7 @@ class BiT_Phoneme(nn.Module):
     
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, gaussianSmoothWidth, 
-                 nClasses, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
+                 nClasses, nClasses_2, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
                  num_masks_channels, max_mask_channels, dist_dict_path):
    
         super().__init__()
@@ -145,7 +145,8 @@ class BiT_Phoneme(nn.Module):
         self.patch_height = patch_height
         self.patch_width = patch_width
         self.dim = dim
-
+        self.nClasses = nClasses
+        self.nClasses_2 = nClasses_2
         self.gaussianSmoothWidth = gaussianSmoothWidth
         self.T5_style_pos = T5_style_pos
         self.max_mask_pct = max_mask_pct
@@ -183,6 +184,9 @@ class BiT_Phoneme(nn.Module):
                                     dropout, use_relative_bias=self.T5_style_pos)
     
         self.projection = nn.Linear(dim, nClasses+1)
+        
+        if nClasses_2 is not None:
+            self.projection_2 = nn.Linear(dim, nClasses_2+1)
         
         if self.T5_style_pos == False:
             print("NOT USING T5 STYLE POS")
@@ -237,6 +241,10 @@ class BiT_Phoneme(nn.Module):
         x = self.transformer(x, mask=temporal_mask)
         
         out = self.projection(x)
+        
+        if self.nClasses_2 is not None:
+            out_2 = self.projection_2(x)
+            return out, out_2
         
         return out
     

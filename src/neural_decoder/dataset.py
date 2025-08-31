@@ -7,167 +7,86 @@ import pickle
 from tqdm import tqdm
 import numpy as np
 
+import torch
+from torch.utils.data import Dataset
 
 class SpeechDataset(Dataset):
     
-    def __init__(self, data, transform=None, restricted_days=[], ventral_6v_only=False, return_transcript=False):
-        
+    def __init__(self, data, transform=None, restricted_days=None,
+                 ventral_6v_only=False, return_transcript=False):
+        """
+        If 'text2' exists in the data, include it (and 'textLens2') in the dataset
+        and return them in __getitem__.
+        """
         self.data = data
         self.transform = transform
         self.return_transcript = return_transcript
-    
+        restricted_days = set(restricted_days or [])
+
         self.n_days = len(data)
-        
-            
+
         self.neural_feats = []
-        self.phone_seqs = []
+        self.text_seqs = []
         self.neural_time_bins = []
-        self.phone_seq_lens = []
+        self.text_seq_lens = []
         self.days = []
         self.transcriptions = []
-        
-        #if channel_drop is not None:
-        #    
-        #     # select channel_drop integers from 0 - 64.
-        #    channel_indices_array_1 = np.random.choice(np.arange(0, 65), size=channel_drop, replace=False)
-    
-            # select channel_drop integers from 128 - 192.
-        #    channel_indices_array_2 = np.random.choice(np.arange(128, 193), size=channel_drop, replace=False)
 
-            # add 64 to each of the indices because there are two features per channel.
-        #    channel_indices_array_1 = np.concatenate([channel_indices_array_1, channel_indices_array_1+64])
-        #    channel_indices_array_2 = np.concatenate([channel_indices_array_2, channel_indices_array_2+64])
-        #    
-        #    channel_indices = np.concatenate([channel_indices_array_1, channel_indices_array_2])
+        # Always check first day to decide if text2 is present
+        self.text2_present = "text2" in data[0]
+
+        if self.text2_present:
+            self.text2_seqs = []
+            self.text2_seq_lens = []
 
         for day in range(self.n_days):
-            
-            if restricted_days:
-                
-                # only train/test on restricted days
-                if day not in restricted_days:
-                    continue
-            
-            for trial in range(len(data[day]["sentenceDat"])):
-                
-                if ventral_6v_only:
-                    self.neural_feats.append(data[day]["sentenceDat"][trial][:, 0:128])
-                else:
-                    self.neural_feats.append(data[day]["sentenceDat"][trial])
-                    
-                self.phone_seqs.append(data[day]["text"][trial])
-                self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
-                self.phone_seq_lens.append(data[day]["textLens"][trial])
+            if restricted_days and day not in restricted_days:
+                continue
+
+            n_trials = len(data[day]["sentenceDat"])
+            for trial in range(n_trials):
+                feats = data[day]["sentenceDat"][trial]
+                self.neural_feats.append(feats[:, :128] if ventral_6v_only else feats)
+
+                self.text_seqs.append(data[day]["text"][trial])
+                self.neural_time_bins.append(feats.shape[0])
+                self.text_seq_lens.append(data[day]["textLens"][trial])
                 self.transcriptions.append(data[day]['transcriptions'][trial])
                 self.days.append(day)
-                
+
+                if self.text2_present:
+                    self.text2_seqs.append(data[day]["text2"][trial])
+                    self.text2_seq_lens.append(data[day]["textLens2"][trial])
 
         self.n_trials = len(self.days)
 
     def __len__(self):
-        
-        return self.n_trials
-
-    def __getitem__(self, idx):
-        
-        neural_feats = torch.tensor(self.neural_feats[idx], dtype=torch.float32)
-
-        if self.transform:
-            neural_feats = self.transform(neural_feats)
-            
-        if self.return_transcript:
-            
-            return (
-                neural_feats,
-                torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
-                torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
-                torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
-                torch.tensor(self.days[idx], dtype=torch.int64), 
-                self.transcriptions[idx]
-            )
-            
-        else:
-            return (
-                neural_feats,
-                torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
-                torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
-                torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
-                torch.tensor(self.days[idx], dtype=torch.int64)
-            )
-        
-class SpeechDataset_MAE(Dataset):
-    
-    def __init__(self, data, transform=None):
-        self.data = data
-        self.transform = transform
-        self.n_days = len(data)
-        self.n_trials = sum([len(d["sentenceDat"]) for d in data])
-
-        self.neural_feats = []
-        self.phone_seqs = []
-        self.neural_time_bins = []
-        self.phone_seq_lens = []
-        self.days = []
-        
-        for day in range(self.n_days):
-            
-            for trial in range(len(data[day]["sentenceDat"])):
-                
-                self.neural_feats.append(data[day]["sentenceDat"][trial])
-                self.phone_seqs.append(data[day]["text"][trial])
-                self.neural_time_bins.append(data[day]["sentenceDat"][trial].shape[0])
-                self.phone_seq_lens.append(data[day]["textLens"][trial])
-                self.days.append(day)
-                
-        
-        # sort trials by length for more effective chunking.         
-        sorted_indices = sorted(range(len(self.neural_time_bins)), 
-                        key=lambda i: self.neural_time_bins[i], reverse=True)
-        self.neural_feats = [self.neural_feats[i] for i in sorted_indices]
-        self.phone_seqs = [self.phone_seqs[i] for i in sorted_indices]
-        self.neural_time_bins = [self.neural_time_bins[i] for i in sorted_indices]
-        self.phone_seq_lens = [self.phone_seq_lens[i] for i in sorted_indices]
-        self.days = [self.days[i] for i in sorted_indices]
-        
-    def shuffle_by_batch(self, batch_size):
-        
-        '''
-        block shuffles by batch size self.neural_feats, self.days, and self.neural_time_bins
-        by batch size. 
-        '''
-        n = len(self.neural_feats)
-        assert len(self.days) == n and len(self.neural_time_bins) == n, "All arrays must be the same length"
-
-        # Step 1: Group into batches
-        indices = list(range(n))
-        batches = [indices[i:i+batch_size] for i in range(0, n, batch_size)]
-
-        # Step 2: Shuffle the batch order
-        random.shuffle(batches)
-
-        # Step 3: Flatten shuffled batches back into a single index list
-        shuffled_indices = [i for batch in batches for i in batch]
-
-        self.neural_feats = [self.neural_feats[i] for i in shuffled_indices]
-        self.days = [self.days[i] for i in shuffled_indices]
-        self.neural_time_bins = [self.neural_time_bins[i] for i in shuffled_indices]
-        
-    def __len__(self):
         return self.n_trials
 
     def __getitem__(self, idx):
         neural_feats = torch.tensor(self.neural_feats[idx], dtype=torch.float32)
-
         if self.transform:
             neural_feats = self.transform(neural_feats)
-            
-        return (
+
+        items = [
             neural_feats,
-            torch.tensor(self.phone_seqs[idx], dtype=torch.int32),
+            torch.tensor(self.text_seqs[idx], dtype=torch.int32),
             torch.tensor(self.neural_time_bins[idx], dtype=torch.int32),
-            torch.tensor(self.phone_seq_lens[idx], dtype=torch.int32),
+            torch.tensor(self.text_seq_lens[idx], dtype=torch.int32),
             torch.tensor(self.days[idx], dtype=torch.int64),
-        )
+        ]
+
+        if self.return_transcript:
+            items.append(self.transcriptions[idx])
+
+        if self.text2_present:
+            items.extend([
+                torch.tensor(self.text2_seqs[idx], dtype=torch.int32),
+                torch.tensor(self.text2_seq_lens[idx], dtype=torch.int32),
+            ])
+
+        return tuple(items)
+
         
 def pad_to_multiple(tensor, multiple, dim=1, value=0):
     """
@@ -207,73 +126,45 @@ class ShuffleByBatchSampler(Sampler):
 
     def __len__(self):
         return (self.dataset_len + self.batch_size - 1) // self.batch_size
-    
-def getDatasetLoaders_MAE(
-    datasetName,
-    batchSize
-):
-    with open(datasetName, "rb") as handle:
-        loadedData = pickle.load(handle)
-
-    def _padding(batch):
-        X, y, X_lens, y_lens, days = zip(*batch)
-        X_padded = pad_sequence(X, batch_first=True, padding_value=0)
-        y_padded = pad_sequence(y, batch_first=True, padding_value=0)
-
-        return (
-            X_padded,
-            y_padded,
-            torch.stack(X_lens),
-            torch.stack(y_lens),
-            torch.stack(days),
-        )
-
-    train_ds = SpeechDataset_MAE(loadedData["train"], transform=None)
-    train_sampler = ShuffleByBatchSampler(train_ds, batch_size=batchSize)
-    test_ds = SpeechDataset_MAE(loadedData["test"])
-
-        
-    train_loader = DataLoader(
-        train_ds,
-        batch_sampler=train_sampler,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-    test_loader = DataLoader(
-        test_ds,
-        batch_size=batchSize,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-        collate_fn=_padding,
-    )
-
-    return train_loader, test_loader, loadedData
 
 def getDatasetLoaders(
     datasetName,
     batchSize, 
     restricted_days=[],
-    ventral_6v_only=False, 
+    ventral_6v_only=False
 ):
     with open(datasetName, "rb") as handle:
         loadedData = pickle.load(handle)
 
     def _padding(batch):
-        X, y, X_lens, y_lens, days = zip(*batch)
-        X_padded = pad_sequence(X, batch_first=True, padding_value=0)
-        y_padded = pad_sequence(y, batch_first=True, padding_value=0)
-
-        return (
-            X_padded,
-            y_padded,
-            torch.stack(X_lens),
-            torch.stack(y_lens),
-            torch.stack(days),
-        )
         
+        if len(batch[0]) == 5:
+            # (X, y, X_len, y_len, days)
+            X, y, X_lens, y_lens, days = zip(*batch)
+            X_padded = pad_sequence(X, batch_first=True, padding_value=0)
+            y_padded = pad_sequence(y, batch_first=True, padding_value=0)
+            return (
+                X_padded,
+                y_padded,
+                torch.stack(X_lens),
+                torch.stack(y_lens),
+                torch.stack(days),
+            )
+        elif len(batch[0]) == 7:
+            # (X, y, X_len, y_len, days, y2, y2_len)
+            X, y, X_lens, y_lens, days, y2, y2_lens = zip(*batch)
+            X_padded  = pad_sequence(X,  batch_first=True, padding_value=0)
+            y_padded  = pad_sequence(y,  batch_first=True, padding_value=0)
+            y2_padded = pad_sequence(y2, batch_first=True, padding_value=0)
+            return (
+                X_padded,
+                y_padded,
+                torch.stack(X_lens),
+                torch.stack(y_lens),
+                torch.stack(days),
+                y2_padded,
+                torch.stack(y2_lens),
+            )
   
     train_ds = SpeechDataset(loadedData["train"], transform=None, 
                              restricted_days=restricted_days, 

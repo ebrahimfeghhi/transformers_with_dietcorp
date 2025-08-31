@@ -17,6 +17,7 @@ DATA_PATHS = {
     'obi': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc'),
     'obi_log': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both'),
     'obi_log_char': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_char'),
+    'obi_log_char_phoneme': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_char_phoneme'),
     'obi_log_held_out': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days'),
     'obi_log_held_out_1': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_1'),
     'obi_log_held_out_2': os.path.join(BASE_PATHS['obi'], 'ptDecoder_ctc_both_held_out_days_2'), 
@@ -32,9 +33,9 @@ DATA_PATHS = {
 
 seed_list = [0,1,2,3]
 
-SERVER = 'leia'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_char"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transfomer_characters"
+SERVER = 'obi'  # Change to 'leia' if needed
+DATA_PATH_KEY = f"{SERVER}_log_char_phoneme"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "time_masked_transfomer_characters_phonemes_80ms"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -51,14 +52,15 @@ for seed in seed_list:
         'modelName': model_name,
         'maxDay': None,
         'restricted_days': [],
-        'patch_size': (5, 256),
+        'patch_size': (4, 256),
         'dim': 384,
         'depth': 5,
         'heads': 6,
         'mlp_dim_ratio': 4,
         'dim_head': 64,
         'T5_style_pos': True,
-        'nClasses': 40,
+        'nClasses': 32,
+        'nClasses_2': 40, # set to None if only one output head 
         'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'constantOffsetSD': 0.05,
@@ -76,7 +78,7 @@ for seed in seed_list:
         'milestones': [150],
         'gamma': 0.1,
         'extra_notes': "",
-        'device': 'cuda:3',
+        'device': 'cuda:0',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
@@ -106,6 +108,7 @@ for seed in seed_list:
         dim=args['dim'],
         dim_head=args['dim_head'],
         nClasses=args['nClasses'],
+        nClasses_2=args['nClasses_2'],
         depth=args['depth'],
         heads=args['heads'],
         mlp_dim_ratio=args['mlp_dim_ratio'],
