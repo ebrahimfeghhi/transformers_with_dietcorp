@@ -1,12 +1,23 @@
 from nemo.collections.asr.parts.submodules.ngram_lm import NGramGPULanguageModel
 
+
+CHAR_VOCAB = [
+    "<sp>",          # space token
+    "!", ",", ".", "?", "'",   # punctuation (incl. apostrophe)
+] + [chr(i) for i in range(ord('a'), ord('z') + 1)]  # 'a'..'z'
+
+# Build mappings
+_CHAR_TO_ID = {c: i for i, c in enumerate(CHAR_VOCAB)}
+
 lm = NGramGPULanguageModel.from_arpa(
-    lm_path="/workspace/emg2qwerty/models/lm/wikitext-103-6gram-charlm.arpa",
-    vocab_size=26, 
-    normalize_unk=True
+    lm_path="/data/lm/lm_dec19_char_large_12gram.arpa",
+    vocab_size=32, 
+    token_offset=None, 
+    vocab_map=_CHAR_TO_ID
 )
 
-#lm.save_to("/workspace/transformers_with_dietcorp/lm/char_6gram_lm.nemo")
+lm.save_to("/data/lm/char_12gram_lm.nemo")
+breakpoint()
 
 vocab = [chr(i) for i in range(ord('a'), ord('z') + 1)] 
 V = len(vocab)

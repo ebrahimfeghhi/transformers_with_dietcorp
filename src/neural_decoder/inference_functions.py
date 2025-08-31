@@ -87,7 +87,7 @@ def evaluate_model(
     ventral_6v_only = bool(args.get("ventral_6v_only", False))
 
     # Accumulators
-    outputs = {"logits": [], "logitLengths": [], "trueSeqs": [], "transcriptions": []}
+    outputs = {"logits": [], "logitLengths": [], "trueSeqs": [], "transcriptions": [], 'decodedSeqs': []}
     per_day_cer: List[float] = []
     total_edit, total_len = 0, 0
 
@@ -111,7 +111,7 @@ def evaluate_model(
                 X = X[:, :, :128]
 
             with torch.no_grad(): 
-                pred = model.forward(X, X_len, day_tensor)[:,:, :30]
+                pred = model.forward(X, X_len, day_tensor)
 
             # Output lengths
             if hasattr(model, "compute_length"):
@@ -136,6 +136,9 @@ def evaluate_model(
                 decoded = torch.argmax(pred[b, :Lb, :], dim=-1)
                 decoded = torch.unique_consecutive(decoded).cpu().numpy()
                 decoded = decoded[decoded != 0]
+                
+                outputs["decodedSeqs"].append(decoded)
+                
                  
                 matcher = SequenceMatcher(
                     a=true_seq.tolist(), b=decoded.tolist()
