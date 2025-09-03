@@ -185,6 +185,7 @@ class BiT_Phoneme(nn.Module):
     
         self.projection = nn.Linear(dim, nClasses+1)
         
+        breakpoint()
         if nClasses_2 is not None:
             self.projection_2 = nn.Linear(dim, nClasses_2+1)
         
