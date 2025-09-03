@@ -166,3 +166,58 @@ def evaluate_model(
         print("Model performance (CER):", cer)
 
     return outputs, cer, per_day_cer
+
+def decode_outputs(outputs, num_examples=880):
+    # Character vocab and mappings
+    CHAR_VOCAB = [
+        "<sp>",          # space token
+        "!", ",", ".", "?", "'",   # punctuation (incl. apostrophe)
+    ] + [chr(i) for i in range(ord('a'), ord('z') + 1)]  # 'a'..'z'
+
+    _CHAR_TO_ID = {c: i for i, c in enumerate(CHAR_VOCAB)}
+    _ID_TO_CHAR = {i: c for c, i in _CHAR_TO_ID.items()}
+
+    def idToChar(i: int) -> str:
+        return _ID_TO_CHAR[i]
+
+    # Phone definitions and mappings
+    PHONE_DEF = [
+        'AA', 'AE', 'AH', 'AO', 'AW',
+        'AY', 'B',  'CH', 'D', 'DH',
+        'EH', 'ER', 'EY', 'F', 'G',
+        'HH', 'IH', 'IY', 'JH', 'K',
+        'L', 'M', 'N', 'NG', 'OW',
+        'OY', 'P', 'R', 'S', 'SH',
+        'T', 'TH', 'UH', 'UW', 'V',
+        'W', 'Y', 'Z', 'ZH'
+    ]
+    PHONE_DEF_SIL = PHONE_DEF + ['SIL']
+
+    def idToPhoneme(i: int) -> str:
+        return PHONE_DEF_SIL[i]
+
+    # Lists to collect outputs
+    phoneme_decoded_strs = []
+    character_decoded_strs = []
+    true_seq_strs = []
+
+    # Iterate and decode
+    for i in range(min(num_examples, len(outputs['decodedSeqs']))):
+        character_decoded = outputs['decodedSeqs'][i]
+        phoneme_decoded = outputs['decodedSeqs2'][i]
+
+        character_decoded_str = "".join(
+            idToChar(idx - 1) for idx in character_decoded
+        ).replace('<sp>', " ")
+
+        phoneme_decoded_str = "".join(
+            idToPhoneme(idx - 1) for idx in phoneme_decoded
+        ).replace('SIL', " ")
+
+        true_seq_str = outputs['transcriptions'][i]
+
+        phoneme_decoded_strs.append(phoneme_decoded_str)
+        character_decoded_strs.append(character_decoded_str)
+        true_seq_strs.append(true_seq_str)
+
+    return phoneme_decoded_strs, character_decoded_strs, true_seq_strs
