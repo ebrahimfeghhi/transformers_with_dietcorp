@@ -54,6 +54,7 @@ model = FastLanguageModel.get_peft_model(
 from datasets import load_dataset
 
 base_path = '/data2/jsonl/train.jsonl'
+model_save_name = "/data2/finetuned_llms/end_to_end_v3_decode_to_phonemes"
 
 data_files = {
     'train': base_path
@@ -67,6 +68,8 @@ dataset = load_dataset(
 seed = 3407
 dataset["train"] = dataset["train"].shuffle(seed=seed)
 
+print(dataset['train']['text'][0])
+print("Model save name: ", model_save_name)
 breakpoint()
 
 from trl import SFTConfig, SFTTrainer
@@ -107,8 +110,8 @@ trainer_stats = trainer.train()
 print("Finished Fine-tuning model, saving weights")
 
 try:
-    model.save_pretrained("/data2/finetuned_llms/end_to_end_v2_phonemes_only")  # Local saving
-    tokenizer.save_pretrained("/data2/finetuned_llms/end_to_end_v2_phonemes_only")
+    model.save_pretrained(model_save_name)  # Local saving
+    tokenizer.save_pretrained(model_save_name)
 except:
     breakpoint()
     
