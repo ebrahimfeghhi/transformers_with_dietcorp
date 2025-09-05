@@ -67,6 +67,8 @@ dataset = load_dataset(
 seed = 3407
 dataset["train"] = dataset["train"].shuffle(seed=seed)
 
+breakpoint()
+
 from trl import SFTConfig, SFTTrainer
 
 trainer = SFTTrainer(
@@ -105,8 +107,8 @@ trainer_stats = trainer.train()
 print("Finished Fine-tuning model, saving weights")
 
 try:
-    model.save_pretrained("/data2/finetuned_llms/end_to_end_v1")  # Local saving
-    tokenizer.save_pretrained("/data2/finetuned_llms/end_to_end_v1")
+    model.save_pretrained("/data2/finetuned_llms/end_to_end_v2_phonemes_only")  # Local saving
+    tokenizer.save_pretrained("/data2/finetuned_llms/end_to_end_v2_phonemes_only")
 except:
     breakpoint()
     
