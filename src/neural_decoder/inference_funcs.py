@@ -18,6 +18,7 @@ def evaluate_model(
     fill_max_day: bool = False,   # (kept for compatibility; unused here)
     verbose: bool = True
 ) -> Tuple[Dict[str, List[Any]], float, List[float]]:
+    
     """
     Minimal evaluation: runs `model` over `partition`, collects outputs, and computes CER.
     Returns (model_outputs, overall_CER, per_day_CER_list).
@@ -41,6 +42,7 @@ def evaluate_model(
     outputs = {
         "logits": [], "logitLengths": [], "trueSeqs": [], "decodedSeqs": [], "transcriptions": []
     }
+    
     if have_second:
         outputs.update({
             "logits2": [], "logitLengths2": [], "trueSeqs2": [], "decodedSeqs2": []

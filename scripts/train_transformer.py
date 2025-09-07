@@ -9,7 +9,7 @@ from neural_decoder.bit import BiT_Phoneme
 
 # === CONFIGURATION ===
 BASE_PATHS = {
-    'obi': '/data/willett_data',
+    'obi': '/data3/willett_data',
     'leia': '/home3/skaasyap/willett'
 }
 
@@ -31,11 +31,13 @@ DATA_PATHS = {
 }
 
 
+fold_number = 2
+
 seed_list = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_char_phoneme"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transfomer_characters_phonemes_80ms"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "time_masked_transfomer_fold_2"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -43,6 +45,10 @@ for seed in seed_list:
     model_name = f"{model_name_base}_seed_{seed}"
     output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
     dataset_path = DATA_PATHS[DATA_PATH_KEY]
+    
+    if fold_number is not None:
+        dataset_path = f"{dataset_path}_fold_number_{fold_number}"
+    
 
     # Create config dictionary
     args = {
@@ -59,8 +65,8 @@ for seed in seed_list:
         'mlp_dim_ratio': 4,
         'dim_head': 64,
         'T5_style_pos': True,
-        'nClasses': 32,
-        'nClasses_2': 40, # set to None if only one output head 
+        'nClasses': 40,
+        'nClasses_2': None, # set to None if only one output head 
         'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'constantOffsetSD': 0.05,
@@ -78,7 +84,7 @@ for seed in seed_list:
         'milestones': [150],
         'gamma': 0.1,
         'extra_notes': "",
-        'device': 'cuda:0',
+        'device': 'cuda:2',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
