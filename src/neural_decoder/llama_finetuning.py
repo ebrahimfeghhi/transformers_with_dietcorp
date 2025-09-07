@@ -53,8 +53,8 @@ model = FastLanguageModel.get_peft_model(
 
 from datasets import load_dataset
 
-base_path = '/data2/jsonl/train.jsonl'
-model_save_name = "/data2/finetuned_llms/end_to_end_v3_decode_to_phonemes"
+base_path = '/data2/jsonl/val_with_gt.jsonl'
+model_save_name = "/data2/finetuned_llms/end_to_end_v4_val_gt"
 
 data_files = {
     'train': base_path

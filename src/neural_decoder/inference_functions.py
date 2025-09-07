@@ -18,6 +18,7 @@ def evaluate_model(
     fill_max_day: bool = False,   # (kept for compatibility; unused here)
     verbose: bool = True
 ) -> Tuple[Dict[str, List[Any]], float, List[float]]:
+    
     """
     Minimal evaluation: runs `model` over `partition`, collects outputs, and computes CER.
     Returns (model_outputs, overall_CER, per_day_CER_list).
@@ -121,7 +122,7 @@ def evaluate_model(
 
                 # Second head (if present)
                 if have_second:
-                    breakpoint()
+                    
                     tlen2 = int(y2_len[b].item())
                     true_seq2 = np.array(y2[b][:tlen2].cpu().numpy())
 
@@ -192,7 +193,10 @@ def load_bit_phoneme_model(folder: str, device: torch.device = torch.device("cud
     if 'mask_token_zero' not in args:
         args['mask_token_zero'] = False
         
-
+        
+    if 'nClasses_2' not in args:
+        args['nClasses_2'] = None
+        
     # Instantiate model
     model = BiT_Phoneme(
         patch_size=args['patch_size'],

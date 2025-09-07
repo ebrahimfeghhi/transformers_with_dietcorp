@@ -1,4 +1,5 @@
 import numpy as np
+
 def compute_wer(r, h):
     """
     Calculation of WER with Levenshtein distance.
@@ -70,9 +71,12 @@ def _cer_and_wer(decodedSentences, trueSentences, outputType='speech',
 
     cer = np.sum(allCharErr) / np.sum(allChar)
     wer = np.sum(allWordErr) / np.sum(allWord)
+    
+    per_sentence_wer = np.array(allWordErr) / np.array(allWord)
 
     if not returnCI:
-        return cer, wer
+        return cer, wer, per_sentence_wer
+    
     else:
         allChar = np.array(allChar)
         allCharErr = np.array(allCharErr)
