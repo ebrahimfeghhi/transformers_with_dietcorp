@@ -10,7 +10,7 @@ from neural_decoder.bit import BiT_Phoneme
 # === CONFIGURATION ===
 BASE_PATHS = {
     'obi': '/data3/willett_data',
-    'leia': '/home3/skaasyap/willett'
+    'leia': '/data/willett_data/'
 }
 
 DATA_PATHS = {
@@ -31,13 +31,13 @@ DATA_PATHS = {
 }
 
 
-fold_number = 2
+fold_number = 4
 
 seed_list = [0,1,2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
+SERVER = 'leia'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transfomer_fold_2"
+model_name_base = "time_masked_transfomer_fold_4"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -58,7 +58,7 @@ for seed in seed_list:
         'modelName': model_name,
         'maxDay': None,
         'restricted_days': [],
-        'patch_size': (4, 256),
+        'patch_size': (5, 256),
         'dim': 384,
         'depth': 5,
         'heads': 6,
@@ -107,7 +107,6 @@ for seed in seed_list:
     torch.manual_seed(args["seed"])
     np.random.seed(args["seed"])
     
-
     # Instantiate model
     model = BiT_Phoneme(
         patch_size=args['patch_size'],
