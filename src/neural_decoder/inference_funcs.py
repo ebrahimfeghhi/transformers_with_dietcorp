@@ -29,10 +29,8 @@ def evaluate_model(
     # Decide day indices
     if partition == "competition":
         day_indices = [4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20]
-    elif partition == "test":
+    elif partition == "test" or partition=="train":
         day_indices = list(range(len(loadedData[partition])))
-    else:
-        raise ValueError(f"Unknown partition '{partition}'")
 
     restricted_days = set(args.get("restricted_days", []))
     ventral_6v_only = bool(args.get("ventral_6v_only", False))
@@ -193,7 +191,10 @@ def load_bit_phoneme_model(folder: str, device: torch.device = torch.device("cud
     if 'mask_token_zero' not in args:
         args['mask_token_zero'] = False
         
-
+    if 'nClasses_2' not in args:
+        args['nClasses_2'] = None
+    
+    
     # Instantiate model
     model = BiT_Phoneme(
         patch_size=args['patch_size'],
@@ -226,8 +227,9 @@ def load_bit_phoneme_model(folder: str, device: torch.device = torch.device("cud
     return model, args
 
 
-def decode_outputs(outputs, num_examples=880):
-    # Character vocab and mappings
+def decode_outputs(outputs, mode='phoneme'):
+    
+       # Character vocab and mappings
     CHAR_VOCAB = [
         "<sp>",          # space token
         "!", ",", ".", "?", "'",   # punctuation (incl. apostrophe)
@@ -254,32 +256,27 @@ def decode_outputs(outputs, num_examples=880):
 
     def idToPhoneme(i: int) -> str:
         return PHONE_DEF_SIL[i]
-
-    # Lists to collect outputs
-    phoneme_decoded_strs = []
-    character_decoded_strs = []
-    true_seq_strs = []
-
-    # Iterate and decode
-    for i in range(min(num_examples, len(outputs['decodedSeqs']))):
-        character_decoded = outputs['decodedSeqs'][i]
-        phoneme_decoded = outputs['decodedSeqs2'][i]
-
-        character_decoded_str = "".join(
-            idToChar(idx - 1) for idx in character_decoded
-        ).replace('<sp>', " ")
-
-        phoneme_decoded_str = "".join(
-            idToPhoneme(idx - 1) for idx in phoneme_decoded
-        ).replace('SIL', " ")
-
-        true_seq_str = outputs['transcriptions'][i]
-
-        phoneme_decoded_strs.append(phoneme_decoded_str)
-        character_decoded_strs.append(character_decoded_str)
-        true_seq_strs.append(true_seq_str)
-
-    return phoneme_decoded_strs, character_decoded_strs, true_seq_strs
+    
+    
+    decoded_text_list = []
 
 
+    for decoded_text in outputs:
+        
+        if mode == 'char':
 
+            decoded_str = "".join(
+                idToChar(idx - 1) for idx in decoded_text
+            ).replace('<sp>', " ")
+        
+        else:
+            
+            decoded_str = "".join(
+                idToPhoneme(idx - 1) for idx in decoded_text
+            ).replace('SIL', " ")
+
+            
+        decoded_text_list.append(decoded_str)
+        
+    return decoded_text_list
+        

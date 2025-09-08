@@ -1,8 +1,6 @@
 import unsloth
 import torch
 import numpy as np
-
-
 from unsloth import FastLanguageModel
 import torch
 max_seq_length = None # Choose any! We auto support RoPE Scaling internally!
@@ -53,8 +51,8 @@ model = FastLanguageModel.get_peft_model(
 
 from datasets import load_dataset
 
-base_path = '/data2/jsonl/val_with_gt.jsonl'
-model_save_name = "/data2/finetuned_llms/end_to_end_v4_val_gt"
+base_path = '/data2/jsonl/cross_val_and_train.jsonl'
+model_save_name = "/data2/finetuned_llms/end_to_end_v5_with_cross_val"
 
 data_files = {
     'train': base_path
@@ -65,8 +63,8 @@ dataset = load_dataset(
     data_files=data_files
 )
 
-seed = 3407
-dataset["train"] = dataset["train"].shuffle(seed=seed)
+#seed = 3407
+#dataset["train"] = dataset["train"].shuffle(seed=seed)
 
 print(dataset['train']['text'][0])
 print("Model save name: ", model_save_name)
