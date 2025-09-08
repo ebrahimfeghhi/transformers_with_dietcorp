@@ -1,0 +1,1164 @@
+[33mcommit dab5f34fef36f5e49141a1880ea11027f8fee678[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Sep 7 16:42:11 2025 -0700
+
+    K fold cross validation for LLM fine-tuning
+
+[33mcommit 9c3b794c7533fe04167ec772e19ef45f3829b840[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Sep 3 16:16:10 2025 -0700
+
+    Store changes
+
+[33mcommit dec982f2851459ffe77962da5e69e0116ecffe18[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Aug 31 14:57:51 2025 -0700
+
+    char + phoneme
+
+[33mcommit 3caa43c6628977b5127aafc07e30b7c69cbdb07f[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Aug 18 15:41:21 2025 -0700
+
+    char
+
+[33mcommit a494b3ae1e5ab2e6ab14c0427909a9c933910480[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Aug 18 14:14:53 2025 -0700
+
+    Decode to characters
+
+[33mcommit 686259a7177bdf56ea497d36e747e2852b53e657[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Jul 28 20:28:46 2025 -0700
+
+    LEia changes
+
+[33mcommit ee1f8d40e5b4ce8af92cc499a71f1ad600ea2479[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat Jul 26 21:49:49 2025 -0700
+
+    NEURIPS
+
+[33mcommit c1b427b1365fd19b427e773209aa7e01650e0010[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Jul 25 22:38:42 2025 -0700
+
+    Running GRU SHORT
+
+[33mcommit 6ef627ab654dcf2c71c65123bb8b1911b6dbe81c[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Jul 25 14:30:30 2025 -0700
+
+    more cleaning
+
+[33mcommit 4db4b62cb71f394a1acadc34579c91fcd30307cf[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Jul 25 14:27:36 2025 -0700
+
+    Fixing transformer
+
+[33mcommit 7408f79c2208e649d3e65a6c532545e6f8af85d1[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Jul 25 11:56:48 2025 -0700
+
+    Look back
+
+[33mcommit def95862447f61f7c25b1aa86c441857c3552810[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Jul 25 06:37:19 2025 -0700
+
+    Leia updates July 25th
+
+[33mcommit aa5402fd6de1efad81e1fc9af638559537bb0b00[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Jul 24 10:32:19 2025 -0700
+
+    neurips_update_1
+
+[33mcommit 4bed2578475d44293649da50af0b55da137dcae4[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jul 23 17:20:27 2025 -0700
+
+    Leia push
+
+[33mcommit 8d23ff9249001f586311fbe5211e02c9544c542b[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jul 23 17:06:27 2025 -0700
+
+    minor updates
+
+[33mcommit 41872b80f443e45c7eb3c3c1cb5515cac254e3c6[m[33m ([m[1;32mnemo[m[33m)[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jul 23 09:21:54 2025 -0700
+
+    cleaned up lm more
+
+[33mcommit 2a3fefbbfc2c5393eb47a0f48394fd9875b01c0e[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jul 23 09:12:52 2025 -0700
+
+    cleaned up lm
+
+[33mcommit b057371a8e03c4575c064ff044e9353ade9f3c77[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jul 23 08:44:07 2025 -0700
+
+    renaming files
+
+[33mcommit f89e64aca714147fa4d97243bae81965f07a9d8e[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Jul 22 12:48:23 2025 -0700
+
+    Linderman Lab corrections
+
+[33mcommit e61e26f24892f307b159046c8af23cd1dc75c970[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Jul 3 15:18:50 2025 -0700
+
+    Updated readmne
+
+[33mcommit 45bd1cd59f31a61016e5c22d9b8de8cc38bf183b[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jul 2 15:31:03 2025 -0700
+
+    Ready to push
+
+[33mcommit e0cea83b03f9efc048167cd56c4de27776fc5b58[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Jun 17 12:38:10 2025 -0700
+
+    MOre changes
+
+[33mcommit 7653f0ace50f15f0700d6d243ff3ee4fb89b2f9c[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Jun 12 20:20:26 2025 -0700
+
+    i think i got it
+
+[33mcommit fbd77ee46b8b278b0b3d25af6ba0fba8ce034dcb[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jun 11 23:13:17 2025 -0700
+
+    New held out day perf
+
+[33mcommit b66797f34086b6908e8a0f9358594170934ffaf1[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Jun 9 22:30:16 2025 -0700
+
+    TTA weeee
+
+[33mcommit 0997e09d6e085a5508e8f74cb133f2654fc31c39[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Jun 9 20:36:54 2025 -0700
+
+    TTA weeee
+
+[33mcommit 4be5642e7bd11284c91a804e17d17d2a4d76ddbd[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Jun 9 15:23:43 2025 -0700
+
+    YOOO ITS TOO LIT
+
+[33mcommit dec8065e9f57d2968474d0dc8450d435284ed264[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat Jun 7 23:37:27 2025 -0700
+
+    Working
+
+[33mcommit 834494aa516e6deff1e513c825410429227c440d[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jun 4 22:45:23 2025 -0700
+
+    woo
+
+[33mcommit 99ae1019bdfc102b45dab72357da8b84cb99ed05[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Jun 4 20:42:45 2025 -0700
+
+    TTA
+
+[33mcommit 29f8a17e0bc170ec579b5ce67a4619444122d0fc[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:30:46 2025 -0700
+
+    Readme
+
+[33mcommit 446a92058cb7e6483f65c466dd053408067b2a71[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:30:16 2025 -0700
+
+    Readme
+
+[33mcommit bc4052c7f2e3947d41fe106f83d732f00294ea8a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:19:42 2025 -0700
+
+    Readme
+
+[33mcommit f4f17e4ab9b60b877f33e15d523dbbf04a02d152[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:19:10 2025 -0700
+
+    Readme
+
+[33mcommit 040d9e99927dc2b4dd1e5dd0c087e3d8a6298c7d[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:18:03 2025 -0700
+
+    Readme
+
+[33mcommit 63c7fd1c5bc17457da56eb23ee1174552ba97fa9[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:16:47 2025 -0700
+
+    Readme
+
+[33mcommit 83ecc9905b784a62615345d2bd37885a0570b9b6[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 11:00:02 2025 -0700
+
+    Readme
+
+[33mcommit 4841908b0610204374d6d4774f537b054a918976[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 31 10:58:09 2025 -0700
+
+    README
+
+[33mcommit 86f642bc23ffee6534297b1f8d90d66a32f9954f[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 30 09:33:08 2025 -0700
+
+    Ignore LanguageModelDecoder and lm_decoder.so
+
+[33mcommit 524220a738ea19c5265bc41016ff81b234e7da27[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 30 09:30:58 2025 -0700
+
+    LM
+
+[33mcommit da2d0f428d82b8fef9a38751802b28a8eea24bee[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 29 15:19:17 2025 -0700
+
+    WORKOUT
+
+[33mcommit 1c13c088c179ad8323e1b86e64e019337615312e[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 29 11:45:42 2025 -0700
+
+    TTA
+
+[33mcommit fa5d19aeb874a6e9560fd4042b94742a8976dec4[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 23 20:04:55 2025 -0700
+
+    TTA
+
+[33mcommit 235c96792def7549b63880f73782e9a3bd5303d2[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 23 16:02:08 2025 -0700
+
+    TTA
+
+[33mcommit 598cb28e5bd20f6a7980007be7c258022fdb5e29[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 22 15:13:53 2025 -0700
+
+    readme
+
+[33mcommit 0acaf046d5f75401ddba9bc57a20dc7dee2748f1[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 22 15:13:18 2025 -0700
+
+    readme
+
+[33mcommit 1d3bc3c8e218cc35c27e4394ec65e747189cd82b[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 22 15:11:43 2025 -0700
+
+    readme
+
+[33mcommit e753f13d6aa87062498999e6309d34274d1c6a28[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 22 15:10:28 2025 -0700
+
+    readme
+
+[33mcommit 5ec8a123e7535de738d72cbef0d5838002ce63e3[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 21 14:24:27 2025 -0700
+
+    readme
+
+[33mcommit 7c7f6dc197e4ce26a4b3c311fd3450cb6bb3e20c[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 21 14:23:27 2025 -0700
+
+    readme
+
+[33mcommit 7544359861deeb449911c79d32da571706d590db[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 21 14:16:07 2025 -0700
+
+    readme
+
+[33mcommit 185c8ca177ef91814348942b5f5e81af85917234[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 21 14:14:31 2025 -0700
+
+    readme
+
+[33mcommit 075f42aeed5f5f695356f35f8483df8be6f33508[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 21 14:04:43 2025 -0700
+
+    READ ME
+
+[33mcommit c2367f5a3a1c80865f427ec49cc9fe303615c3fe[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon May 19 13:59:41 2025 -0700
+
+    Getting code together
+
+[33mcommit dd17aac71c4e87358b4b71492e665160143256d1[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 15 12:14:03 2025 -0700
+
+    MEMO
+
+[33mcommit 4fb0c25eb96dabf93572a94fde95fe913c09849a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 15 10:31:15 2025 -0700
+
+    Submit
+
+[33mcommit ac0f618daa9d98f01b749f171e9ab01c247a32fa[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue May 13 17:05:18 2025 -0700
+
+    Latest updates
+
+[33mcommit 3967214852e43d1144ba393ff91a9bed96fb6e44[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon May 12 02:10:40 2025 -0700
+
+    MEMO
+
+[33mcommit 115a31824f91784915fc28be9901ec8c3e21d77c[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun May 11 17:14:12 2025 -0700
+
+    Abstract day
+
+[33mcommit b7df554f66175a9cd1f7d9023df4b7161d5c4d8a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun May 11 00:10:58 2025 -0700
+
+    Figure 2 results
+
+[33mcommit 4d2b7f9461281fbb0d4d29586edb4e754c9348cb[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 10 19:24:11 2025 -0700
+
+    Idk
+
+[33mcommit a0bd04db59b4db2d16eb6a13cd179b91b3654ec0[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 9 23:44:55 2025 -0700
+
+    Really late night
+
+[33mcommit fcbdeee4ef9d9d8ea7c8291403c4d97254dd388a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 9 22:40:50 2025 -0700
+
+    Late nights
+
+[33mcommit 3b4a2a350f452b6a745b03e4907273f63a5a46ca[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 9 20:51:48 2025 -0700
+
+    After sauna
+
+[33mcommit fa721fb6951937ea26ceb32d90116384f9274301[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 9 16:39:51 2025 -0700
+
+    before sauna
+
+[33mcommit ac150404eae96fa8f8a56b0d69703f9ee2e68e3e[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 9 15:44:01 2025 -0700
+
+    LM code
+
+[33mcommit 089b7fb77db1c96ddca1d40ff3eb2c0237f369f7[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 8 13:01:36 2025 -0700
+
+    Fixed held out day testing for gru
+
+[33mcommit 83fdfa7feb1cc132246920e4331ea53398dbf812[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 7 21:52:46 2025 -0700
+
+    Moving
+
+[33mcommit 3b2fac65907aa962e1fde0823d29cc66de5d0639[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 7 21:45:12 2025 -0700
+
+    Figure
+
+[33mcommit d031fb45822a3b3c7df7106013f642e8d0536596[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed May 7 21:45:01 2025 -0700
+
+    Figure
+
+[33mcommit 3df4af92665ce1facfed8522de418709358fc87a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue May 6 21:30:16 2025 -0700
+
+    Figures code
+
+[33mcommit 8a6b48e1cdf386c190a45069f9dff7cf0b0dd4be[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue May 6 16:57:59 2025 -0700
+
+    latest commit
+
+[33mcommit 77e7bffc12805f50e791131830895437f86647a5[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon May 5 19:45:28 2025 -0700
+
+    Channel masking is back baby
+
+[33mcommit 30cfb407c55131d1678e0c8793d7ef75533c210b[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon May 5 10:18:25 2025 -0700
+
+    Updates yee
+
+[33mcommit c1ed99d164c9ac1b50bba77bff794208dfdb2669[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun May 4 23:37:15 2025 -0700
+
+    May the 4th be with you
+
+[33mcommit 9d6f96b8dce54abc0d0ad21a638fad6ca60ef9dd[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun May 4 21:18:04 2025 -0700
+
+    Changes
+
+[33mcommit 7dbaa55a8dfcde06ab715a81b8f1d13326c100a8[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 3 09:05:03 2025 -0700
+
+    Ablations sinusoid
+
+[33mcommit 5b6ec033eac9547640d1861b477450cf4e0632ee[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 3 08:44:20 2025 -0700
+
+    Running ablations
+
+[33mcommit 725f782df42abaa491776c11cade1a34ffdcb2ba[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat May 3 08:12:57 2025 -0700
+
+    Saturday updates, May 3rd
+
+[33mcommit 9a11e133930c1c8bfc772272f9339dbe08b3198a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 2 13:37:17 2025 -0700
+
+    Updates 2
+
+[33mcommit ba1377a5c4a481d44432f6d7bccc4eb6eb1c359b[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 2 13:34:45 2025 -0700
+
+    Updates
+
+[33mcommit 878206bfdeae3f6bc346dbf130eabe2b0c84d972[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 2 13:11:58 2025 -0700
+
+    Ventral 6v Only
+
+[33mcommit 109b47a46c5de1c1ccb9f6ca1835792751245316[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri May 2 12:27:57 2025 -0700
+
+    Channel drop
+
+[33mcommit 32d54908838ffedc88b094fc1bac3caac0ec939c[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 1 23:44:25 2025 -0700
+
+    days stuff
+
+[33mcommit 032a5d3229eadd7c450eb850ce6f510cb3a36e90[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 1 18:17:21 2025 -0700
+
+    Thursday push
+
+[33mcommit 836e0916e9a99e4558683b250ca1373e43af8d79[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 1 17:55:09 2025 -0700
+
+    Cleaning up code
+
+[33mcommit 1f5364849b1b3f23f7c6248a62f1b4feb25a807a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 1 09:05:11 2025 -0700
+
+    further cleaned up data notebook
+
+[33mcommit fe22fa2371b4e68ea356c3b730a9e648a671fce5[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu May 1 08:47:12 2025 -0700
+
+    Fixed format comp
+
+[33mcommit 384c3bb78e2d333c32f542dc40d36073348a2182[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 23:46:39 2025 -0700
+
+    Fixed weird training bug
+
+[33mcommit f26480f6d202f9925007d2bb36cd11a47bac31b7[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 19:49:38 2025 -0700
+
+    fixing
+
+[33mcommit c26acbb23116d86c5404a6ae5b68b06956417fd1[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 19:37:44 2025 -0700
+
+    measure memory
+
+[33mcommit 7cdaa70354bcadc895ba778d25a320876959ee7f[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 18:02:47 2025 -0700
+
+    Wandb init
+
+[33mcommit 764b03a575db28cc5a7e2cd414d7e49617753de8[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 17:56:22 2025 -0700
+
+    added wandb finish
+
+[33mcommit c05722e27890f3de010f4e7002f9e4d404636a2a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 17:13:19 2025 -0700
+
+    73 epoch GRU
+
+[33mcommit 259bc84ad6264d30c7a11581425a362d47234a47[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 09:35:00 2025 -0700
+
+    Changes to train model
+
+[33mcommit f60443d49761626103f6a2df2532d2624f030b09[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 30 08:10:05 2025 -0700
+
+    Fixed save ctc model
+
+[33mcommit d5a653258e2737705be176c1ecee86061235a99d[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 29 22:35:14 2025 -0700
+
+    Added saving CTC
+
+[33mcommit 3ad87ded1b90a7adc6c002377bebb0332a6bf2e2[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 29 19:07:36 2025 -0700
+
+    Held out days training
+
+[33mcommit ec026410b1abf01d4120e977656e359a5ec13807[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 29 17:31:11 2025 -0700
+
+    Added early stop
+
+[33mcommit 61bb3e4a8b4b75270e870ef008b10c6b94fd7fe6[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 29 16:57:14 2025 -0700
+
+    Daily update
+
+[33mcommit 28e068a6610ad2962ad6ffbe7480752bd1e4d83b[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 29 14:09:27 2025 -0700
+
+    Batch style training
+
+[33mcommit 88d2de8a405348237879e9266ec12c090859a910[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Apr 28 21:15:40 2025 -0700
+
+    See if I can improve the GRU
+
+[33mcommit f3099276e7577a408954e9894bdc7f3e4c3a8f68[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Apr 28 20:30:50 2025 -0700
+
+    Fixed things with gru model
+
+[33mcommit 0b17bd5c438fdc6d03c1a0a9b52bed447d25b8fa[m
+Author: skaasyap <skaasyap@g.ucla.edu>
+Date:   Mon Apr 28 13:58:39 2025 -0700
+
+    im da best
+
+[33mcommit 7bbcd2c348db4cf98281577dae01f40dbe868d02[m
+Author: skaasyap <skaasyap@g.ucla.edu>
+Date:   Mon Apr 28 13:29:54 2025 -0700
+
+    lm stuff
+
+[33mcommit 2451761c179853aa9d8b8a85bfe59e01556f1ab2[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 27 17:33:28 2025 -0700
+
+    Resume checkpoint training
+
+[33mcommit 1b5e74ee72b8be16e74a995ef59bdf5ca6872f85[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 27 10:54:00 2025 -0700
+
+    Running models again for WER
+
+[33mcommit 695fe94373dec33cff318f51d5b929500196b040[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 25 18:46:35 2025 -0700
+
+    Five days data
+
+[33mcommit e31b8eadb30c64d7063b8cf6336277f016179903[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 25 11:40:35 2025 -0700
+
+    Held out day code
+
+[33mcommit fd750250950d608b3e7a73e141bfe2f20e39c7b0[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 24 21:32:22 2025 -0700
+
+    running random seeds
+
+[33mcommit a6dd978485845781b62b418631d1c8dca4a4a6cf[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 24 17:26:30 2025 -0700
+
+    MEMO
+
+[33mcommit 7637f7b75fd4eefe18671b051d8a951bf870c423[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 24 16:04:27 2025 -0700
+
+    Simplying for MEMO
+
+[33mcommit e024d63146b47d54a48721356391bf44664fa5b6[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 23 23:47:01 2025 -0700
+
+    Wasn't running day specific
+
+[33mcommit 9a1a12568a70e5198c7ae03003993938921d1d13[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 23 15:04:54 2025 -0700
+
+    RUNNING MEMO
+
+[33mcommit b7e13c4c5b921c1ff8f667549242aedf1f2f4378[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 23 10:19:14 2025 -0700
+
+    Updates
+
+[33mcommit f260b5cc0a6988f06e448bd560450d789d4a93de[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 22 17:39:06 2025 -0700
+
+    Saving model and optim for memo
+
+[33mcommit ada120bb0bf16a8a310416c55e7a62d277a0a667[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Apr 21 22:03:40 2025 -0700
+
+    Trying more channel masking
+
+[33mcommit 13903914c2182f9d0d6905fa230b1bcb4cd487e6[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Apr 21 14:59:13 2025 -0700
+
+    Channel masking
+
+[33mcommit 65cf9844011d7d6ff2792d94f3da8990b3f77be7[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 20 21:03:17 2025 -0700
+
+    CTC REGULARIZED
+
+[33mcommit 6162cb1d8a29f694bdb9fd9fe07290aa78be2a23[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 20 18:40:23 2025 -0700
+
+    removed padded for regularized ctc
+
+[33mcommit 7017fceda99a624d25dd52c20300f09eafd5b945[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 20 10:20:02 2025 -0700
+
+    Added 1/2 scalar
+
+[33mcommit b85561128b9b81dea2c67e4796c09640880e8767[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 20 09:51:06 2025 -0700
+
+    CR-CTC
+
+[33mcommit 59319a8d0dec260f8ca31730847624d329443474[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Fri Apr 18 21:37:22 2025 -0700
+
+    Adapt not working
+
+[33mcommit 044422a85b8751255d5d2daa4d90da71b706e391[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 18 16:47:07 2025 -0700
+
+    Adapt module
+
+[33mcommit 83bfc27b1c36715d59752e49b26184d5151fc705[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 18 16:01:59 2025 -0700
+
+    Tuning betas
+
+[33mcommit 2c9e4a185a85b6a9c3ba4b5109fdce4d672a01d3[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 18 10:42:53 2025 -0700
+
+    Cosine warm
+
+[33mcommit e25c09d1ceaa89742f5092f67af11be76bb587ca[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 18 10:00:15 2025 -0700
+
+    Learning rate scheduling
+
+[33mcommit 1de78bd8dea4ec28c3e40df780d67710a25424c2[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 17 17:38:47 2025 -0700
+
+    Going to try MAE pretraining idea
+
+[33mcommit 7cba66caed4ff777b9e3e56ff683b95dc2dac30a[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Thu Apr 17 16:25:03 2025 -0700
+
+    MAE pretrain idea
+
+[33mcommit 8693c6f54882a199fd5a4bd6b5ead46644bc0bd4[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Thu Apr 17 10:00:12 2025 -0700
+
+    Running Joint
+
+[33mcommit 2ef7366073d5dd339c0f32f0ff6329756406d0ed[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 17 08:12:50 2025 -0700
+
+    Optim fixes pt 2
+
+[33mcommit d7097c731e598b5bc6672bee1761ac8cce077f8d[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Thu Apr 17 07:42:38 2025 -0700
+
+    Optimization updates
+
+[33mcommit 0b08d07c8c19ec043d14ef76f98e047b4abb31bb[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 16 19:52:59 2025 -0700
+
+    Fixing things
+
+[33mcommit 1c5ae938e57013ae4dec71720d4c1330151b3449[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 16 15:23:28 2025 -0700
+
+    Shreyas updates
+
+[33mcommit 244fc583317e3099030fe72365ce25611110a4cf[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 16 13:18:13 2025 -0700
+
+    Joint model
+
+[33mcommit 30a31f1d3ea6977a8fdc35108f7f72d31987e557[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 15 22:14:07 2025 -0700
+
+    Goodnight, mae running
+
+[33mcommit a5ea16a3f53674de953dc89eb61716e6d0236643[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 15 21:59:30 2025 -0700
+
+    MAE runs
+
+[33mcommit b968c4028408fe430034b4cfd194d8ccf342e56e[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 15 17:29:19 2025 -0700
+
+    Fixed bug, I think
+
+[33mcommit 3791dfebc623e3b64613023f42962d22b8e10c55[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Tue Apr 15 09:34:51 2025 -0700
+
+    Input dropout for GRU
+
+[33mcommit 8e61b21442795a95c1d95680a5898fe528ea1470[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Apr 14 20:32:56 2025 -0700
+
+    MAE
+
+[33mcommit d95aca79c1b6c091d203c7a555e5f6f030da54cd[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Mon Apr 14 14:31:38 2025 -0700
+
+    Leia updates
+
+[33mcommit 21a173b1e3e90607bc2cffd7a5bf67c698f03795[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 13 22:23:22 2025 -0700
+
+    SpecAug
+
+[33mcommit 0ddcfa32a53ce6fa6fccbd72d1c8c3d506586340[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 13 12:55:56 2025 -0700
+
+    T5 style pos
+
+[33mcommit 04f37c6fbf4783d9032c03a60be5c4b6866e3fcc[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 13 12:55:39 2025 -0700
+
+    Remove wandb logs from tracking
+
+[33mcommit 95eae20592832671d922e8a7d482e2d987389249[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 13 10:45:47 2025 -0700
+
+    Tuning ViT
+
+[33mcommit ecaebc38b0b630aea4205b8dba924f186bf3ec4a[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sun Apr 13 07:58:32 2025 -0700
+
+    Fixed causal mask
+
+[33mcommit 14f333c125cbb4cf1d7725910b844d3cc272eb17[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sat Apr 12 18:19:46 2025 -0700
+
+    MAE_TRAINER NOT UPDATED
+
+[33mcommit 72e929f7bc3f8a24ee7245d24e8f0b03944fcf35[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sat Apr 12 18:11:32 2025 -0700
+
+    Temporal patches pt 2
+
+[33mcommit 9f1c123bdae0ac9e43b57cf5f863ae043745e7b0[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sat Apr 12 17:33:43 2025 -0700
+
+    Temporal patches
+
+[33mcommit da2595d536745ea1b2fc888ad3febae8acf153ff[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Sat Apr 12 13:36:37 2025 -0700
+
+    Updated code
+
+[33mcommit a1dc3ded36be00369345ec0f66a4f36c78da1ad1[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Fri Apr 11 16:38:13 2025 -0700
+
+    Obi updates
+
+[33mcommit 20837ae078a06846ae6c5f353a90a65c7ba9bddf[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Fri Apr 11 15:39:49 2025 -0700
+
+    Obi Updates
+
+[33mcommit a7eae5391d754182262545f9dc30b518da3bc326[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Fri Apr 11 14:54:17 2025 -0700
+
+    Leia code
+
+[33mcommit e1384e2bc38f9d605578d0c5216ee3eae8a6da4e[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 10 23:22:21 2025 -0700
+
+    3 masks
+
+[33mcommit f7012bebd2f9ef7e3a297dff7636dff81dc06351[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 10 20:03:44 2025 -0700
+
+    Moving along
+
+[33mcommit fdd92eba7760baaacd32b323c0806641b0eb9a09[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Thu Apr 10 10:11:16 2025 -0700
+
+    Day specific
+
+[33mcommit b30dfa0464942a4ebdab6bd04c465f46cbc6d420[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 9 20:09:07 2025 -0700
+
+    Hi
+
+[33mcommit 167784db0f4534c6bcd5957bc332642e4ab11b3b[m
+Merge: 8d783a7 e99e4eb
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 9 14:14:11 2025 -0700
+
+    Everything ok
+
+[33mcommit e99e4ebd2477ca5cb10374d74769166749956a45[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 14:00:06 2025 -0700
+
+    Restored GRU model
+
+[33mcommit 751f1d27a7df941db531011ca29fa691466773c1[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 13:41:10 2025 -0700
+
+    making sure
+
+[33mcommit 50556990897befa925048e015de15656bdaf29ee[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 13:22:26 2025 -0700
+
+    Gaussian smooth
+
+[33mcommit faec42f9065628ff88c3efaf8d21f56e97aaac09[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 13:21:21 2025 -0700
+
+    Gaussian changes
+
+[33mcommit 8606e622d1d6876f7b4d565cb58056abfcac5724[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 13:12:49 2025 -0700
+
+    Added gitignore for saved models
+
+[33mcommit d5a47bc577b8b79e488636d6ffbd9229f4231049[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 13:08:38 2025 -0700
+
+    R2
+
+[33mcommit 8d783a73e5f49eb81e7b9319c2a91abfb753c180[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Apr 9 13:03:39 2025 -0700
+
+    Gaussian Smooth
+
+[33mcommit 92f24cd8523cf5d381f91e0409094da462290044[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 11:52:13 2025 -0700
+
+    train_mae
+
+[33mcommit ce563414b362f8eb0b6d28c5c9865d3938371926[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Wed Apr 9 11:23:19 2025 -0700
+
+    updates
+
+[33mcommit 20d03010d53b3e328763826a096aec88cb693046[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Tue Apr 8 17:23:43 2025 -0700
+
+    hi
+
+[33mcommit 827dcf8147f424d0438ef9dbadaed5d729cf19e6[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Tue Apr 8 17:19:59 2025 -0700
+
+    hi
+
+[33mcommit 7f5835ff3e544bdeff0030779235308e3d255451[m
+Author: Shreyas <skaasyap@g.ucla.edu>
+Date:   Tue Apr 8 02:24:48 2025 -0700
+
+    fixed bug in making data
+
+[33mcommit 898cae2fa204c938480698922ac35680ee343b56[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Mon Apr 7 20:58:32 2025 -0700
+
+    File changes
+
+[33mcommit c1ab4d332e4b8fed4959d9a4ab3583ba7cf0de2b[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Mon Apr 7 18:21:38 2025 -0700
+
+    MAE
+
+[33mcommit b198fe7bb5010eefee6bc3d4c53080e01e1d2a78[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 6 23:42:55 2025 -0700
+
+    Bugs
+
+[33mcommit 62f29b371157d7e600695b3e77bf597fe033a12e[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 6 23:09:39 2025 -0700
+
+    Running MAE
+
+[33mcommit 72a3cf1110761d52f49c084b7dede3fd8182394f[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 6 20:53:41 2025 -0700
+
+    some changes
+
+[33mcommit 0e24a849c86a97219bd062f5eb929de6ba1db7dc[m[33m ([m[1;31morigin/mae[m[33m)[m
+Author: Shreyas <skaasyap@g.ucla.edu>
+Date:   Sun Apr 6 20:38:21 2025 -0700
+
+    mae script
+
+[33mcommit c9f30c1c893917cc7249dce1c328382054842f12[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Sun Apr 6 00:04:52 2025 -0700
+
+    BiT
+
+[33mcommit c4cb91d416c6c88db4e6d351edeca9a90505ae77[m[33m ([m[1;31morigin/leave_one_out_approach[m[33m)[m
+Author: Amarto <amarto.rajaram@gmail.com>
+Date:   Fri Mar 28 12:45:40 2025 -0700
+
+    more changes
+
+[33mcommit c5075e38527bf085ac4f39c233678fa55552d920[m
+Author: Amarto <amarto.rajaram@gmail.com>
+Date:   Fri Mar 28 12:21:44 2025 -0700
+
+    Updated with leave_one_out approach
+
+[33mcommit 7f1a6e455be6cb5f9be018c9e2f8fab6ddaf9bf9[m
+Author: Shreyas <skaasyap@g.ucla.edu>
+Date:   Thu Mar 27 18:26:26 2025 -0700
+
+    transformer stuff
+
+[33mcommit 071a96d036ec663dc634789a5e74fe97b7042e89[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Tue Mar 25 14:36:26 2025 -0700
+
+    Push again
+
+[33mcommit a88d34a1f653f11f79b0eef98c4ac937700e0e15[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Mon Mar 24 19:25:23 2025 -0700
+
+    Added dynamic batching
+
+[33mcommit c9d74159c26dc97104ebff0d074492977e5d04e6[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Mon Mar 24 14:56:32 2025 -0700
+
+    Added code for dynamic batching
+
+[33mcommit 9ec63c638771fb11b2617ac94d87d97152a79c0b[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Mon Mar 24 10:01:21 2025 -0700
+
+    Progress update
+
+[33mcommit 1ed101b3bc59f33b9bad530cb2a37ef66d60fc6b[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Fri Mar 21 17:27:16 2025 -0700
+
+    hubert
+
+[33mcommit f67849ca93013ff934e09e2c89c91b01b174f363[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Thu Mar 20 21:36:52 2025 -0700
+
+    Building out the idea
+
+[33mcommit 611b5406da6d14b9ca73266f95e0a961a63f56d5[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Thu Mar 20 15:31:12 2025 -0700
+
+    removed articulatory code
+
+[33mcommit b66f8b891ec0dfccc78ba018a0490a38420e2fcb[m
+Author: Ebrahim <efeghhi@gmail.com>
+Date:   Mon Mar 3 08:42:02 2025 -0800
+
+    Random file added
+
+[33mcommit 80ab0e50ff6cda5acd2d2596bdc1f2dcacc40af8[m
+Author: Justin Sheu <justinsheu3341@gmail.com>
+Date:   Fri Feb 21 15:18:40 2025 -0800
+
+    Fix minor errors when training
+
+[33mcommit b23d94d93920de1158168db61aa15d50bb1844d4[m
+Author: ebrahimfeghhi <efeghhi@gmail.com>
+Date:   Wed Feb 19 23:56:47 2025 -0800
+
+    Articulatory feature decoding
+
+[33mcommit e01c313fb88c2158e55724bef0922e795eb81f55[m
+Author: Chaofei Fan <stfan@stanford.edu>
+Date:   Wed Jul 31 17:11:55 2024 -0700
+
+    Fix indexing error
+
+[33mcommit fe4988711fc3acc59e3a68e8669fc226a0bae824[m
+Author: cfan <stfan@stanford.edu>
+Date:   Wed Apr 3 10:43:49 2024 -0700
+
+    Fix indexing
+
+[33mcommit 81b30c2aa8c71bb6883f9c36e98336b42306de18[m
+Author: Chaofei Fan <stfan@stanford.edu>
+Date:   Tue Jan 23 10:20:48 2024 -0800
+
+    Update .gitignore
+
+[33mcommit 387b743e3641eccf4d81353b957b1204c6d7a0e8[m
+Author: Chaofei Fan <stfan@stanford.edu>
+Date:   Tue Jan 23 10:18:31 2024 -0800
+
+    Init
