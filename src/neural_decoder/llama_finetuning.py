@@ -51,8 +51,8 @@ model = FastLanguageModel.get_peft_model(
 
 from datasets import load_dataset
 
-base_path = '/data2/jsonl/cross_val_and_train.jsonl'
-model_save_name = "/data2/finetuned_llms/end_to_end_v5_with_cross_val"
+base_path = '/data2/jsonl/cross_val.jsonl'
+model_save_name = "/data2/finetuned_llms/end_to_end_v6_corrected_prompt"
 
 data_files = {
     'train': base_path
