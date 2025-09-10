@@ -1,7 +1,7 @@
 import torch
 import pickle
 import os
-from neural_decoder.bit import BiT_Phoneme
+from bit import BiT_Phoneme
 import re
 import numpy as np
 import torch
