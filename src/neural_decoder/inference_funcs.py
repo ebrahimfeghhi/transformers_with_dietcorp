@@ -2,6 +2,7 @@ import torch
 import pickle
 import os
 from bit import BiT_Phoneme
+from model import GRUDecoder
 import re
 import numpy as np
 import torch
@@ -171,6 +172,61 @@ def evaluate_model(
 
 
 
+def load_gru(folder: str, device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")):
+    """
+    Load GRU model from a folder containing 'args' and 'modelWeights'.
+
+    Args:
+        folder (str): Path to folder containing 'args' (pickle) and 'modelWeights' (torch).
+        device (torch.device): Device to map the model onto.
+
+    Returns:
+        torch.nn.Module: The GRU model in eval mode, and the args file.
+    """
+    # Load args
+    args_path = os.path.join(folder, "args")
+    with open(args_path, "rb") as handle:
+        args = pickle.load(handle)
+        
+
+    # Ensure defaults
+    if 'max_mask_pct' not in args:
+        args['max_mask_pct'] = 0
+    if 'num_masks' not in args:
+        args['num_masks'] = 0
+    if 'input_dropout' not in args:
+        args['input_dropout'] = 0
+    if 'linderman_lab' not in args:
+        args['linderman_lab'] = False
+                
+    print("Loading GRU")
+    model = GRUDecoder(
+        neural_dim=args["nInputFeatures"],
+        n_classes=args["nClasses"],
+        hidden_dim=args["nUnits"],
+        layer_dim=args["nLayers"],
+        nDays=args['nDays'],
+        dropout=args["dropout"],
+        device=device,
+        strideLen=args["strideLen"],
+        kernelLen=args["kernelLen"],
+        gaussianSmoothWidth=args["gaussianSmoothWidth"],
+        bidirectional=args["bidirectional"],
+        input_dropout=args['input_dropout'], 
+        max_mask_pct=args['max_mask_pct'],
+        num_masks=args['num_masks'], 
+        linderman_lab=args['linderman_lab']
+    ).to(device)
+
+    # Load weights
+    ckpt_path = os.path.join(folder, "modelWeights")
+    state_dict = torch.load(ckpt_path, map_location=device)
+    model.load_state_dict(state_dict, strict=True)
+
+    model = model.to(device)
+    model.eval()
+    return model, args
+
 def load_bit_phoneme_model(folder: str, device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")):
     """
     Load a BiT_Phoneme model from a folder containing 'args' and 'modelWeights'.
@@ -180,7 +236,7 @@ def load_bit_phoneme_model(folder: str, device: torch.device = torch.device("cud
         device (torch.device): Device to map the model onto.
 
     Returns:
-        torch.nn.Module: The loaded BiT_Phoneme model in eval mode.
+        torch.nn.Module: The loaded BiT_Phoneme model in eval mode, and the args file.
     """
     # Load args
     args_path = os.path.join(folder, "args")
@@ -225,6 +281,7 @@ def load_bit_phoneme_model(folder: str, device: torch.device = torch.device("cud
     model = model.to(device)
     model.eval()
     return model, args
+
 
 
 def decode_outputs(outputs, mode='phoneme'):
