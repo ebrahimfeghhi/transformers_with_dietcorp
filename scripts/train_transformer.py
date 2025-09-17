@@ -26,17 +26,16 @@ DATA_PATHS = {
     'leia_log_char': os.path.join(BASE_PATHS['leia'], 'data_log_both_char'),
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days'), 
     'leia_log_held_out_1': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_1'), 
-    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2')
+    'leia_log_held_out_2': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days_2'),
+    'leia_log_char_phoneme': os.path.join(BASE_PATHS['leia'], 'data_log_both_char_and_phoneme')
 }
 
 
-fold_number = 4
-
 seed_list = [0,1,2,3]
 
-SERVER = 'obi'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transformer_cr_ctc_0.2"
+SERVER = 'leia'  # Change to 'leia' if needed
+DATA_PATH_KEY = f"{SERVER}_log_char_phoneme"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "time_masked_transformer_char+phoneme"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -45,10 +44,7 @@ for seed in seed_list:
     output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
     dataset_path = DATA_PATHS[DATA_PATH_KEY]
     
-    if fold_number is not None:
-        dataset_path = f"{dataset_path}_fold_number_{fold_number}"
     
-
     # Create config dictionary
     args = {
         'seed': seed,
@@ -64,8 +60,8 @@ for seed in seed_list:
         'mlp_dim_ratio': 4,
         'dim_head': 64,
         'T5_style_pos': True,
-        'nClasses': 40,
-        'nClasses_2': None, # set to None if only one output head 
+        'nClasses': 32,
+        'nClasses_2': 40, # set to None if only one output head 
         'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'constantOffsetSD': 0.05,
@@ -76,7 +72,7 @@ for seed in seed_list:
         'learning_scheduler': 'multistep',
         'lrStart': 0.001,
         'lrEnd': 0.001,
-        'batchSize': 32,
+        'batchSize': 64,
         'beta1': 0.90,
         'beta2': 0.999,
         'n_epochs': 250,
@@ -94,7 +90,7 @@ for seed in seed_list:
         'max_mask_pct' : 0.075, 
         'num_masks' : 20,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt', 
-        'consistency': True, 
+        'consistency': False, 
         'consistency_scalar': 0.2
     }
 

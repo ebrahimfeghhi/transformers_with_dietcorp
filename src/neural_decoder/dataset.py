@@ -31,6 +31,7 @@ class SpeechDataset(Dataset):
         self.text_seq_lens = []
         self.days = []
         self.transcriptions = []
+        
 
         # Always check first day to decide if text2 is present
         self.text2_present = "text2" in data[0]
