@@ -137,7 +137,7 @@ class BiT_Phoneme(nn.Module):
     def __init__(self, *, patch_size, dim, depth, heads, mlp_dim_ratio,
                  dim_head, dropout, input_dropout, gaussianSmoothWidth, 
                  nClasses, nClasses_2, T5_style_pos, max_mask_pct, num_masks, mask_token_zeros,
-                 num_masks_channels, max_mask_channels, dist_dict_path):
+                 num_masks_channels, max_mask_channels, dist_dict_path, consistency):
    
         super().__init__()
 
@@ -156,6 +156,7 @@ class BiT_Phoneme(nn.Module):
         self.num_masks_channels = num_masks_channels
         self.max_channels_to_mask = max_mask_channels
         self.dist_dict_path = dist_dict_path
+        self.consistency = consistency
         
         self.to_patch_embedding = nn.Sequential(
             Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', 
@@ -218,7 +219,23 @@ class BiT_Phoneme(nn.Module):
         if self.training and self.max_mask_pct > 0:
 
             x = self.to_patch(neuralInput)
-            x, _ = self.apply_time_mask(x, X_len)    
+            
+            if self.consistency:
+                
+                x1, mask1 = self.apply_time_mask(x, X_len)
+                x2, mask2 = self.apply_time_mask(x, X_len)
+
+                if torch.equal(mask1, mask2):
+                    print("Warning: mask1 is equal to mask2 — possible issue with randomness in SpecAugment")
+
+                # x is of shape B x P x D, stack x and x2 along batch dimension
+                x = torch.cat([x1, x2], dim=0)
+                
+            else:
+                
+                x, _ = self.apply_time_mask(x, X_len)    
+                
+                
             x = self.patch_to_emb(x)
 
         else:

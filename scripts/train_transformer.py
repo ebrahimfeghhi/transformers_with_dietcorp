@@ -35,9 +35,9 @@ fold_number = 4
 
 seed_list = [0,1,2,3]
 
-SERVER = 'leia'  # Change to 'leia' if needed
+SERVER = 'obi'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transfomer_fold_4"
+model_name_base = "time_masked_transformer_cr_ctc_0.2"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -94,7 +94,9 @@ for seed in seed_list:
         'max_mask_channels' : 0, # maximum number of channels to mask per mask
         'max_mask_pct' : 0.075, 
         'num_masks' : 20,
-        'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt'
+        'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt', 
+        'consistency': True, 
+        'consistency_scalar': 0.2
     }
 
     print(f"Using dataset: {args['datasetPath']}")
@@ -126,7 +128,8 @@ for seed in seed_list:
         mask_token_zeros=args['mask_token_zero'], 
         num_masks_channels=args['num_masks_channels'], 
         max_mask_channels=args['max_mask_channels'], 
-        dist_dict_path=args['dist_dict_path']
+        dist_dict_path=args['dist_dict_path'], 
+        consistency = args['consistency']
     ).to(args['device'])
 
     # Load pretrained model if specified

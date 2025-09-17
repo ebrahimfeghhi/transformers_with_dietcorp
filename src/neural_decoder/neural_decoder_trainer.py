@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from .dataset import getDatasetLoaders
 import torch.nn.functional as F
-from .loss import forward_ctc
+from .loss import forward_ctc, forward_cr_ctc
 
 
 import wandb
@@ -110,6 +110,7 @@ def trainModel(args, model):
     testCER2 = []
     startTime = time.time()
     train_loss = []
+    train_kl_loss = []
     
     for epoch in range(args["start_epoch"], args['n_epochs']):
         
@@ -153,8 +154,24 @@ def trainModel(args, model):
                 loss = loss1 + loss2
                 
             else:
+                
                 pred = model.forward(X, X_len, dayIdx)
-                loss = forward_ctc(pred, adjustedLens, y, y_len)
+                
+                if args['consistency']:
+                    
+                    ctc_loss, kl_loss = forward_cr_ctc(pred, adjustedLens.repeat(2), 
+                                                   torch.cat([y, y], dim=0), y_len.repeat(2))
+                    ctc_loss = ctc_loss*0.5
+                    kl_loss = kl_loss*0.5
+
+                    train_loss.append(ctc_loss.cpu().detach().numpy())
+                    train_kl_loss.append(kl_loss.cpu().detach().numpy())
+                    
+                    loss = ctc_loss + args['consistency_scalar']*kl_loss
+                    
+                else:
+                    
+                    loss = forward_ctc(pred, adjustedLens, y, y_len)
                 
             train_loss.append(loss.cpu().detach().numpy())
             
@@ -165,6 +182,8 @@ def trainModel(args, model):
         with torch.no_grad():
     
             avgTrainLoss = np.mean(train_loss)
+            avgTrainKLLoss = np.mean(train_kl_loss)
+            
             
             model.eval()
             allLoss = []
@@ -205,11 +224,12 @@ def trainModel(args, model):
                     loss1 = forward_ctc(pred,  adjustedLens, y,  y_len)
                     loss2 = forward_ctc(pred2, adjustedLens, y2, y2_len)  # <-- uses pred2, y2, y2_len
                     loss = loss1 + loss2
+                    allLoss.append(loss2.item())                                # <-- simpler & safe
+                    
                 else:
                     pred = model.forward(X, X_len, testDayIdx)            # <-- fixed dayIdx -> testDayIdx
                     loss = forward_ctc(pred, adjustedLens, y, y_len)
-                    
-                allLoss.append(loss.item())                                # <-- simpler & safe
+                    allLoss.append(loss.item())                                # <-- simpler & safe
 
                 for iterIdx in range(pred.shape[0]):
                     # no need to wrap with torch.tensor(...)
@@ -258,6 +278,9 @@ def trainModel(args, model):
             }
             if have_second:
                 log_dict["per"] = cer2   # (consider renaming to 'cer2')
+                
+            if args['consistency']:
+                log_dict['train_kl_loss'] = avgTrainKLLoss
                 
             wandb.log(log_dict)
 
