@@ -3,7 +3,6 @@ import torch
 import numpy as np
 
 from neural_decoder.neural_decoder_trainer import trainModel
-from neural_decoder.measure_memory import trainModel_mem
 
 from neural_decoder.bit import BiT_Phoneme
 
@@ -77,7 +76,7 @@ for seed in seed_list:
         'learning_scheduler': 'multistep',
         'lrStart': 0.001,
         'lrEnd': 0.001,
-        'batchSize': 64,
+        'batchSize': 32,
         'beta1': 0.90,
         'beta2': 0.999,
         'n_epochs': 250,
