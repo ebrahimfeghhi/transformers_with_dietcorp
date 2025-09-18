@@ -34,8 +34,8 @@ DATA_PATHS = {
 seed_list = [0,1,2,3]
 
 SERVER = 'leia'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log_char_phoneme"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transformer_char+phoneme"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "large_time_masked_transformer_short_training"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -43,7 +43,6 @@ for seed in seed_list:
     model_name = f"{model_name_base}_seed_{seed}"
     output_dir = os.path.join(BASE_PATHS[SERVER], 'outputs', model_name)
     dataset_path = DATA_PATHS[DATA_PATH_KEY]
-    
     
     # Create config dictionary
     args = {
@@ -55,13 +54,13 @@ for seed in seed_list:
         'restricted_days': [],
         'patch_size': (5, 256),
         'dim': 384,
-        'depth': 5,
+        'depth': 7,
         'heads': 6,
         'mlp_dim_ratio': 4,
         'dim_head': 64,
         'T5_style_pos': True,
-        'nClasses': 32,
-        'nClasses_2': 40, # set to None if only one output head 
+        'nClasses': 40,
+        'nClasses_2': None, # set to None if only one output head 
         'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
         'constantOffsetSD': 0.05,
@@ -75,11 +74,11 @@ for seed in seed_list:
         'batchSize': 64,
         'beta1': 0.90,
         'beta2': 0.999,
-        'n_epochs': 250,
-        'milestones': [150],
+        'n_epochs': 200,
+        'milestones': [100],
         'gamma': 0.1,
         'extra_notes': "",
-        'device': 'cuda:2',
+        'device': 'cuda:1',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,

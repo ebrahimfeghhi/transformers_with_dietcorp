@@ -289,6 +289,9 @@ def trainModel(args, model):
             torch.save(optimizer.state_dict(), args["outputDir"] + "/optimizer")
             torch.save(scheduler.state_dict(), args['outputDir'] + '/scheduler')
             
+        if len(testLoss) > 0 and avgDayLoss < np.min(testLoss):
+            torch.save(model.state_dict(), args["outputDir"] + "/modelWeights_ctc")
+            
         if have_second:
             if len(testCER2) > 0 and cer2 < np.min(testCER2):
                 torch.save(model.state_dict(), args["outputDir"] + "/modelWeights2")
