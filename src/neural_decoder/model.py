@@ -40,7 +40,7 @@ class GRUDecoder(nn.Module):
         Number of temporal masks to apply per sample when training.
     linderman_lab : bool, optional (default = False)
         If ``True``, append a post‑RNN block consisting of LayerNorm → Dropout → Linear → ReLU, as
-        described in Feghhi & Linderman (2024).
+        described in the Linderman Lab entry.
     """
 
     def __init__(
