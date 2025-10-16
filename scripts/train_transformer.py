@@ -34,8 +34,8 @@ DATA_PATHS = {
 seed_list = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transformer_short_ablation_no_log"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "time_masked_transformer_short_ablation_no_time_masking"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -61,9 +61,9 @@ for seed in seed_list:
         'T5_style_pos': True,
         'nClasses': 40,
         'nClasses_2': None, # set to None if only one output head 
-        'whiteNoiseSD': 0.2,
+        'whiteNoiseSD': 0.8,
         'gaussianSmoothWidth': 2.0,
-        'constantOffsetSD': 0.05,
+        'constantOffsetSD': 0.2,
         'l2_decay': 1e-5,
         'input_dropout': 0.2,
         'dropout': 0.35,
@@ -86,8 +86,8 @@ for seed in seed_list:
         'mask_token_zero' : False,
         'num_masks_channels' : 0, # number of masks per grid
         'max_mask_channels' : 0, # maximum number of channels to mask per mask
-        'max_mask_pct' : 0.075, 
-        'num_masks' : 20,
+        'max_mask_pct' : 0, 
+        'num_masks' : 0,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt', 
         'consistency': False, 
         'consistency_scalar': 0.2
