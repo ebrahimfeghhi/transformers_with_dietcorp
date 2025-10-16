@@ -8,7 +8,7 @@ from neural_decoder.bit import BiT_Phoneme
 
 # === CONFIGURATION ===
 BASE_PATHS = {
-    'obi': '/data3/willett_data',
+    'obi': '/data/willett_data',
     'leia': '/data/willett_data/'
 }
 
@@ -33,9 +33,9 @@ DATA_PATHS = {
 
 seed_list = [0,1,2,3]
 
-SERVER = 'leia'  # Change to 'leia' if needed
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "large_time_masked_transformer_short_training"
+SERVER = 'obi'  # Change to 'leia' if needed
+DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
+model_name_base = "time_masked_transformer_short_ablation_no_log"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -54,7 +54,7 @@ for seed in seed_list:
         'restricted_days': [],
         'patch_size': (5, 256),
         'dim': 384,
-        'depth': 7,
+        'depth': 5,
         'heads': 6,
         'mlp_dim_ratio': 4,
         'dim_head': 64,
@@ -74,11 +74,11 @@ for seed in seed_list:
         'batchSize': 64,
         'beta1': 0.90,
         'beta2': 0.999,
-        'n_epochs': 200,
-        'milestones': [100],
+        'n_epochs': 250,
+        'milestones': [150],
         'gamma': 0.1,
         'extra_notes': "",
-        'device': 'cuda:1',
+        'device': 'cuda:2',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,

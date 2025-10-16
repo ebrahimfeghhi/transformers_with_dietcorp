@@ -19,12 +19,12 @@ def trainModel(args, model):
     
     if len(args['wandb_id']) > 0:
         
-        wandb.init(project="End to End", entity="ebrahimfeghhi", 
+        wandb.init(project="Neural Decoder", entity="skaasyap-ucla", 
                    config=dict(args), name=args['modelName'], 
                    resume="must", id=args["wandb_id"])
     else:
-        wandb.init(project="End to End", 
-                   entity="ebrahimfeghhi", config=dict(args), name=args['modelName'])
+        wandb.init(project="Neural Decoder", 
+                   entity="skaasyap-ucla", config=dict(args), name=args['modelName'])
         
     
     os.makedirs(args["outputDir"], exist_ok=True)

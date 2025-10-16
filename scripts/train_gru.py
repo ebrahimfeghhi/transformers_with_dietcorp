@@ -7,7 +7,7 @@ from neural_decoder.measure_memory import trainModel_mem
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [0,1,2,3]
+SEEDS_LIST = [4,5,6,7,8,9]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -29,8 +29,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "baseline_gru_char"
-DATA_PATH_KEY = f"{SERVER}_log_char"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_shortened"
+DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -52,20 +52,20 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:1',
+        'device': 'cuda:0',
 
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
         'nUnits': 1024,
         'nLayers': 5,
-        'dropout': 0.40,
-        'input_dropout': 0,
+        'dropout': 0.35,
+        'input_dropout': 0.2,
         'bidirectional': False,
 
         # Data preprocessing
-        'whiteNoiseSD': 0.8,
-        'constantOffsetSD': 0.2,
+        'whiteNoiseSD': 0.2,
+        'constantOffsetSD': 0.05,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
         'kernelLen': 32,
@@ -80,10 +80,10 @@ for seed in SEEDS_LIST:
         'l2_decay': 1e-5,
         'beta1': 0.90,
         'beta2': 0.999,
-        'learning_scheduler': 'none',
-        'milestones': [400],
+        'learning_scheduler': 'multistep',
+        'milestones': [150],
         'gamma': 0.1,
-        'n_epochs': 73,
+        'n_epochs': 250,
         'batchSize': 64,
 
         # Optional loading
@@ -93,9 +93,10 @@ for seed in SEEDS_LIST:
         
         'ventral_6v_only': False, 
         
-        'max_mask_pct': 0.0, 
-        'num_masks': 0, 
-        'linderman_lab': False
+        'max_mask_pct': 0.075, 
+        'num_masks': 20, 
+        'linderman_lab': False, 
+        'consistency': False
     }
 
     # === Instantiate Model ===
