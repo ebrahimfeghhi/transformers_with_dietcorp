@@ -7,7 +7,7 @@ from neural_decoder.measure_memory import trainModel_mem
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [4,5,6,7,8,9]
+SEEDS_LIST = [0,1,2,3]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -29,8 +29,8 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_shortened"
-DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
+MODEL_NAME_BASE = "gru_nonoverlapping_inputs_4_4_hu_512"
+DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
 for seed in SEEDS_LIST:
@@ -57,7 +57,7 @@ for seed in SEEDS_LIST:
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
-        'nUnits': 1024,
+        'nUnits': 512,
         'nLayers': 5,
         'dropout': 0.35,
         'input_dropout': 0.2,
@@ -68,7 +68,7 @@ for seed in SEEDS_LIST:
         'constantOffsetSD': 0.05,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
-        'kernelLen': 32,
+        'kernelLen': 4,
         'restricted_days': [],
         'maxDay': None, # SET TO NONE IF NOT DOING HELD OUT DAYS TESTING
         'nDays': 24,
@@ -133,3 +133,5 @@ for seed in SEEDS_LIST:
 
     # === Train ===
     trainModel(args, model)
+    #trainModel_mem(args, model)
+

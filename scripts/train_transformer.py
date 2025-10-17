@@ -3,6 +3,8 @@ import torch
 import numpy as np
 
 from neural_decoder.neural_decoder_trainer import trainModel
+from neural_decoder.measure_memory import trainModel_mem
+
 
 from neural_decoder.bit import BiT_Phoneme
 
@@ -31,11 +33,11 @@ DATA_PATHS = {
 }
 
 
-seed_list = [0,1,2,3]
+seed_list = [0]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transformer_short_ablation_no_time_masking"
+model_name_base = "time_masked_transformer_memory"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -86,8 +88,8 @@ for seed in seed_list:
         'mask_token_zero' : False,
         'num_masks_channels' : 0, # number of masks per grid
         'max_mask_channels' : 0, # maximum number of channels to mask per mask
-        'max_mask_pct' : 0, 
-        'num_masks' : 0,
+        'max_mask_pct' : 0.075, 
+        'num_masks' : 20,
         'dist_dict_path': '/home3/skaasyap/willett/outputs/dist_dict.pt', 
         'consistency': False, 
         'consistency_scalar': 0.2
@@ -134,4 +136,5 @@ for seed in seed_list:
         
     
     # Train
-    trainModel(args, model)
+    #trainModel(args, model)
+    trainModel_mem(args, model)
