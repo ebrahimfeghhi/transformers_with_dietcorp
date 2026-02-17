@@ -7,7 +7,7 @@ from neural_decoder.measure_memory import trainModel_mem
 from neural_decoder.model import GRUDecoder
 
 # === CONFIGURATION ===
-SEEDS_LIST = [0,1,2,3]
+SEEDS_LIST = [4,5,6,7,8,9]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 
@@ -29,7 +29,7 @@ DATA_PATHS = {
     'leia_log_held_out': os.path.join(BASE_PATHS['leia'], 'data_log_both_held_out_days')
 }
 
-MODEL_NAME_BASE = "gru_nonoverlapping_inputs_4_4_hu_512"
+MODEL_NAME_BASE = "bidirectional_gru"
 DATA_PATH_KEY = f"{SERVER}"  # Change to e.g., "leia_log_held_out" if needed
 
 # === MAIN LOOP ===
@@ -52,23 +52,23 @@ for seed in SEEDS_LIST:
         'outputDir': output_dir,
         'datasetPath': dataset_path,
         'modelName': model_name,
-        'device': 'cuda:0',
+        'device': 'cuda:2',
 
         # Model hyperparameters
         'nInputFeatures': 256,
         'nClasses': 40,
-        'nUnits': 512,
+        'nUnits': 1024,
         'nLayers': 5,
-        'dropout': 0.35,
-        'input_dropout': 0.2,
-        'bidirectional': False,
+        'dropout': 0.40,
+        'input_dropout': 0,
+        'bidirectional': True,
 
         # Data preprocessing
-        'whiteNoiseSD': 0.2,
-        'constantOffsetSD': 0.05,
+        'whiteNoiseSD': 0.8,
+        'constantOffsetSD': 0.20,
         'gaussianSmoothWidth': 2.0,
         'strideLen': 4,
-        'kernelLen': 4,
+        'kernelLen': 32,
         'restricted_days': [],
         'maxDay': None, # SET TO NONE IF NOT DOING HELD OUT DAYS TESTING
         'nDays': 24,
@@ -80,10 +80,10 @@ for seed in SEEDS_LIST:
         'l2_decay': 1e-5,
         'beta1': 0.90,
         'beta2': 0.999,
-        'learning_scheduler': 'multistep',
-        'milestones': [150],
-        'gamma': 0.1,
-        'n_epochs': 250,
+        'learning_scheduler': 'None',
+        'milestones': [-1],
+        'gamma': 0,
+        'n_epochs': 73,
         'batchSize': 64,
 
         # Optional loading
@@ -93,8 +93,8 @@ for seed in SEEDS_LIST:
         
         'ventral_6v_only': False, 
         
-        'max_mask_pct': 0.075, 
-        'num_masks': 20, 
+        'max_mask_pct': 0.0, 
+        'num_masks': 0, 
         'linderman_lab': False, 
         'consistency': False
     }

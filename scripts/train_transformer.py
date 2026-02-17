@@ -33,11 +33,11 @@ DATA_PATHS = {
 }
 
 
-seed_list = [0]
+seed_list = [2,3,4,5]
 
 SERVER = 'obi'  # Change to 'leia' if needed
 DATA_PATH_KEY = f"{SERVER}_log"  # Change to e.g., "leia_log_held_out" if needed
-model_name_base = "time_masked_transformer_memory"
+model_name_base = "transformer_short_training_fixed"
 
 # === MAIN LOOP ===
 for seed in seed_list:
@@ -63,9 +63,9 @@ for seed in seed_list:
         'T5_style_pos': True,
         'nClasses': 40,
         'nClasses_2': None, # set to None if only one output head 
-        'whiteNoiseSD': 0.8,
+        'whiteNoiseSD': 0.2,
         'gaussianSmoothWidth': 2.0,
-        'constantOffsetSD': 0.2,
+        'constantOffsetSD': 0.05,
         'l2_decay': 1e-5,
         'input_dropout': 0.2,
         'dropout': 0.35,
@@ -80,7 +80,7 @@ for seed in seed_list:
         'milestones': [150],
         'gamma': 0.1,
         'extra_notes': "",
-        'device': 'cuda:2',
+        'device': 'cuda:1',
         'load_pretrained_model': "",
         'wandb_id': "",
         'start_epoch': 0,
@@ -128,6 +128,10 @@ for seed in seed_list:
         consistency = args['consistency']
     ).to(args['device'])
 
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f"Total Trainable Parameters: {total_params:,}")
+
     # Load pretrained model if specified
     if args['load_pretrained_model']:
         ckpt_path = os.path.join(args['load_pretrained_model'], 'modelWeights')
@@ -136,5 +140,5 @@ for seed in seed_list:
         
     
     # Train
-    #trainModel(args, model)
-    trainModel_mem(args, model)
+    trainModel(args, model)
+    #trainModel_mem(args, model)

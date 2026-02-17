@@ -75,26 +75,24 @@ elif load_lm:
     
 #models_to_run = ['gru_held_out_days_redo']
 all_models = ['transformer_shortened_held_out_days_big',
-              'transformer_held_out_big_0', 
-              'transformer_short_held_out_normal', 
-              'gru_shortened', 
-              'bidirectional_gru_time_masked']
+              'transformer_short_held_out_normal']
 
-idx = -1
+idx = 0
 models_to_run = [all_models[idx]]
 print(models_to_run)
 
-if idx == 0 or idx == 1:
-    data_file = '/home3/ebrahim/data/ptDecoder_ctc_both_held_out_days_big_0'
-elif idx == 2 or idx == -1:
-    data_file = '/home3/ebrahim/data/ptDecoder_ctc_both_held_out_days'
+
+if idx == 0:
+    data_file = '/data/willett_data/ptDecoder_ctc_both_held_out_days_big_0'
+elif idx == 1:
+    data_file = '/data/willett_data/ptDecoder_ctc_both_held_out_days'
 else:
     data_file = None
 
 shared_output_file = 'transformer_held_out_more_dietcorp_updated'
 val_save_file = 'SCRATCH'
 
-output_file = 'leia'
+output_file = 'obi'
 device = "cuda:2"
 
 if output_file == 'obi':
@@ -129,7 +127,7 @@ baseline_args = {
 
 # corp
 corp_args = {
-    'learning_rate': [1e-3], 
+    'learning_rate': [5e-4], 
     'repeats': [64],
     'adaptation_steps': 1,
     'WN+BS': True,
@@ -142,7 +140,7 @@ corp_args = {
     'num_masks': 20, 
     'freeze_patch': True,
     'freeze_linear': True,
-    'gru': True, 
+    'gru': False, 
     'max_day': None
 }
 
@@ -232,19 +230,17 @@ for n_augs in updated_args['repeats']:
                     max_mask_pct=args["max_mask_pct"],
                     num_masks=args["num_masks"]
                 ).to(device)
-                
-                
-                
+                   
             else:
                 
-                model = BiT_Phoneme(
+               model = BiT_Phoneme(
                     patch_size=args['patch_size'], dim=args['dim'], dim_head=args['dim_head'],
                     nClasses=args['nClasses'], depth=args['depth'], heads=args['heads'],
                     mlp_dim_ratio=args['mlp_dim_ratio'], dropout=updated_args['dropout'], input_dropout=updated_args['input_dropout'],
                     gaussianSmoothWidth=args['gaussianSmoothWidth'],
                     T5_style_pos=args['T5_style_pos'], max_mask_pct=updated_args['max_mask_pct'],
                     num_masks=updated_args['num_masks'], mask_token_zeros=args['mask_token_zero'], max_mask_channels=0,
-                    num_masks_channels=0, dist_dict_path=None
+                    num_masks_channels=0, dist_dict_path=None, nClasses_2=None, consistency=False
                 ).to(device)
 
             if data_file is None:
@@ -344,8 +340,8 @@ for n_augs in updated_args['repeats']:
                         
                         for _ in range(updated_args['adaptation_steps']):
                             
-                            #torch.cuda.synchronize(device)
-                            #t0 = time.perf_counter()
+                            torch.cuda.synchronize(device)
+                            t0 = time.perf_counter()
                     
                             logits = model(X, X_len, day_idx)
                             corp_loss = forward_ctc(logits, adjusted_len, y_pseudo, y_len_pseudo)
@@ -353,9 +349,9 @@ for n_augs in updated_args['repeats']:
                             corp_loss.backward()
                             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
                             optimizer.step()
-                            #torch.cuda.synchronize(device)
-                            #t1 = time.perf_counter()
-                            #times_ms.append((t1 - t0) * 1000.0)
+                            torch.cuda.synchronize(device)
+                            t1 = time.perf_counter()
+                            times_ms.append((t1 - t0) * 1000.0)
 
 
                     model.eval()
